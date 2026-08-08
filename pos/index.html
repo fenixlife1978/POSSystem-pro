@@ -154,7 +154,7 @@
         <button class="menu-command" data-perm="productos" onclick="openModule('productos')">Productos</button>
         <button class="menu-command" data-perm="servicios" onclick="openModule('servicios')">Servicios</button>
         <button class="menu-command" data-perm="cotizaciones" onclick="openModule('cotizaciones')">Cotizaciones</button>
-        <button class="menu-command" data-perm="devoluciones" onclick="openModule('devoluciones')">Devoluciones</button>
+        <button class="menu-command" data-perm="devoluciones" onclick="nuevaDevolucion()">Devoluciones</button>
         <button class="menu-command" data-perm="compras" onclick="openModule('compras')">Compras</button>
         <button class="menu-command" data-perm="inventario" onclick="openModule('inventario')">Inventario</button>
         <div class="menu-sep"></div>
@@ -195,7 +195,7 @@
     <button class="tool-btn" data-perm="buscar" onclick="openModule('buscar')" title="Buscar (F3)"><div class="tool-icon">🔍</div><div class="tool-label">F3 - Buscar</div></button>
     <button class="tool-btn" data-perm="buscar" onclick="openClientSearch()" title="Cliente (F4)"><div class="tool-icon">👤</div><div class="tool-label">F4 - Cliente</div></button>
     <button class="tool-btn" data-perm="cotizaciones" onclick="openModule('cotizaciones')" title="Cotización (F5)"><div class="tool-icon">📝</div><div class="tool-label">F5 - Cotización</div></button>
-    <button class="tool-btn" data-perm="devoluciones" onclick="openModule('devoluciones')" title="Devolución (F6)"><div class="tool-icon">↩</div><div class="tool-label">F6 - Devolución</div></button>
+    <button class="tool-btn" data-perm="devoluciones" onclick="nuevaDevolucion()" title="Devolución (F6)"><div class="tool-icon">↩</div><div class="tool-label">F6 - Devolución</div></button>
     <button class="tool-btn" data-perm="pos" onclick="cancelSale()" title="Anular Venta (F7)"><div class="tool-icon">❌</div><div class="tool-label">F7 - Anular</div></button>
     <button class="tool-btn" data-perm="pos" onclick="applyDiscount()" title="Descuento (F8)"><div class="tool-icon">%</div><div class="tool-label">F8 - Descuento</div></button>
     <button class="tool-btn" data-perm="pos" onclick="exitApp()" title="Salir (F12)"><div class="tool-icon">🚪</div><div class="tool-label">F12 - Salir</div></button>
@@ -215,7 +215,12 @@
           </tr>
           <tr>
             <td><label>Nombre:</label></td>
-            <td><input type="text" id="cliente-nombre" value="CONSUMIDOR FINAL" class="input-wide"></td>
+            <td>
+              <div class="prov-search">
+                <input type="text" id="cliente-nombre" value="CONSUMIDOR FINAL" class="input-wide" autocomplete="off" placeholder="Nombre, apellido o palabra clave..." oninput="buscarClientePos()" onkeydown="onClientePosKey(event)">
+                <div class="prov-results" id="cliente-pos-results"></div>
+              </div>
+            </td>
           </tr>
           <tr>
             <td><label>Dirección:</label></td>
@@ -327,11 +332,11 @@
   <div class="module-toolbar">
     <button class="mod-btn" onclick="nuevoCliente()"><span class="mod-icon">📄</span> Nuevo (F2)</button>
     <button class="mod-btn" onclick="guardarCliente()"><span class="mod-icon">💾</span> Guardar (F4)</button>
-    <button class="mod-btn" onclick="eliminarCliente()"><span class="mod-icon">❌</span> Eliminar (F6)</button>
+    <button class="mod-btn" data-perm="clientes-eliminar" onclick="eliminarCliente()"><span class="mod-icon">❌</span> Eliminar (F6)</button>
     <button class="mod-btn" onclick="document.getElementById('clientes-search').focus()"><span class="mod-icon">🔍</span> Buscar (F3)</button>
-    <button class="mod-btn" onclick="imprimirClientes()"><span class="mod-icon">🖨️</span> Imprimir (F7)</button>
+    <button class="mod-btn" data-perm="clientes-imprimir" onclick="imprimirClientes()"><span class="mod-icon">🖨️</span> Imprimir (F7)</button>
     <button class="mod-btn" onclick="seleccionarClienteEnPOS()"><span class="mod-icon">✅</span> Usar en POS</button>
-    <button class="mod-btn" onclick="exportarClientes()"><span class="mod-icon">📤</span> Exportar</button>
+    <button class="mod-btn" data-perm="clientes-exportar" onclick="exportarClientes()"><span class="mod-icon">📤</span> Exportar</button>
     <button class="mod-btn" onclick="closeWindow('clientes-window')"><span class="mod-icon">🚪</span> Salir (F12)</button>
   </div>
   <div class="module-search">
@@ -381,7 +386,7 @@
           <table class="form-table">
             <tr><td><label>R.I.F. completo:</label></td><td><input type="text" id="cli-rif" class="input-medium" placeholder="V-12345678-0"></td>
                 <td id="cli-fisc-extra-label"><label id="cli-representante-label">Representante Legal:</label></td><td id="cli-fisc-extra-input"><input type="text" id="cli-representante" class="input-medium"></td></tr>
-            <tr id="cli-natural-info"><td colspan="4"><small>Persona Natural: cédula de identidad con formato <b>V-/E- NNNNNNNN-N</b> (8 dígitos + dígito verificador).</small></td></tr>
+            <tr id="cli-natural-info"><td colspan="4"><small>Persona Natural: cédula de identidad con formato <b>V-/E- NNNNNNNN</b> (6 a 8 dígitos; el dígito verificador es opcional). El <b>R.I.F. es opcional</b>: puede registrarse solo con la cédula.</small></td></tr>
             <tr id="cli-juridica-info" class="hidden-panel"><td colspan="4"><small>Persona Jurídica: RIF con formato <b>J-/G- NNNNNNNNN-N</b> (9 dígitos + dígito verificador). Debe indicar el representante legal.</small></td></tr>
           </table>
         </div>
@@ -395,7 +400,7 @@
         </div>
         <div id="cli-panel-comerciales" data-panel class="hidden-panel">
           <table class="form-table">
-            <tr><td><label>Tipo de Cliente:</label></td><td><select id="cli-tipo"><option>Contado</option><option>Crédito</option></select></td>
+            <tr><td><label>Tipo de Cliente:</label></td><td><select id="cli-tipo" onchange="cambiarTipoCliente()"><option>Contado</option><option>Crédito</option><option>Mixto</option></select></td>
                 <td><label>Límite de Crédito:</label></td><td><input type="text" inputmode="decimal" id="cli-lim" class="input-small" value="0,00"><label>Días de Crédito:</label><input type="text" inputmode="decimal" id="cli-dias" class="input-small" value="0"></td></tr>
             <tr><td><label>Vendedor Asignado:</label></td><td colspan="3"><select id="cli-vend"><option>--- NINGUNO ---</option></select></td></tr>
           </table>
@@ -667,7 +672,7 @@
 <!-- ============== MÓDULO DEVOLUCIONES ============== -->
 <div class="window hidden" id="devoluciones-window">
   <div class="title-bar">
-    <div class="title-left"><span class="app-icon">🗔</span><span class="title-text">Devoluciones</span></div>
+    <div class="title-left"><span class="app-icon">🗔</span><span class="title-text">Devoluciones sobre Factura</span></div>
     <div class="title-right">
       <button class="win-btn">─</button><button class="win-btn">▢</button>
       <button class="win-btn" onclick="closeWindow('devoluciones-window')">✕</button>
@@ -675,47 +680,69 @@
   </div>
   <div class="module-toolbar">
     <button class="mod-btn" onclick="nuevaDevolucion()"><span class="mod-icon">📄</span> Nuevo (F2)</button>
-    <button class="mod-btn" onclick="registrarDevolucion()"><span class="mod-icon">💾</span> Registrar (F4)</button>
+    <button class="mod-btn" onclick="registrarDevolucion()" id="dev-registrar-btn"><span class="mod-icon">💾</span> Registrar (F4)</button>
     <button class="mod-btn" onclick="anularDevolucion()"><span class="mod-icon">❌</span> Anular (F6)</button>
-    <button class="mod-btn" onclick="document.getElementById('dev-cod').focus()"><span class="mod-icon">🔍</span> Agregar (F3)</button>
     <button class="mod-btn" onclick="imprimirDevolucion()"><span class="mod-icon">🖨️</span> Imprimir (F7)</button>
     <button class="mod-btn" onclick="closeWindow('devoluciones-window')"><span class="mod-icon">🚪</span> Salir (F12)</button>
   </div>
   <div class="dev-content">
     <div class="dev-form-col">
       <fieldset class="panel">
-        <legend>Datos Generales</legend>
-        <table class="form-table">
-          <tr><td><label>N° Devolución:</label></td><td><input type="text" id="dev-nro" class="input-small" disabled></td>
-              <td><label>Fecha:</label></td><td><input type="text" id="dev-fecha" class="input-small"></td></tr>
-          <tr><td><label>Cliente:</label></td><td colspan="3"><select id="dev-cliente"></select></td></tr>
-          <tr><td><label>Documento Origen:</label></td><td><select id="dev-doc-tipo"><option>FACTURA</option><option>COTIZACIÓN</option></select><input type="text" id="dev-doc-nro" class="input-small" placeholder="0000001"></td>
-              <td><label>Motivo:</label></td><td><select id="dev-motivo"><option>PRODUCTO DEFECTUOSO</option><option>ERROR DE VENTA</option><option>GARANTÍA</option><option>OTRO</option></select></td></tr>
-        </table>
+        <legend>1. Seleccionar Venta / Factura</legend>
+        <div class="dev-fact-search">
+          <input type="text" id="dev-fact-search" placeholder="Buscar por N° factura o cliente..." oninput="renderFacturasDev()">
+        </div>
+        <div class="dev-fact-list" id="dev-fact-list"></div>
       </fieldset>
       <fieldset class="panel">
-        <legend>Agregar Producto (F3)</legend>
-        <table class="form-table">
-          <tr><td><label>Código:</label></td><td><input type="text" id="dev-cod" class="input-medium"><button class="btn-mini" onclick="openProductSearch()">...</button></td></tr>
-          <tr><td><label>Cantidad:</label></td><td><input type="text" inputmode="decimal" id="dev-cant" class="input-medium" value="1"></td></tr>
-          <tr><td><label>Precio Unit. (Bs.):</label></td><td><input type="text" inputmode="decimal" id="dev-precio" class="input-medium"></td></tr>
+        <legend>2. Detalle de la Venta</legend>
+        <div class="dev-venta-info" id="dev-venta-info"></div>
+        <table class="grid">
+          <thead><tr><th>Código</th><th>Descripción</th><th class="r">Cant.</th><th class="r">Precio</th><th class="r">Total</th><th class="r">Devuelto</th></tr></thead>
+          <tbody id="dev-venta-lines"></tbody>
         </table>
-        <button class="btn-add-cart" onclick="agregarLineaDevolucion()">🛒 Agregar (Enter)</button>
+        <div class="dev-historial" id="dev-historial"></div>
       </fieldset>
     </div>
     <div class="dev-form-col">
       <fieldset class="panel">
-        <legend>Detalle de la Devolución</legend>
+        <legend>Datos de la Devolución</legend>
+        <table class="form-table">
+          <tr><td><label>N° Devolución:</label></td><td><input type="text" id="dev-nro" class="input-small" disabled></td></tr>
+          <tr><td><label>Fecha:</label></td><td><input type="text" id="dev-fecha" class="input-small" disabled></td></tr>
+          <tr><td><label>Factura:</label></td><td><input type="text" id="dev-factura" class="input-small" disabled></td></tr>
+          <tr><td><label>Cliente:</label></td><td><input type="text" id="dev-cliente" class="input-small" disabled></td></tr>
+          <tr><td><label>Motivo:</label></td><td><select id="dev-motivo"><option>PRODUCTO DEFECTUOSO</option><option>ERROR DE VENTA</option><option>GARANTÍA</option><option>OTRO</option></select></td></tr>
+        </table>
+      </fieldset>
+      <fieldset class="panel">
+        <legend>3. Producto a Devolver</legend>
+        <table class="form-table">
+          <tr><td><label>Producto:</label></td><td><select id="dev-prod"></select></td></tr>
+          <tr><td><label>Cantidad:</label></td><td><input type="text" inputmode="decimal" id="dev-cant" class="input-medium" value="1" onkeydown="if(event.key==='Enter'){agregarLineaDevolucion();}"></td></tr>
+        </table>
+        <button class="btn-add-cart" onclick="agregarLineaDevolucion()" id="dev-agregar-btn">🛒 Agregar a Devolución</button>
+      </fieldset>
+      <fieldset class="panel">
+        <legend>4. Detalle de la Devolución</legend>
         <table class="grid">
-          <thead><tr><th>Código</th><th>Descripción</th><th>Cantidad</th><th>Precio Unit.</th><th>Total</th><th></th></tr></thead>
+          <thead><tr><th>Código</th><th>Descripción</th><th class="r">Cant.</th><th class="r">Precio Unit.</th><th class="r">Total</th><th></th></tr></thead>
           <tbody id="dev-body"></tbody>
         </table>
       </fieldset>
       <div class="dev-totals">
         <div>Sub-Total: <b id="dev-sub">0,00</b></div>
         <div id="dev-iva-label">I.V.A.: <b id="dev-iva">0,00</b></div>
-        <div class="cotiz-total-row">TOTAL DEVOLUCIÓN: <b id="dev-total">0,00</b></div>
+        <div class="cotiz-total-row">TOTAL A DEVOLVER: <b id="dev-total">0,00</b></div>
       </div>
+      <fieldset class="panel">
+        <legend>5. Pago de la Devolución</legend>
+        <table class="form-table">
+          <tr><td><label>Método:</label></td><td><select id="dev-pago-metodo"></select></td></tr>
+          <tr><td><label>Monto a devolver:</label></td><td><input type="text" inputmode="decimal" id="dev-pago-monto" class="input-medium" oninput="updateDevPagoHint()"></td></tr>
+        </table>
+        <div class="dev-pago-hint" id="dev-pago-hint"></div>
+      </fieldset>
     </div>
   </div>
 </div>
@@ -783,8 +810,8 @@
     </div>
   </div>
   <div class="module-toolbar">
-    <button class="mod-btn" onclick="nuevaCompra()"><span class="mod-icon">📄</span> Nueva (F2)</button>
-    <button class="mod-btn" onclick="recibirCompra()"><span class="mod-icon">📦</span> Recibir (F4)</button>
+    <button class="mod-btn" onclick="nuevaCompra()"><span class="mod-icon">📄</span> Nueva Compra (F2)</button>
+    <button class="mod-btn" onclick="renderCompras()"><span class="mod-icon">🗂️</span> Historial de Compras (F4)</button>
     <button class="mod-btn" onclick="document.getElementById('compra-search').focus()"><span class="mod-icon">🔍</span> Buscar (F3)</button>
     <button class="mod-btn" onclick="imprimirCompra()"><span class="mod-icon">🖨️</span> Imprimir (F7)</button>
     <button class="mod-btn" onclick="closeWindow('compras-window')"><span class="mod-icon">🚪</span> Salir (F12)</button>
@@ -795,23 +822,25 @@
   </div>
   <table class="grid full-grid">
     <thead>
-      <tr><th>N° Compra</th><th>Fecha</th><th>Proveedor</th><th>Total</th><th>Estatus</th></tr>
+      <tr><th>N° Compra</th><th>Fecha</th><th>Proveedor</th><th>Total</th><th>Tipo</th><th>Pagado</th><th>Pendiente</th><th>Estatus</th></tr>
     </thead>
     <tbody id="compras-body"></tbody>
   </table>
   <div class="compras-detail">
     <fieldset class="panel">
       <legend>Detalle de la Compra</legend>
+      <div id="compra-detail-info" class="compra-detail-info"></div>
       <table class="grid" id="compras-detail-grid">
-        <thead><tr><th>Código</th><th>Descripción</th><th>Cantidad</th><th>Costo Unit.</th><th>Costo Base USD (BCV)</th><th>Total</th></tr></thead>
+        <thead><tr><th>Código</th><th>Descripción</th><th>Cantidad</th><th>Costo Unit.</th><th>Exento IVA</th><th>Subtotal</th><th>I.V.A.</th><th>Total</th></tr></thead>
         <tbody id="compras-detail-body"></tbody>
       </table>
     </fieldset>
     <div class="cotiz-totals">
       <div>Sub-Total: <b id="comp-sub">0,00</b></div>
-      <div>Descuento: <b id="comp-desc">0,00</b></div>
-      <div id="comp-iva-label">I.V.A.: <b id="comp-iva">0,00</b></div>
+      <div>I.V.A.: <b id="comp-iva">0,00</b></div>
       <div class="cotiz-total-row">TOTAL: <b id="comp-total">0,00</b></div>
+      <div>Total Pagado: <b id="comp-pagado">0,00</b></div>
+      <div>Pendiente (Crédito): <b id="comp-pendiente">0,00</b></div>
     </div>
   </div>
 </div>
@@ -1334,24 +1363,30 @@
     <fieldset class="panel">
       <legend>Agregar Producto</legend>
       <table class="form-table">
-        <tr><td><label>Código:</label></td><td><input type="text" id="coti-n-cod" class="input-medium"><button class="btn-mini" onclick="openProductSearch()">...</button></td></tr>
+        <tr><td><label>Producto (código o palabra clave):</label></td>
+            <td colspan="3">
+              <div class="prov-search">
+                <input type="text" id="coti-n-prod" class="input-wide" autocomplete="off" placeholder="Código, nombre o palabra clave..." oninput="buscarProductoCotizacion()" onkeydown="onProductoCotiKey(event)">
+                <div class="prov-results" id="coti-n-prod-results"></div>
+              </div>
+            </td></tr>
         <tr><td><label>Cantidad:</label></td><td><input type="text" inputmode="decimal" id="coti-n-cant" class="input-medium" value="1"></td></tr>
-        <tr><td><label>Precio Unit. (Bs.):</label></td><td><input type="text" inputmode="decimal" id="coti-n-precio" class="input-medium"></td></tr>
+        <tr><td><label>Precio Unit. (Bs.):</label></td><td><input type="text" inputmode="decimal" id="coti-n-precio" class="input-medium" oninput="mostrarPrecioCotiUsd()"> <span id="coti-n-precio-usd" class="usd-sub">= 0,00 $</span></td></tr>
       </table>
-      <button class="btn-add-cart" onclick="agregarLineaCotizacion()">🛒 Agregar</button>
+      <button class="btn-add-cart" onclick="agregarLineaCotizacion()">➕ Agregar a Cotización (Enter)</button>
     </fieldset>
     <fieldset class="panel">
       <legend>Detalle</legend>
       <table class="grid">
-        <thead><tr><th>Código</th><th>Descripción</th><th>Cantidad</th><th>Precio Unit.</th><th>Total</th><th></th></tr></thead>
+        <thead><tr><th>Código</th><th>Descripción</th><th>Cant.</th><th>Precio Bs.</th><th>Precio USD</th><th>Total Bs.</th><th>Total USD</th><th></th></tr></thead>
         <tbody id="coti-n-body"></tbody>
       </table>
     </fieldset>
     <div class="cotiz-totals">
-      <div>Sub-Total: <b id="coti-n-sub">0,00</b></div>
-      <div>Descuento: <b id="coti-n-desc">0,00</b></div>
-      <div id="coti-n-iva-label">I.V.A.: <b id="coti-n-iva">0,00</b></div>
-      <div class="cotiz-total-row">TOTAL: <b id="coti-n-total">0,00</b></div>
+      <div>Sub-Total: <b id="coti-n-sub">0,00</b> <span class="usd-sub">(<b id="coti-n-sub-usd">0,00</b> $)</span></div>
+      <div>Descuento: <b id="coti-n-desc">0,00</b> <span class="usd-sub">(<b id="coti-n-desc-usd">0,00</b> $)</span></div>
+      <div id="coti-n-iva-label">I.V.A.: <b id="coti-n-iva">0,00</b> <span class="usd-sub">(<b id="coti-n-iva-usd">0,00</b> $)</span></div>
+      <div class="cotiz-total-row">TOTAL: <b id="coti-n-total">0,00</b> <span class="usd-sub">(<b id="coti-n-total-usd">0,00</b> $)</span></div>
     </div>
     <div class="pago-actions">
       <button class="mod-btn" onclick="guardarCotizacion()">💾 Guardar Cotización</button>
@@ -1369,57 +1404,94 @@
       <button class="win-btn" onclick="closeWindow('compra-nueva-window')">✕</button>
     </div>
   </div>
-  <div class="module-content">
-    <fieldset class="panel">
-      <legend>Datos de la Compra</legend>
-      <table class="form-table">
-        <tr><td><label>N°:</label></td><td><input type="text" id="comp-n-nro" class="input-small" disabled></td>
-            <td><label>Fecha:</label></td><td><input type="text" id="comp-n-fecha" class="input-small"></td></tr>
-        <tr>
-          <td><label>Proveedor:</label></td>
-          <td colspan="3">
-            <div class="prov-search">
-              <input type="text" id="comp-n-proveedor" class="input-wide" placeholder="Escriba para buscar proveedor..." autocomplete="off" oninput="buscarProveedorCompra()">
-              <div class="prov-results" id="comp-n-prov-results"></div>
-            </div>
-          </td>
-        </tr>
-        <tr>
-          <td><label>Tasa BCV del día:</label></td><td><input type="text" inputmode="decimal" id="comp-n-tasa-bcv" class="input-small" title="Tasa oficial BCV (VES/USD)"></td>
-          <td><label>Moneda de Compra:</label></td><td><select id="comp-n-monedacompra" onchange="cambiarMonedaCompra()"><option value="USDT">USDT / Paralelo</option><option value="BCV">BCV</option></select></td>
-        </tr>
-        <tr>
-          <td><label>Valor Tasa de Compra:</label></td><td><input type="text" inputmode="decimal" id="comp-n-tasa-compra" class="input-small" title="Tasa USDT (si se selecciona USDT/Paralelo)"></td>
-          <td><label>Costeo Inventario:</label></td><td><select id="comp-n-costeo"><option value="promedio">Promedio Ponderado</option><option value="ultima">Última Compra</option></select></td>
-        </tr>
-        <tr><td><label>Observaciones:</label></td><td colspan="3"><input type="text" id="comp-n-obs" class="input-wide"></td></tr>
-      </table>
-    </fieldset>
-    <fieldset class="panel">
-      <legend>Agregar Producto</legend>
-      <table class="form-table">
-        <tr><td><label>Código:</label></td><td><input type="text" id="comp-n-cod" class="input-medium"><button class="btn-mini" onclick="openProductSearch()">...</button></td></tr>
-        <tr><td><label>Cantidad:</label></td><td><input type="text" inputmode="decimal" id="comp-n-cant" class="input-medium" value="1"></td></tr>
-        <tr><td><label>Costo Unit. Proveedor:</label></td><td><input type="text" inputmode="decimal" id="comp-n-costo" class="input-medium" placeholder="En la moneda de compra seleccionada"></td></tr>
-      </table>
-      <button class="btn-add-cart" onclick="agregarLineaCompra()">🛒 Agregar</button>
-    </fieldset>
-    <fieldset class="panel">
-      <legend>Detalle de la Recepción</legend>
-      <table class="grid comp-grid">
-        <thead><tr><th>Código</th><th>Producto</th><th>Cant.</th><th>Costo Prov. (USD)</th><th>Total (VES)</th><th>Costo Base USD (BCV)</th><th>Margen s/Venta %</th><th>P. Venta USD (BCV)</th><th></th></tr></thead>
-        <tbody id="comp-n-body"></tbody>
-      </table>
-    </fieldset>
-    <div class="cotiz-totals">
-      <div>Sub-Total (Bs.): <b id="comp-n-sub">0,00</b></div>
-      <div>I.V.A.: <b id="comp-n-iva">0,00</b></div>
-      <div>Sub-Total USD (BCV): <b id="comp-n-sub-bcv">0,00 $</b></div>
-      <div class="cotiz-total-row">TOTAL: <b id="comp-n-total">0,00</b></div>
+  <div class="module-content comp-n-content">
+    <div class="comp-n-col">
+      <fieldset class="panel">
+        <legend>1. Datos de la Compra</legend>
+        <table class="form-table">
+          <tr><td><label>N°:</label></td><td><input type="text" id="comp-n-nro" class="input-small" disabled></td>
+              <td><label>Fecha:</label></td><td><input type="text" id="comp-n-fecha" class="input-small"></td></tr>
+          <tr>
+            <td><label>Proveedor:</label></td>
+            <td colspan="3">
+              <div class="prov-search">
+                <input type="text" id="comp-n-proveedor" class="input-wide" placeholder="Escriba para buscar proveedor..." autocomplete="off" oninput="buscarProveedorCompra()">
+                <div class="prov-results" id="comp-n-prov-results"></div>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td><label>Tasa BCV del día:</label></td><td><input type="text" inputmode="decimal" id="comp-n-tasa-bcv" class="input-small" title="Tasa oficial BCV (VES/USD)" oninput="cambiarMonedaCompra()"></td>
+            <td><label>Moneda de Compra:</label></td><td><select id="comp-n-monedacompra" onchange="cambiarMonedaCompra()"><option value="USDT">USDT / Paralelo</option><option value="BCV">BCV</option></select></td>
+          </tr>
+          <tr>
+            <td><label>Valor Tasa de Compra:</label></td><td><input type="text" inputmode="decimal" id="comp-n-tasa-compra" class="input-small" title="Tasa USDT (si se selecciona USDT/Paralelo)" oninput="mostrarCostosProductoCompra()"></td>
+            <td><label>Costeo Inventario:</label></td><td><select id="comp-n-costeo"><option value="promedio">Promedio Ponderado</option><option value="ultima">Última Compra</option></select></td>
+          </tr>
+          <tr><td><label>Observaciones:</label></td><td colspan="3"><input type="text" id="comp-n-obs" class="input-wide"></td></tr>
+        </table>
+      </fieldset>
+      <fieldset class="panel">
+        <legend>2. Tipo de Compra y Condiciones de Pago</legend>
+        <table class="form-table">
+          <tr><td><label>Tipo de Compra:</label></td><td>
+            <select id="comp-n-tipo" onchange="cambiarTipoCompra()">
+              <option value="Contado">Contado</option>
+              <option value="Credito">Crédito</option>
+              <option value="Mixto">Mixto</option>
+            </select>
+          </td></tr>
+        </table>
+        <div id="comp-n-cond-fields" style="display:none">
+          <table class="form-table">
+            <tr><td><label>Días de Crédito:</label></td><td><input type="text" inputmode="numeric" id="comp-n-dias" class="input-small" value="30"></td></tr>
+          </table>
+        </div>
+        <div id="comp-n-mixto-fields" style="display:none">
+          <table class="form-table">
+            <tr><td><label>Monto Pagado (Bs.):</label></td><td><input type="text" inputmode="decimal" id="comp-n-pagob" class="input-medium" placeholder="0,00" oninput="recalcPagoMixto('bs')"></td></tr>
+            <tr><td><label>Monto Pagado (USD):</label></td><td><input type="text" inputmode="decimal" id="comp-n-pagousd" class="input-medium" placeholder="0,00" oninput="recalcPagoMixto('usd')"></td></tr>
+          </table>
+        </div>
+      </fieldset>
+      <fieldset class="panel">
+        <legend>3. Agregar Producto</legend>
+        <table class="form-table">
+          <tr><td><label>Producto (código o palabra clave):</label></td>
+              <td>
+                <div class="prov-search">
+                  <input type="text" id="comp-n-prod" class="input-wide" autocomplete="off" placeholder="Código, nombre o palabra clave..." oninput="buscarProductoCompra()" onkeydown="onProductoCompraKey(event)">
+                  <div class="prov-results" id="comp-n-prod-results"></div>
+                </div>
+              </td></tr>
+          <tr><td><label>Cantidad:</label></td><td><input type="text" inputmode="decimal" id="comp-n-cant" class="input-medium" value="1" oninput="mostrarCostosProductoCompra()"></td></tr>
+          <tr><td><label>Costo Unit. Proveedor (USD):</label></td><td><input type="text" inputmode="decimal" id="comp-n-costo" class="input-medium" placeholder="En la moneda de compra" oninput="mostrarCostosProductoCompra()"></td></tr>
+          <tr><td><label>Exento de IVA:</label></td><td><label><input type="checkbox" id="comp-n-exento"> Sí, esta línea no paga I.V.A.</label></td></tr>
+          <tr><td><label>Precio Anterior:</label></td><td><input type="text" id="comp-n-prev" class="input-medium" disabled></td></tr>
+          <tr><td><label>Precio Ponderado Actual:</label></td><td><input type="text" id="comp-n-pond" class="input-medium" disabled></td></tr>
+          <tr><td><label>Decimales:</label></td><td><select id="comp-n-dec" onchange="cambiarDecimalesCompra()"><option value="2">2 decimales</option><option value="3">3 decimales</option><option value="4">4 decimales</option></select></td></tr>
+        </table>
+        <button class="btn-add-cart" onclick="agregarLineaCompra()">➕ Agregar a Compra (Enter)</button>
+      </fieldset>
     </div>
-    <div class="pago-actions">
-      <button class="mod-btn" onclick="guardarCompra()">💾 Guardar Compra (Recibida)</button>
-      <button class="mod-btn" onclick="closeWindow('compra-nueva-window')">✖ Cancelar</button>
+    <div class="comp-n-col">
+      <fieldset class="panel">
+        <legend>4. Detalle de Compra</legend>
+        <table class="grid comp-grid">
+          <thead><tr><th>Código</th><th>Producto</th><th>Cant.</th><th>Costo USD</th><th>Exento IVA</th><th>Subtotal Bs.</th><th>I.V.A.</th><th>Total</th><th></th></tr></thead>
+          <tbody id="comp-n-body"></tbody>
+        </table>
+      </fieldset>
+      <div class="cotiz-totals">
+        <div>Total Factura (Bs.): <b id="comp-n-total">0,00</b></div>
+        <div>Total Factura (USD BCV): <b id="comp-n-total-usd">0,00 $</b></div>
+        <div>Total Pagado: <b id="comp-n-pagado">0,00</b></div>
+        <div class="cotiz-total-row">Total Pendiente (Crédito): <b id="comp-n-pendiente">0,00</b></div>
+      </div>
+      <div class="pago-actions">
+        <button class="mod-btn" onclick="guardarCompra()">💾 Guardar Compra (Recibida)</button>
+        <button class="mod-btn" onclick="closeWindow('compra-nueva-window')">✖ Cancelar</button>
+      </div>
     </div>
   </div>
 </div>

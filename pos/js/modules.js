@@ -61,6 +61,7 @@ function selectClienteForm(c) {
   $("cli-vend").value = c.vendedor || "--- NINGUNO ---";
   $("cli-obs").value = c.observaciones || "";
   cambiarTipoPersona();
+  cambiarTipoCliente();
 }
 
 function leerClienteForm() {
@@ -102,16 +103,30 @@ function cambiarTipoPersona() {
   const extraIn = $("cli-fisc-extra-input"); if (extraIn) extraIn.style.display = esJ ? "" : "none";
 }
 
+function cambiarTipoCliente() {
+  const mixto = $("cli-tipo").value === "Mixto";
+  const lim = $("cli-lim");
+  const dias = $("cli-dias");
+  [lim, dias].forEach(el => { if (el) el.disabled = mixto; });
+  if (mixto) {
+    if (lim) lim.value = "0,00";
+    if (dias) dias.value = "0";
+  }
+}
+
 function validarDocVzla(rif) {
   const s = (rif || "").trim().replace(/\s+/g, "");
-  const m = /^([VEJG])\s*-?\s*([0-9]+)\s*-?\s*([0-9])$/.exec(s);
-  if (!m) return { ok: false, msg: "Formato inválido. Use V-00000000-0 / J-000000000-0" };
+  if (!s) return { ok: true, msg: "Sin documento (RIF opcional)" };
+  const m = /^([VEJG])\s*-?\s*([0-9]+)(?:\s*-?\s*([0-9]))?$/.exec(s);
+  if (!m) return { ok: false, msg: "Formato inválido. Use V-13313521 / E-12345678 o J-123456789-4" };
   const tipo = m[1].toUpperCase();
   const cuerpo = m[2];
-  const dv = m[3];
   const esJuridico = tipo === "J" || tipo === "G";
-  const largoOK = esJuridico ? cuerpo.length === 9 : cuerpo.length === 8;
-  if (!largoOK) return { ok: false, msg: (esJuridico ? "RIF J-/G- debe tener 9 dígitos" : "Cédula V-/E- debe tener 8 dígitos") + " + dígito verificador" };
+  if (esJuridico) {
+    if (cuerpo.length !== 9) return { ok: false, msg: "RIF J-/G- debe tener 9 dígitos" };
+  } else {
+    if (cuerpo.length < 6 || cuerpo.length > 8) return { ok: false, msg: "Cédula V-/E- debe tener entre 6 y 8 dígitos" };
+  }
   return { ok: true, msg: "Documento válido" };
 }
 
@@ -132,9 +147,11 @@ function guardarCliente() {
   auditar(idx >= 0 ? "Cliente actualizado" : "Cliente creado", `${c.codigo} — ${c.nombre} (${c.rif})`);
   saveDB();
   selectCliente(c.codigo);
+  alert(idx >= 0 ? "Cambios guardados con éxito." : "Cliente guardado con éxito.");
 }
 
 function eliminarCliente() {
+  if (typeof rolPuedeModulo === "function" && !rolPuedeModulo("clientes-eliminar")) { alert("No tiene permisos para eliminar clientes."); return; }
   const cod = $("cli-cod").value.trim();
   if (!cod) return;
   if (!confirm(`¿Eliminar el cliente ${cod}?`)) return;
@@ -184,8 +201,14 @@ function seleccionarClienteEnPOS() {
   openModuleWindow("pos");
 }
 
-function imprimirClientes() { imprimirHTML("Listado de Clientes", ["Código", "Nombre", "RIF", "Teléfono", "Tipo"], DB.clientes.map(c => [c.codigo, c.nombre, c.rif, c.telefono, c.tipo])); }
-function exportarClientes() { exportarCSV("clientes", ["Codigo", "Nombre", "RIF", "Telefono", "Tipo"], DB.clientes.map(c => [c.codigo, c.nombre, c.rif, c.telefono, c.tipo])); }
+function imprimirClientes() {
+  if (typeof rolPuedeModulo === "function" && !rolPuedeModulo("clientes-imprimir")) { alert("No tiene permisos para imprimir el listado de clientes."); return; }
+  imprimirHTML("Listado de Clientes", ["Código", "Nombre", "RIF", "Teléfono", "Tipo"], DB.clientes.map(c => [c.codigo, c.nombre, c.rif, c.telefono, c.tipo]));
+}
+function exportarClientes() {
+  if (typeof rolPuedeModulo === "function" && !rolPuedeModulo("clientes-exportar")) { alert("No tiene permisos para exportar clientes."); return; }
+  exportarCSV("clientes", ["Codigo", "Nombre", "RIF", "Telefono", "Tipo"], DB.clientes.map(c => [c.codigo, c.nombre, c.rif, c.telefono, c.tipo]));
+}
 
 // ===== PRODUCTOS =====
 function renderProductos() {
@@ -345,6 +368,7 @@ function guardarProducto() {
   auditar(idx >= 0 ? "Producto actualizado" : "Producto creado", `${p.codigo} — ${p.descripcion} — PVP Bs. ${fmt(p.precio)}`);
   saveDB();
   selectProducto(p.codigo);
+  alert(idx >= 0 ? "Cambios guardados con éxito." : "Producto guardado con éxito.");
 }
 
 function eliminarProducto() {
@@ -499,28 +523,106 @@ function editarCotizacion() {
   openModuleWindow("cotizacion-nueva");
 }
 
+let cotiSelectedCod = null;
+
+function cotiProdMatches(p, q) {
+  const hay = `${p.codigo} ${p.descripcion || ""}`.toLowerCase();
+  return q.split(/\s+/).every(w => hay.includes(w));
+}
+
+function buscarProductoCotizacion() {
+  const term = $("coti-n-prod").value.trim().toLowerCase();
+  const list = $("coti-n-prod-results");
+  if (!term) { list.innerHTML = ""; list.style.display = "none"; return; }
+  const prods = DB.productos.filter(p => cotiProdMatches(p, term)).slice(0, 10);
+  list.innerHTML = prods.map((p, i) =>
+    `<div class="prov-result" onmousedown="event.preventDefault();seleccionarProductoCotizacion(${i})">
+       <b>${p.codigo}</b> — ${p.descripcion} <span class="usd-sub">Bs. ${fmt(p.precio || 0)} (${fmt((p.precio || 0) / (getTasa() || 1))} $)</span>
+     </div>`).join("");
+  list.style.display = prods.length ? "block" : "none";
+}
+
+function seleccionarProductoCotizacion(i) {
+  const term = $("coti-n-prod").value.trim().toLowerCase();
+  const prods = DB.productos.filter(p => cotiProdMatches(p, term)).slice(0, 10);
+  const p = prods[i];
+  if (!p) return;
+  cotiSelectedCod = p.codigo;
+  $("coti-n-prod").value = `${p.codigo} — ${p.descripcion}`;
+  $("coti-n-prod-results").style.display = "none";
+  if (!num($("coti-n-precio").value)) $("coti-n-precio").value = String((p.precio || 0).toFixed(2)).replace(".", ",");
+  mostrarPrecioCotiUsd();
+  $("coti-n-cant").focus();
+  $("coti-n-cant").select();
+}
+
+function ocultarProductoCotiResults() {
+  const list = $("coti-n-prod-results");
+  if (list) list.style.display = "none";
+}
+
+function onProductoCotiKey(ev) {
+  if (ev.key === "Enter") {
+    ev.preventDefault();
+    const list = $("coti-n-prod-results");
+    if (list && list.children.length) seleccionarProductoCotizacion(0);
+    else agregarLineaCotizacion();
+  } else if (ev.key === "Escape") {
+    ocultarProductoCotiResults();
+  }
+}
+
+function mostrarPrecioCotiUsd() {
+  const t = getTasa() || 1;
+  $("coti-n-precio-usd").textContent = `= ${fmt(num($("coti-n-precio").value) / t)} $`;
+}
+
 function agregarLineaCotizacion() {
-  const cod = $("coti-n-cod").value.trim();
-  const p = DB.productos.find(x => x.codigo === cod);
-  if (!cod) { alert("Ingrese un código de producto"); return; }
+  const raw = $("coti-n-prod").value.trim();
+  if (!raw) { alert("Busque y seleccione un producto"); return; }
+  let p = cotiSelectedCod ? DB.productos.find(x => x.codigo === cotiSelectedCod) : null;
+  if (!p || raw !== `${p.codigo} — ${p.descripcion}`) {
+    const txt = raw.toLowerCase();
+    p = DB.productos.find(x => x.codigo.toLowerCase() === txt) ||
+        DB.productos.find(x => (x.descripcion || "").toLowerCase() === txt);
+  }
+  if (!p) { alert("Producto no encontrado"); return; }
   const cant = num($("coti-n-cant").value) || 1;
-  const precio = num($("coti-n-precio").value) || (p ? p.precio : 0);
-  cotiTemp.push({ codigo: cod, descripcion: p ? p.descripcion : "(No encontrado)", cantidad: cant, precio, total: cant * precio });
+  const precio = num($("coti-n-precio").value) || p.precio || 0;
+  const t = getTasa() || 1;
+  cotiTemp.push({
+    codigo: p.codigo, descripcion: p.descripcion, cantidad: cant,
+    precio, precioUSD: precio / t,
+    total: cant * precio, totalUSD: cant * precio / t
+  });
   renderCotizacionNueva();
-  $("coti-n-cod").value = ""; $("coti-n-cant").value = "1"; $("coti-n-precio").value = "";
-  $("coti-n-cod").focus();
+  cotiSelectedCod = null;
+  $("coti-n-prod").value = ""; $("coti-n-cant").value = "1"; $("coti-n-precio").value = "";
+  $("coti-n-precio-usd").textContent = "= 0,00 $";
+  $("coti-n-prod").focus();
 }
 
 function renderCotizacionNueva() {
+  const t = getTasa() || 1;
   $("coti-n-body").innerHTML = cotiTemp.map((d, i) =>
-    `<tr><td>${d.codigo}</td><td>${d.descripcion}</td><td style="text-align:right">${fmt(d.cantidad)}</td><td style="text-align:right">${fmt(d.precio)}</td><td style="text-align:right">${fmt(d.total)}</td><td><button class="btn-mini" onclick="quitarLineaCotizacion(${i})">✕</button></td></tr>`
+    `<tr><td>${d.codigo}</td><td>${d.descripcion}</td><td style="text-align:right">${fmt(d.cantidad)}</td>` +
+    `<td style="text-align:right">${fmt(d.precio)}</td><td style="text-align:right">${fmt((d.precioUSD || d.precio / t))}</td>` +
+    `<td style="text-align:right">${fmt(d.total)}</td><td style="text-align:right">${fmt(d.totalUSD || d.total / t)}</td>` +
+    `<td><button class="btn-mini" onclick="quitarLineaCotizacion(${i})">✕</button></td></tr>`
   ).join("");
   const sub = cotiTemp.reduce((s, d) => s + d.total, 0);
   const iva = sub * (getIva() / 100);
+  const descEl = document.getElementById("coti-n-desc-input");
+  const desc = descEl ? (num(descEl.value) || 0) : 0;
+  const total = sub + iva - desc;
   $("coti-n-sub").textContent = fmt(sub);
-  $("coti-n-desc").textContent = "0,00";
+  $("coti-n-sub-usd").textContent = fmt(sub / t);
+  $("coti-n-desc").textContent = fmt(desc);
+  $("coti-n-desc-usd").textContent = fmt(desc / t);
   $("coti-n-iva").textContent = fmt(iva);
-  $("coti-n-total").textContent = fmt(sub + iva);
+  $("coti-n-iva-usd").textContent = fmt(iva / t);
+  $("coti-n-total").textContent = fmt(total);
+  $("coti-n-total-usd").textContent = fmt(total / t);
 }
 
 function quitarLineaCotizacion(i) { cotiTemp.splice(i, 1); renderCotizacionNueva(); }
@@ -547,6 +649,7 @@ function guardarCotizacion() {
   saveDB();
   renderCotizaciones();
   closeWindow("cotizacion-nueva-window");
+  alert(cotiEditNro ? "Cambios guardados con éxito." : "Cotización guardada con éxito.");
 }
 
 function eliminarCotizacion() {
@@ -588,59 +691,289 @@ function imprimirCotizacion() {
 
 // ===== DEVOLUCIONES =====
 let devTemp = [];
+let devVenta = null;
+
+function devEstadoVenta(v) {
+  if (!v) return "disponible";
+  const dLineas = v.devueltoLineas || {};
+  const totalCant = (v.lineas || []).reduce((s, l) => s + num(l.cantidad), 0);
+  const devuelto = Object.values(dLineas).reduce((s, x) => s + num(x), 0);
+  if (v.estadoDevolucion === "total" || (totalCant > 0 && devuelto >= totalCant - 0.001)) return "devuelta";
+  if (devuelto > 0) return "parcial";
+  return "disponible";
+}
+
+function devRestanteLinea(v, codigo) {
+  if (!v) return 0;
+  const l = (v.lineas || []).find(x => x.codigo === codigo);
+  const orig = l ? num(l.cantidad) : 0;
+  const devuelto = (v.devueltoLineas && v.devueltoLineas[codigo]) || 0;
+  return r2(orig - devuelto);
+}
 
 function nuevaDevolucion() {
   devTemp = [];
+  devVenta = null;
   $("dev-nro").value = genNro(DB.devoluciones, "nro", "DEV-", 6);
   $("dev-fecha").value = hoy();
-  fillClienteSelect("dev-cliente");
-  $("dev-doc-nro").value = "";
-  $("dev-cod").value = ""; $("dev-cant").value = "1"; $("dev-precio").value = "";
+  $("dev-factura").value = "";
+  $("dev-cliente").value = "";
+  $("dev-cant").value = "1";
+  $("dev-pago-monto").value = "";
+  $("dev-pago-metodo").innerHTML = "";
+  $("dev-prod").innerHTML = '<option value="">— Seleccione una factura —</option>';
+  $("dev-fact-search").value = "";
+  renderFacturasDev();
+  renderDevVentaInfo();
+  renderDevVentaLines();
+  renderDevHistorial();
   renderDevNueva();
+  setDevFormLocked(false);
   openModuleWindow("devoluciones");
+  const sf = $("dev-fact-search"); if (sf) sf.focus();
+}
+
+function renderFacturasDev() {
+  const list = $("dev-fact-list");
+  if (!list) return;
+  const q = ($("dev-fact-search").value || "").trim().toLowerCase();
+  const rows = DB.ventas.slice().reverse().filter(v =>
+    !q || String(v.nro).includes(q) || (v.cliente || "").toLowerCase().includes(q));
+  const labels = { devuelta: "DEVUELTA", parcial: "PARCIAL", disponible: "DISPONIBLE" };
+  list.innerHTML = rows.map(v => {
+    const est = devEstadoVenta(v);
+    return `<div class="dev-fact-item ${devVenta && devVenta.nro === v.nro ? "selected" : ""}" onclick="selectFacturaDev('${v.nro}')">
+      <span class="fact-nro">${v.nro}</span>
+      <span>${fmt(v.total)} Bs.</span>
+      <span class="dev-badge ${est}">${labels[est]}</span>
+    </div>`;
+  }).join("") || `<div class="dev-empty">No hay facturas que coincidan</div>`;
+}
+
+function selectFacturaDev(nro) {
+  const v = DB.ventas.find(x => x.nro === nro);
+  if (!v) return;
+  const est = devEstadoVenta(v);
+  const bloqueada = est !== "disponible";
+  devVenta = v;
+  devTemp = [];
+  $("dev-factura").value = v.nro;
+  $("dev-cliente").value = v.cliente || "CONSUMIDOR FINAL";
+  renderFacturasDev();
+  renderDevVentaInfo();
+  renderDevVentaLines();
+  renderDevHistorial();
+  setDevFormLocked(bloqueada);
+  if (bloqueada) {
+    if (!confirm("Esta factura ya tiene devoluciones registradas y queda bloqueada solo para consulta. ¿Ver información?")) { devVenta = null; renderDevVentaInfo(); renderDevHistorial(); return; }
+    const sel = $("dev-prod");
+    if (sel) sel.innerHTML = '<option value="">— Factura bloqueada —</option>';
+    renderDevNueva();
+  } else {
+    renderDevProd();
+    renderDevNueva();
+    renderDevPago();
+  }
+}
+
+function renderDevVentaInfo() {
+  const el = $("dev-venta-info");
+  if (!el) return;
+  if (!devVenta) { el.innerHTML = `<div class="dev-empty">Seleccione una factura en el panel izquierdo.</div>`; return; }
+  const v = devVenta;
+  const est = devEstadoVenta(v);
+  const labels = { devuelta: "DEVUELTA", parcial: "PARCIAL", disponible: "DISPONIBLE" };
+  const pagos = (v.pagos || []).map(p => `${p.metodo}: ${p.moneda === "USD" ? "$ " : ""}${fmt(p.monto)}`).join(" · ") || "—";
+  const dev = (v.devoluciones || []).length;
+  const montoDev = v.montoDevuelto || 0;
+  el.innerHTML = `<b>${DB.parametros.serie} ${v.nro}</b> — ${v.fecha} ${v.hora} <span class="dev-badge ${est}">${labels[est]}</span><br>` +
+    `Cliente: <b>${v.cliente || "CONSUMIDOR FINAL"}</b><br>` +
+    `Pagos recibidos: ${pagos}<br>` +
+    `Total facturado: <b>${fmt(v.total)} Bs.</b>` +
+    (dev ? `<br>Devoluciones registradas: <b>${dev}</b> · Monto devuelto: <b>${fmt(montoDev)} Bs.</b>` : "");
+  if (est !== "disponible") {
+    el.innerHTML += `<div class="dev-locked">Factura BLOQUEADA para consulta — no admite más devoluciones.</div>`;
+  }
+}
+
+function renderDevHistorial() {
+  const el = $("dev-historial");
+  if (!el) return;
+  const v = devVenta;
+  const nros = (v && v.devoluciones) || [];
+  if (!nros.length) { el.innerHTML = ""; return; }
+  const devs = nros.map(nro => DB.devoluciones.find(d => d.nro === nro)).filter(Boolean);
+  if (!devs.length) { el.innerHTML = ""; return; }
+  el.innerHTML = `<div class="dev-hist-titulo">Devoluciones realizadas sobre esta factura (items devueltos y reembolsos)</div>` +
+    devs.map(d => {
+      const lineas = (d.lineas || []).map(l =>
+        `<tr><td>${l.codigo}</td><td>${l.descripcion}</td><td class="r">${fmt(l.cantidad)}</td><td class="r">${fmt(l.precio)}</td><td class="r">${fmt(l.total)}</td></tr>`).join("") ||
+        `<tr><td colspan="5" class="dev-empty">Sin líneas</td></tr>`;
+      const pagos = (d.pagos || []).map(p =>
+        `<tr><td>${p.metodo}</td><td class="r">${p.moneda === "USD" ? "$ " : ""}${fmt(p.monto)}</td><td class="r">Bs. ${fmt(p.equivBs || 0)}</td></tr>`).join("") ||
+        `<tr><td colspan="3" class="dev-empty">Sin pagos</td></tr>`;
+      return `<div class="dev-hist-item">
+        <div class="dev-hist-head"><b>${d.nro}</b> — ${d.fecha} ${d.hora || ""}${d.motivo ? ` — Motivo: ${d.motivo}` : ""}</div>
+        <table class="grid"><thead><tr><th>Código</th><th>Descripción</th><th class="r">Cant. devuelta</th><th class="r">Precio</th><th class="r">Total</th></tr></thead><tbody>${lineas}</tbody></table>
+        <table class="grid"><thead><tr><th>Método de Reembolso</th><th class="r">Monto</th><th class="r">Equiv. Bs.</th></tr></thead><tbody>${pagos}</tbody></table>
+      </div>`;
+    }).join("");
+}
+
+function setDevFormLocked(locked) {
+  ["dev-prod", "dev-cant", "dev-motivo", "dev-pago-metodo", "dev-pago-monto"].forEach(id => {
+    const el = $(id);
+    if (el) el.disabled = locked;
+  });
+  const add = $("dev-agregar-btn");
+  if (add) add.disabled = locked;
+  const reg = $("dev-registrar-btn");
+  if (reg) reg.disabled = locked;
+}
+
+function renderDevVentaLines() {
+  const body = $("dev-venta-lines");
+  if (!body) return;
+  if (!devVenta) { body.innerHTML = ""; return; }
+  body.innerHTML = (devVenta.lineas || []).map(l => {
+    const d = (devVenta.devueltoLineas && devVenta.devueltoLineas[l.codigo]) || 0;
+    return `<tr><td>${l.codigo}</td><td>${l.descripcion}</td><td class="r">${fmt(l.cantidad)}</td><td class="r">${fmt(l.precio)}</td><td class="r">${fmt(l.total)}</td><td class="r">${fmt(d)}</td></tr>`;
+  }).join("") || `<tr><td colspan="6" class="dev-empty">Sin líneas</td></tr>`;
+}
+
+function renderDevProd() {
+  const sel = $("dev-prod");
+  if (!sel) return;
+  if (!devVenta) { sel.innerHTML = '<option value="">— Seleccione una factura —</option>'; return; }
+  const opts = (devVenta.lineas || []).map((l, i) => {
+    const rest = devRestanteLinea(devVenta, l.codigo);
+    if (rest <= 0) return "";
+    return `<option value="${l.codigo}">${l.codigo} — ${l.descripcion} (disponible ${fmt(rest)})</option>`;
+  }).join("");
+  sel.innerHTML = opts || '<option value="">— Sin productos disponibles —</option>';
 }
 
 function agregarLineaDevolucion() {
-  const cod = $("dev-cod").value.trim();
-  const p = DB.productos.find(x => x.codigo === cod);
-  if (!cod) { alert("Ingrese un código de producto"); return; }
-  const cant = num($("dev-cant").value) || 1;
-  const precio = num($("dev-precio").value) || (p ? p.precio : 0);
-  devTemp.push({ codigo: cod, descripcion: p ? p.descripcion : "(No encontrado)", cantidad: cant, precio, total: cant * precio });
+  if (!devVenta) { alert("Seleccione primero una factura/venta."); return; }
+  const cod = $("dev-prod").value;
+  if (!cod) { alert("Seleccione un producto de la factura."); return; }
+  const cant = num($("dev-cant").value);
+  if (!cant || cant <= 0) { alert("Ingrese una cantidad válida."); return; }
+  const l = (devVenta.lineas || []).find(x => x.codigo === cod);
+  const rest = devRestanteLinea(devVenta, cod);
+  const enTemp = devTemp.filter(d => d.codigo === cod).reduce((s, d) => s + num(d.cantidad), 0);
+  if (cant + enTemp > rest) { alert(`Solo quedan ${fmt(rest - enTemp)} unidades por devolver de este producto.`); return; }
+  devTemp.push({
+    codigo: cod,
+    descripcion: l ? l.descripcion : "(Sin descripción)",
+    cantidad: cant,
+    precio: l ? l.precio : 0,
+    total: r2(cant * (l ? l.precio : 0))
+  });
   renderDevNueva();
-  $("dev-cod").value = ""; $("dev-cant").value = "1"; $("dev-precio").value = "";
-  $("dev-cod").focus();
+  $("dev-cant").value = "1";
+  $("dev-cant").focus();
 }
 
 function renderDevNueva() {
   $("dev-body").innerHTML = devTemp.map((d, i) =>
-    `<tr><td>${d.codigo}</td><td>${d.descripcion}</td><td style="text-align:right">${fmt(d.cantidad)}</td><td style="text-align:right">${fmt(d.precio)}</td><td style="text-align:right">${fmt(d.total)}</td><td><button class="btn-mini" onclick="quitarLineaDevolucion(${i})">✕</button></td></tr>`
-  ).join("");
+    `<tr><td>${d.codigo}</td><td>${d.descripcion}</td><td class="r">${fmt(d.cantidad)}</td><td class="r">${fmt(d.precio)}</td><td class="r">${fmt(d.total)}</td><td><button class="btn-mini" onclick="quitarLineaDevolucion(${i})">✕</button></td></tr>`
+  ).join("") || `<tr><td colspan="6" class="dev-empty">Sin productos a devolver</td></tr>`;
   const sub = devTemp.reduce((s, d) => s + d.total, 0);
   const iva = sub * (getIva() / 100);
   $("dev-sub").textContent = fmt(sub);
   $("dev-iva").textContent = fmt(iva);
   $("dev-total").textContent = fmt(sub + iva);
+  renderDevPago();
 }
 
 function quitarLineaDevolucion(i) { devTemp.splice(i, 1); renderDevNueva(); }
 
+function renderDevPago() {
+  const sel = $("dev-pago-metodo");
+  if (!sel) return;
+  if (!sel.options.length) {
+    (METODOS_PAGO || []).filter(m => !m.credit).forEach(m => {
+      const o = document.createElement("option");
+      o.value = m.label; o.textContent = m.label;
+      sel.appendChild(o);
+    });
+  }
+  const total = num($("dev-total").textContent);
+  const mm = (METODOS_PAGO || []).find(x => x.label === sel.value);
+  const monto = $("dev-pago-monto");
+  if (monto) {
+    if (mm && mm.moneda === "USD") monto.value = total > 0 ? r2(total / (getTasa() || 1)).toFixed(2).replace(".", ",") : "";
+    else monto.value = total > 0 ? total.toFixed(2).replace(".", ",") : "";
+  }
+  updateDevPagoHint();
+}
+
+function updateDevPagoHint() {
+  const hint = $("dev-pago-hint");
+  if (!hint) return;
+  const total = num($("dev-total").textContent);
+  const met = $("dev-pago-metodo") ? $("dev-pago-metodo").value : "";
+  const m = (METODOS_PAGO || []).find(x => x.label === met);
+  if (m && m.moneda === "USD") {
+    hint.textContent = total > 0
+      ? `Total a devolver: Bs. ${fmt(total)} ≈ $ ${fmt(r2(total / (getTasa() || 1)))} — ingrese el monto en USD`
+      : "";
+    return;
+  }
+  hint.textContent = total > 0 ? `Total a devolver: ${fmt(total)} Bs.` : "";
+}
+
 function registrarDevolucion() {
-  if (!devTemp.length) { alert("Agregue al menos un producto a devolver"); return; }
+  if (!devVenta) { alert("Seleccione la factura a devolver."); return; }
+  if (!devTemp.length) { alert("Agregue al menos un producto a devolver."); return; }
   const sub = devTemp.reduce((s, d) => s + d.total, 0);
-  const total = sub + sub * (getIva() / 100);
+  const total = r2(sub + sub * (getIva() / 100));
+  const metodo = $("dev-pago-metodo").value;
+  const monto = num($("dev-pago-monto").value);
+  if (!metodo) { alert("Seleccione el método de pago de la devolución."); return; }
+  if (!monto || monto <= 0) { alert("Ingrese el monto a devolver."); return; }
+  const mm = (METODOS_PAGO || []).find(x => x.label === metodo);
+  const moneda = mm ? mm.moneda : "Bs";
+  if (moneda === "USD") {
+    const esperadoUsd = r2(total / (getTasa() || 1));
+    if (Math.abs(monto - esperadoUsd) > 0.02) {
+      alert(`El monto en USD ($ ${fmt(monto)}) debe coincidir con el total (Bs. ${fmt(total)} ≈ $ ${fmt(esperadoUsd)}).`);
+      return;
+    }
+  } else if (Math.abs(monto - total) > 0.01) {
+    alert(`El monto a devolver (${fmt(monto)}) debe coincidir con el total (${fmt(total)}).`);
+    return;
+  }
+  const nro = $("dev-nro").value;
   const dev = {
-    nro: $("dev-nro").value,
-    fecha: $("dev-fecha").value,
-    cliente: $("dev-cliente").value,
-    docTipo: $("dev-doc-tipo").value,
-    docNro: $("dev-doc-nro").value,
+    nro, fecha: $("dev-fecha").value, hora: hora12(),
+    cliente: $("dev-cliente").value || "CONSUMIDOR FINAL",
+    factura: devVenta.nro,
     motivo: $("dev-motivo").value,
-    metodo: "Efectivo Bs.",
-    total,
+    metodo,
+    moneda,
+    pagos: [{ metodo, moneda, monto: r2(monto), equivBs: r2(moneda === "USD" ? monto * getTasa() : monto) }],
+    total: r2(total),
+    totalBs: r2(total),
+    totalUsd: r2(moneda === "USD" ? monto : total / (getTasa() || 1)),
+    esParcial: true,
     lineas: devTemp.map(l => ({ ...l }))
   };
   DB.devoluciones.unshift(dev);
+
+  // Bloquear la venta: registrar lo devuelto (quedará solo para consulta)
+  devVenta.devueltoLineas = devVenta.devueltoLineas || {};
+  devTemp.forEach(d => {
+    devVenta.devueltoLineas[d.codigo] = r2((devVenta.devueltoLineas[d.codigo] || 0) + num(d.cantidad));
+  });
+  devVenta.montoDevuelto = r2((devVenta.montoDevuelto || 0) + total);
+  devVenta.devoluciones = devVenta.devoluciones || [];
+  devVenta.devoluciones.push(nro);
+  const est = devEstadoVenta(devVenta);
+  devVenta.estadoDevolucion = est === "devuelta" ? "total" : "parcial";
+
+  // Reingreso de inventario
   devTemp.forEach(d => {
     const p = DB.productos.find(x => x.codigo === d.codigo);
     if (!p) return;
@@ -649,31 +982,63 @@ function registrarDevolucion() {
     const saldo = (movs.length ? movs[0].saldo : 0) + d.cantidad;
     movimientoInv(p.codigo, "Devolución", d.cantidad, dev.nro, r2(saldo));
   });
-  auditar("Devolución registrada", `${dev.nro} — ${dev.cliente} — ${fmt(total)} Bs.`);
+
+  // Egreso de caja por método de pago (para el arqueo)
+  dev.pagos.forEach(p => {
+    if (p.metodo === "Efectivo Bs.") movimientoCaja("Devolución (Efectivo Bs.)", dev.nro, p.monto, 0, false);
+    else if (p.metodo === "Efectivo USD (físico)") movimientoCaja("Devolución (Efectivo USD)", dev.nro, 0, p.monto, false);
+    else if (p.metodo !== "Crédito (CxC)") movimientoCaja("Devolución (" + p.metodo + ")", dev.nro, p.moneda === "USD" ? 0 : p.monto, p.moneda === "USD" ? p.monto : 0, false);
+  });
+
+  auditar("Devolución registrada", `${dev.nro} — Factura ${dev.factura} — ${dev.cliente} — ${fmt(total)} Bs.`);
   saveDB();
   renderInventario();
   devTemp = [];
   renderDevNueva();
-  alert(`Devolución ${dev.nro} registrada.\nTotal: Bs. ${fmt(total)}`);
+  renderFacturasDev();
+  renderDevVentaInfo();
+  renderDevVentaLines();
+  renderDevHistorial();
+  setDevFormLocked(true);
+  alert(`Devolución ${dev.nro} registrada sobre la factura ${dev.factura}.\nTotal devuelto: ${fmt(total)} Bs.`);
   $("dev-nro").value = genNro(DB.devoluciones, "nro", "DEV-", 6);
 }
 
 function anularDevolucion() {
-  if (!devTemp.length) { alert("No hay devolución en proceso para anular"); return; }
+  if (!devTemp.length) { alert("No hay devolución en proceso para anular."); return; }
   if (!confirm("¿Anular la devolución en proceso?")) return;
   devTemp = [];
   renderDevNueva();
   auditar("Devolución anulada", "(en proceso)");
-  saveDB();
 }
 
 function imprimirDevolucion() {
   if (!devTemp.length) return alert("No hay líneas para imprimir");
-  imprimirHTML("Devolución", ["Código", "Descripción", "Cantidad", "Precio", "Total"], devTemp.map(d => [d.codigo, d.descripcion, fmt(d.cantidad), fmt(d.precio), fmt(d.total)]));
+  const total = num($("dev-total").textContent);
+  imprimirHTML("Devolución" + (devVenta ? " — Factura " + devVenta.nro : ""),
+    ["Código", "Descripción", "Cantidad", "Precio", "Total"],
+    devTemp.map(d => [d.codigo, d.descripcion, fmt(d.cantidad), fmt(d.precio), fmt(d.total)])
+      .concat([["TOTAL", "", "", "", fmt(total)]])
+  );
 }
 
 // ===== COMPRAS =====
 let compTemp = [];
+let compProdMatches = [];
+
+function decimalesCompra() {
+  const d = num($("comp-n-dec") ? $("comp-n-dec").value : "2");
+  return d === 3 || d === 4 ? d : 2;
+}
+function fmtComp(n) {
+  const d = decimalesCompra();
+  return (Number(n) || 0).toLocaleString("es-VE", { minimumFractionDigits: d, maximumFractionDigits: d });
+}
+function costoCostoBCV(costo) {
+  const tasa = tasaCompraActual();
+  const bcv = tasaBcvCompra();
+  return bcv > 0 ? costo * tasa / bcv : costo;
+}
 
 function renderCompras() {
   const body = $("compras-body");
@@ -681,9 +1046,13 @@ function renderCompras() {
   const rows = filtrarComprasData();
   body.innerHTML = rows.map(c => {
     const cls = c.estatus === "Pendiente" ? "selected" : "";
+    const tipo = c.tipo || "Contado";
     return `<tr class="${cls}" onclick="selectCompra('${c.nro}', this)">
       <td>${c.nro}</td><td>${c.fecha}</td><td>${c.proveedor}</td>
-      <td style="text-align:right">${fmt(c.total)}</td><td>${c.estatus}</td>
+      <td style="text-align:right">${fmt(c.total)}</td><td>${tipo}</td>
+      <td style="text-align:right">${fmt(c.pagado || 0)}</td>
+      <td style="text-align:right">${fmt(c.pendiente !== undefined ? c.pendiente : c.total - (c.pagado || 0))}</td>
+      <td>${c.estatus}</td>
     </tr>`;
   }).join("");
   if (rows.length) selectCompra(rows[0].nro, body.querySelector("tr"));
@@ -705,14 +1074,34 @@ function selectCompra(nro, row) {
   if (row) row.classList.add("selected");
   const c = DB.compras.find(x => x.nro === nro);
   if (!c) return;
-  $("compras-detail-body").innerHTML = (c.lineas || []).map(d =>
-    `<tr><td>${d.codigo}</td><td>${d.descripcion}</td><td style="text-align:right">${fmt(d.cantidad)}</td><td style="text-align:right">${fmt(d.costo)}</td><td style="text-align:right">${fmt(d.costoBCV || d.costo)}</td><td style="text-align:right">${fmt(d.total)}</td></tr>`
-  ).join("");
-  const sub = (c.lineas || []).reduce((s, d) => s + d.total, 0);
-  const iva = sub * (getIva() / 100);
+  const lineas = c.lineas || [];
+  $("compras-detail-body").innerHTML = lineas.map(d =>
+    `<tr>
+      <td>${d.codigo}</td><td>${d.descripcion}</td>
+      <td style="text-align:right">${fmt(d.cantidad)}</td>
+      <td style="text-align:right">${fmt(d.costo)}</td>
+      <td style="text-align:center">${d.exentoIva ? "✓" : "—"}</td>
+      <td style="text-align:right">${fmt(d.total)}</td>
+      <td style="text-align:right">${fmt(d.iva || 0)}</td>
+      <td style="text-align:right">${fmt(d.totalLinea || (d.total + (d.iva || 0)))}</td>
+    </tr>`
+  ).join("") || `<tr><td colspan="8" style="text-align:center;color:#888">Sin líneas registradas</td></tr>`;
+
+  const pagos = (c.pagos || []).map(p => `${p.moneda}: ${fmt(p.monto)}`).join(" · ");
+  const tipo = c.tipo || "Contado";
+  const pagado = num(c.pagado) || 0;
+  const pendiente = c.pendiente !== undefined ? num(c.pendiente) : (num(c.total) - pagado);
+  $("compra-detail-info").innerHTML =
+    `<div><b>${c.nro}</b> — ${c.fecha} — <b>${c.proveedor}</b></div>` +
+    `<div>Tipo: ${tipo}${(tipo === "Credito" || tipo === "Mixto") && c.diasCredito ? ` · Días de crédito: ${c.diasCredito}` : ""}${pagos ? ` · Pagos: ${pagos}` : ""}${c.observaciones ? ` · Obs.: ${c.observaciones}` : ""}</div>`;
+
+  const sub = lineas.reduce((s, d) => s + (d.total || 0), 0);
+  const iva = lineas.reduce((s, d) => s + (d.iva || 0), 0);
   $("comp-sub").textContent = fmt(sub);
   $("comp-iva").textContent = fmt(iva);
-  $("comp-total").textContent = fmt(sub + iva);
+  $("comp-total").textContent = fmt(num(c.total) || sub + iva);
+  $("comp-pagado").textContent = fmt(pagado);
+  $("comp-pendiente").textContent = fmt(Math.max(0, pendiente));
 }
 
 function nuevaCompra() {
@@ -726,9 +1115,22 @@ function nuevaCompra() {
   $("comp-n-monedacompra").value = "USDT";
   $("comp-n-tasa-compra").value = "";
   $("comp-n-costeo").value = DB.parametros.costeo || "promedio";
+  $("comp-n-tipo").value = "Contado";
+  $("comp-n-dias").value = DB.parametros.diasCreditoCompra || 30;
+  $("comp-n-pagob").value = "";
+  $("comp-n-pagousd").value = "";
+  $("comp-n-dec").value = String(DB.parametros.decimalesCosto || 2);
+  $("comp-n-prod").value = "";
+  $("comp-n-cant").value = "1";
+  $("comp-n-costo").value = "";
+  $("comp-n-prev").value = "";
+  $("comp-n-pond").value = "";
+  ocultarProductosCompra();
   cambiarMonedaCompra();
+  cambiarTipoCompra();
   renderCompraNueva();
   openModuleWindow("compra-nueva");
+  $("comp-n-prod").focus();
 }
 
 function monedaCompraActual() { return $("comp-n-monedacompra").value || "USDT"; }
@@ -757,7 +1159,7 @@ function seleccionarProveedorCompra(i) {
   if (!m) return;
   $("comp-n-proveedor").value = m;
   ocultarSugerenciasProveedor();
-  $("comp-n-cod").focus();
+  $("comp-n-prod").focus();
 }
 
 function ocultarSugerenciasProveedor() {
@@ -779,61 +1181,181 @@ function cambiarMonedaCompra() {
   }
 }
 
-function agregarLineaCompra() {
-  const cod = $("comp-n-cod").value.trim();
+function buscarProductoCompra() {
+  const q = ($("comp-n-prod").value || "").trim();
+  const box = $("comp-n-prod-results");
+  if (!q) { ocultarProductosCompra(); return; }
+  const filtro = q.toLowerCase();
+  const palabras = filtro.split(/\s+/).filter(Boolean);
+  const matches = DB.productos.filter(p => {
+    const s = [p.codigo, p.barra, p.descripcion, p.categoria, p.marca].map(x => String(x || "").toLowerCase());
+    if (s.some(x => x === filtro)) return true;
+    if (s.some(x => x.includes(filtro))) return true;
+    return palabras.length > 1 && palabras.every(pal => s.some(x => x.includes(pal)));
+  }).slice(0, 12);
+  compProdMatches = matches;
+  if (!matches.length) { ocultarProductosCompra(); return; }
+  box.innerHTML = matches.map((p, i) =>
+    `<button type="button" onmousedown="event.preventDefault()" onclick="seleccionarProductoCompra(${i})">${p.codigo} — ${p.descripcion}</button>`
+  ).join("");
+  box.classList.add("show");
+}
+
+function seleccionarProductoCompra(i) {
+  const p = compProdMatches[i];
+  if (!p) return;
+  $("comp-n-prod").value = p.codigo;
+  ocultarProductosCompra();
+  if (!num($("comp-n-costo").value)) {
+    $("comp-n-costo").value = String((p.costoUSD || 0).toFixed(2)).replace(".", ",");
+  }
+  mostrarCostosProductoCompra();
+}
+
+function onProductoCompraKey(e) {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    if (compProdMatches.length) seleccionarProductoCompra(0);
+    else agregarLineaCompra();
+  } else if (e.key === "Escape") {
+    ocultarProductosCompra();
+  }
+}
+
+function ocultarProductosCompra() {
+  const box = $("comp-n-prod-results");
+  box.classList.remove("show");
+  box.innerHTML = "";
+  compProdMatches = [];
+}
+
+function cambiarDecimalesCompra() {
+  const d = decimalesCompra();
+  DB.parametros.decimalesCosto = d;
+  saveDB();
+  mostrarCostosProductoCompra();
+  renderCompraNueva();
+}
+
+function mostrarCostosProductoCompra() {
+  const cod = $("comp-n-prod").value.trim();
   const p = DB.productos.find(x => x.codigo === cod);
-  if (!cod) { alert("Ingrese un código de producto"); return; }
+  if (!p) { $("comp-n-prev").value = ""; $("comp-n-pond").value = ""; renderCompraNueva(); return; }
+  const costoAnt = num(p.costoUSD) || 0;
+  const stockAnt = num(p.existencia) || 0;
   const cant = num($("comp-n-cant").value) || 1;
-  const costo = num($("comp-n-costo").value) || (p ? p.costoUSD : 0);
+  const costo = num($("comp-n-costo").value);
+  let pond = costoAnt;
+  if (costo > 0) {
+    const costoBCV = costoCostoBCV(costo);
+    if (stockAnt + cant > 0) pond = (costoAnt * stockAnt + costoBCV * cant) / (stockAnt + cant);
+    else pond = costoBCV;
+  }
+  $("comp-n-prev").value = fmtComp(costoAnt);
+  $("comp-n-pond").value = fmtComp(pond);
+  renderCompraNueva();
+}
+
+function agregarLineaCompra() {
+  const cod = $("comp-n-prod").value.trim();
+  const p = DB.productos.find(x => x.codigo === cod);
+  if (!cod) { alert("Ingrese o seleccione un producto"); return; }
+  if (!p) { alert("Producto no encontrado en el catálogo"); return; }
+  const cant = num($("comp-n-cant").value) || 1;
+  if (cant <= 0) { alert("La cantidad debe ser mayor a 0"); return; }
+  const costo = num($("comp-n-costo").value) || (p.costoUSD || 0);
   if (costo <= 0) { alert("Ingrese un costo mayor a 0"); return; }
+  const exento = $("comp-n-exento").checked;
   const tasa = tasaCompraActual();
   const bcv = tasaBcvCompra();
   const costoVES = costo * tasa;
-  const costoBCV = costoVES / bcv;
-  let margen = 30;
-  if (p && p.costoUSD > 0 && p.precioUSD > 0) margen = r2((p.precioUSD - p.costoUSD) / p.precioUSD * 100);
+  const costoBCV = bcv > 0 ? costoVES / bcv : costo;
+  const total = r2(costoVES * cant);
+  const ivaPct = exento ? 0 : getIva();
+  const iva = r2(total * ivaPct / 100);
   compTemp.push({
-    codigo: cod, descripcion: p ? p.descripcion : "(Nuevo)",
-    cantidad: cant, costo, costoVES: r2(costoVES), costoBCV: r2(costoBCV),
-    margen, pventa: r2(costoBCV / (1 - Math.min(margen, 99.99) / 100)), total: r2(costoVES * cant)
+    codigo: cod, descripcion: p.descripcion,
+    cantidad: cant, costo: r2(costo), costoVES: r2(costoVES), costoBCV: r2(costoBCV),
+    exentoIva: !!exento, ivaPct,
+    total: r2(total), iva: r2(iva), totalLinea: r2(total + iva)
   });
   renderCompraNueva();
-  $("comp-n-cod").value = ""; $("comp-n-cant").value = "1"; $("comp-n-costo").value = "";
-  $("comp-n-cod").focus();
+  $("comp-n-prod").value = ""; $("comp-n-cant").value = "1"; $("comp-n-costo").value = "";
+  $("comp-n-prev").value = ""; $("comp-n-pond").value = "";
+  $("comp-n-exento").checked = false;
+  ocultarProductosCompra();
+  $("comp-n-prod").focus();
 }
 
-function cambiarMargenCompra(i, v) {
+function cambiarExentoCompra(i, checked) {
   const d = compTemp[i];
   if (!d) return;
-  d.margen = num(v);
-  if (d.margen >= 100) {
-    alert("El margen sobre venta debe ser menor a 100%");
-    d.margen = 99.99;
-  }
-  d.pventa = r2(d.costoBCV / (1 - d.margen / 100));
+  d.exentoIva = !!checked;
+  d.ivaPct = checked ? 0 : getIva();
+  d.iva = r2(d.total * d.ivaPct / 100);
+  d.totalLinea = r2(d.total + d.iva);
   renderCompraNueva();
+}
+
+function totalFacturaBsCompra() {
+  return r2(compTemp.reduce((s, d) => s + d.total, 0) + compTemp.reduce((s, d) => s + d.iva, 0));
+}
+
+function recalcPagosCompra(totalFactura) {
+  const t = $("comp-n-tipo").value;
+  const tasa = tasaCompraActual();
+  let pagado = 0;
+  if (t === "Contado") pagado = totalFactura;
+  else if (t === "Mixto") pagado = r2(num($("comp-n-pagob").value) + num($("comp-n-pagousd").value) * tasa);
+  $("comp-n-pagado").textContent = fmtComp(pagado);
+  $("comp-n-pendiente").textContent = fmtComp(r2(totalFactura - pagado));
+  return { totalFactura, pagado, pendiente: r2(totalFactura - pagado) };
+}
+
+function recalcTotalesCompra() {
+  const bcv = tasaBcvCompra();
+  const totalFactura = totalFacturaBsCompra();
+  $("comp-n-total").textContent = fmtComp(totalFactura);
+  $("comp-n-total-usd").textContent = fmtComp(bcv > 0 ? totalFactura / bcv : 0) + " $";
+  recalcPagosCompra(totalFactura);
+}
+
+function recalcPagoMixto(origen) {
+  const tasa = tasaCompraActual();
+  const b = num($("comp-n-pagob").value);
+  const u = num($("comp-n-pagousd").value);
+  if (origen === "bs" && b > 0) {
+    $("comp-n-pagousd").value = String(r2(b / tasa).toFixed(2)).replace(".", ",");
+  } else if (origen === "usd" && u > 0) {
+    $("comp-n-pagob").value = String(r2(u * tasa).toFixed(2)).replace(".", ",");
+  }
+  recalcTotalesCompra();
+}
+
+function cambiarTipoCompra() {
+  const t = $("comp-n-tipo").value;
+  $("comp-n-cond-fields").style.display = (t === "Credito" || t === "Mixto") ? "" : "none";
+  $("comp-n-mixto-fields").style.display = t === "Mixto" ? "" : "none";
+  recalcTotalesCompra();
 }
 
 function renderCompraNueva() {
-  $("comp-n-body").innerHTML = compTemp.map((d, i) =>
+  const body = $("comp-n-body");
+  if (!body) return;
+  body.innerHTML = compTemp.map((d, i) =>
     `<tr>
       <td>${d.codigo}</td><td>${d.descripcion}</td>
-      <td>${fmt(d.cantidad)}</td>
-      <td>${fmt(d.costo)}</td>
-      <td>${fmt(d.total)}</td>
-      <td>${fmt(d.costoBCV)}</td>
-      <td><input type="text" inputmode="decimal" style="width:52px;text-align:right" value="${fmt(d.margen)}" onchange="cambiarMargenCompra(${i}, this.value)"></td>
-      <td>${fmt(d.pventa)}</td>
+      <td>${fmtComp(d.cantidad)}</td>
+      <td>${fmtComp(d.costo)}</td>
+      <td><input type="checkbox" ${d.exentoIva ? "checked" : ""} onchange="cambiarExentoCompra(${i}, this.checked)"></td>
+      <td>${fmtComp(d.total)}</td>
+      <td>${fmtComp(d.iva)}</td>
+      <td>${fmtComp(d.totalLinea)}</td>
       <td><button class="btn-mini" onclick="quitarLineaCompra(${i})">✕</button></td>
     </tr>`
-  ).join("");
-  const sub = compTemp.reduce((s, d) => s + d.total, 0);
-  const subBcv = compTemp.reduce((s, d) => s + (d.costoBCV || 0) * d.cantidad, 0);
-  const iva = sub * (getIva() / 100);
-  $("comp-n-sub").textContent = fmt(sub);
-  $("comp-n-iva").textContent = fmt(iva);
-  $("comp-n-sub-bcv").textContent = fmt(subBcv) + " $";
-  $("comp-n-total").textContent = fmt(sub + iva);
+  ).join("") ||
+  `<tr><td colspan="9" style="text-align:center;color:#888">Sin productos agregados</td></tr>`;
+  recalcTotalesCompra();
 }
 
 function quitarLineaCompra(i) { compTemp.splice(i, 1); renderCompraNueva(); }
@@ -860,10 +1382,6 @@ function aplicarCompraInventario(c, recibida) {
     } else if (num(d.costoBCV) > 0) {
       p.costoUSD = r2(d.costoBCV);
     }
-    if (num(d.pventa) > 0) {
-      p.precioUSD = r2(d.pventa);
-      p.precio = r2(d.pventa * getTasa());
-    }
   });
 }
 
@@ -871,8 +1389,8 @@ function guardarCompra() {
   if (!compTemp.length) { alert("Agregue al menos un producto"); return; }
   const proveedor = $("comp-n-proveedor").value.trim();
   if (!proveedor) { alert("Seleccione el proveedor"); return; }
-  const sub = compTemp.reduce((s, d) => s + d.total, 0);
-  const total = r2(sub + sub * (getIva() / 100));
+  const tipo = $("comp-n-tipo").value;
+  const res = recalcPagosCompra(totalFacturaBsCompra());
   const compra = {
     nro: $("comp-n-nro").value,
     fecha: $("comp-n-fecha").value,
@@ -883,18 +1401,32 @@ function guardarCompra() {
     purchase_rate_value: tasaCompraActual(),
     bcv_rate_at_purchase: tasaBcvCompra(),
     costeo: $("comp-n-costeo").value,
-    total, estatus: "Recibida",
+    tipo,
+    diasCredito: tipo === "Contado" ? 0 : (num($("comp-n-dias").value) || 30),
+    pagos: tipo === "Mixto" ? [
+      { moneda: "Bs", monto: num($("comp-n-pagob").value) },
+      { moneda: "USD", monto: num($("comp-n-pagousd").value) }
+    ].filter(p => p.monto > 0) : [],
+    pagado: res.pagado,
+    pendiente: res.pendiente,
+    total: res.totalFactura,
+    estatus: "Recibida",
     lineas: compTemp.map(l => ({ ...l }))
   };
   DB.compras.unshift(compra);
   aplicarCompraInventario(compra, true);
-  auditar("Compra recibida", `${compra.nro} — ${compra.proveedor} — ${fmt(total)} Bs.`);
+  if (!(DB.proveedores || []).some(x => String(x).toLowerCase() === String(proveedor).toLowerCase())) {
+    DB.proveedores = DB.proveedores || [];
+    DB.proveedores.push(proveedor);
+  }
+  auditar("Compra recibida", `${compra.nro} — ${compra.proveedor} — ${fmt(compra.total)} Bs.`);
   if (typeof sincronizarCxP === "function") sincronizarCxP();
   saveDB();
   renderCompras();
   renderInventario();
   if (typeof renderCxP === "function") renderCxP();
   closeWindow("compra-nueva-window");
+  alert("Compra recibida y guardada con éxito.");
 }
 
 function recibirCompra() {
@@ -1120,37 +1652,49 @@ function generarReporte() {
     case "Ventas del Día":
       headers = ["Factura", "Hora", "Cliente", "Forma", "Total Bs."];
       rows = ventas.filter(v => v.fecha === hoyDia).map(v => [v.nro, v.hora, v.cliente, v.forma, fmt(v.total)]);
+      totalReporte = ventas.filter(v => v.fecha === hoyDia).reduce((s, v) => s + v.total, 0);
       break;
-    case "Ventas por Fecha":
+    case "Ventas por Fecha": {
+      const agg = {};
+      ventas.forEach(v => { agg[v.fecha] = (agg[v.fecha] || 0) + v.total; });
       headers = ["Fecha", "Cantidad", "Total Bs."];
-      rows = Object.entries(ventas.reduce((a, v) => { a[v.fecha] = (a[v.fecha] || 0) + v.total; return a; }, {})).map(([f, t]) => [f, ventas.filter(v => v.fecha === f).length, fmt(t)]);
+      rows = Object.entries(agg).map(([f, t]) => [f, ventas.filter(v => v.fecha === f).length, fmt(t)]);
+      totalReporte = Object.values(agg).reduce((s, t) => s + t, 0);
       break;
-    case "Ventas por Cliente":
+    }
+    case "Ventas por Cliente": {
+      const agg = {};
+      ventas.forEach(v => { agg[v.cliente] = (agg[v.cliente] || 0) + v.total; });
       headers = ["Cliente", "N° Ventas", "Total Bs."];
-      rows = Object.entries(ventas.reduce((a, v) => { a[v.cliente] = (a[v.cliente] || 0) + v.total; return a; }, {})).map(([c, t]) => [c, ventas.filter(v => v.cliente === c).length, fmt(t)]);
+      rows = Object.entries(agg).map(([c, t]) => [c, ventas.filter(v => v.cliente === c).length, fmt(t)]);
+      totalReporte = Object.values(agg).reduce((s, t) => s + t, 0);
       break;
+    }
     case "Ventas por Vendedor": {
-      headers = ["Vendedor", "N° Ventas", "Total Bs."];
       const agg = {};
       ventas.forEach(v => {
         const cli = DB.clientes.find(c => c.nombre === v.cliente);
         const vend = cli ? (cli.vendedor || "--- NINGUNO ---") : "--- NINGUNO ---";
-        agg[vend] = (agg[vend] || 0) + v.total;
+        if (!agg[vend]) agg[vend] = { n: 0, t: 0 };
+        agg[vend].n += 1;
+        agg[vend].t += v.total;
       });
-      rows = Object.entries(agg).map(([vend, t]) => [vend, ventas.length, fmt(t)]);
+      headers = ["Vendedor", "N° Ventas", "Total Bs."];
+      rows = Object.entries(agg).map(([vend, a]) => [vend, a.n, fmt(a.t)]);
+      totalReporte = Object.values(agg).reduce((s, a) => s + a.t, 0);
       break;
     }
     case "Ventas por Forma de Pago": {
-      headers = ["Método", "Total Bs."];
       const agg = {};
       ventas.forEach(v => (v.pagos || [{ metodo: v.forma, equivBs: v.total }]).forEach(p => {
         agg[p.metodo] = (agg[p.metodo] || 0) + (p.equivBs || p.monto || 0);
       }));
+      headers = ["Método", "Total Bs."];
       rows = Object.entries(agg).map(([m, t]) => [m, fmt(t)]);
+      totalReporte = Object.values(agg).reduce((s, t) => s + t, 0);
       break;
     }
     case "Ventas por Producto": {
-      headers = ["Código", "Descripción", "Cantidad", "Total Bs."];
       const agg = {};
       ventas.forEach(v => (v.lineas || []).forEach(l => {
         const k = l.codigo;
@@ -1158,18 +1702,21 @@ function generarReporte() {
         agg[k].cant += l.cantidad;
         agg[k].total += l.total;
       }));
+      headers = ["Código", "Descripción", "Cantidad", "Total Bs."];
       rows = Object.entries(agg).map(([k, a]) => [k, a.desc, fmt(a.cant), fmt(a.total)]);
+      totalReporte = Object.values(agg).reduce((s, a) => s + a.total, 0);
       break;
     }
     case "Ventas por Categoría": {
-      headers = ["Categoría", "Total Bs."];
       const agg = {};
       ventas.forEach(v => (v.lineas || []).forEach(l => {
         const p = DB.productos.find(x => x.codigo === l.codigo);
         const cat = p ? p.categoria : "OTROS";
         agg[cat] = (agg[cat] || 0) + l.total;
       }));
+      headers = ["Categoría", "Total Bs."];
       rows = Object.entries(agg).map(([c, t]) => [c, fmt(t)]);
+      totalReporte = Object.values(agg).reduce((s, t) => s + t, 0);
       break;
     }
     case "Resumen de Ventas":
@@ -1181,46 +1728,59 @@ function generarReporte() {
         ["Descuentos", fmt(ventas.reduce((s, v) => s + v.descuento, 0))],
         ["TOTAL", fmt(ventas.reduce((s, v) => s + v.total, 0))]
       ];
+      totalReporte = null; // ya incluye su propia fila TOTAL
       break;
     case "Compras del Día":
       headers = ["N°", "Proveedor", "Total Bs.", "Estatus"];
       rows = DB.compras.filter(c => c.fecha === hoyDia).map(c => [c.nro, c.proveedor, fmt(c.total), c.estatus]);
+      totalReporte = DB.compras.filter(c => c.fecha === hoyDia).reduce((s, c) => s + num(c.total), 0);
       break;
     case "Compras por Proveedor": {
-      headers = ["Proveedor", "Total Bs."];
       const agg = {};
-      DB.compras.forEach(c => { agg[c.proveedor] = (agg[c.proveedor] || 0) + c.total; });
+      DB.compras.forEach(c => { agg[c.proveedor] = (agg[c.proveedor] || 0) + num(c.total); });
+      headers = ["Proveedor", "Total Bs."];
       rows = Object.entries(agg).map(([p, t]) => [p, fmt(t)]);
+      totalReporte = Object.values(agg).reduce((s, t) => s + t, 0);
       break;
     }
     case "Existencias Actuales":
       headers = ["Código", "Descripción", "Existencia", "Precio Bs."];
       rows = DB.productos.map(p => [p.codigo, p.descripcion, fmt(p.existencia), fmt(p.precio)]);
+      totalReporte = DB.productos.reduce((s, p) => s + num(p.precio), 0);
       break;
     case "Productos con Stock Bajo":
       headers = ["Código", "Descripción", "Existencia", "Mínimo"];
       rows = DB.productos.filter(p => p.existencia <= p.minimo).map(p => [p.codigo, p.descripcion, fmt(p.existencia), fmt(p.minimo)]);
+      totalReporte = null;
       break;
     case "Movimientos de Inventario":
       headers = ["Fecha", "Producto", "Tipo", "Cantidad", "Ref"];
       rows = DB.movimientosInv.map(m => [m.fecha, m.producto, m.tipo, fmt(m.cant), m.ref]);
+      totalReporte = null;
       break;
     case "Listado de Clientes":
       headers = ["Código", "Nombre", "RIF", "Tipo"];
       rows = DB.clientes.map(c => [c.codigo, c.nombre, c.rif, c.tipo]);
+      totalReporte = null;
       break;
-    case "Clientes con Deuda":
+    case "Clientes con Deuda": {
+      const agg = {};
+      DB.ventas.filter(v => (v.forma || "").includes("Crédito")).forEach(v => { agg[v.cliente] = (agg[v.cliente] || 0) + v.total; });
       headers = ["Cliente", "Deuda Bs."];
-      rows = Object.entries(DB.ventas.filter(v => (v.forma || "").includes("Crédito")).reduce((a, v) => { a[v.cliente] = (a[v.cliente] || 0) + v.total; return a; }, {})).map(([c, t]) => [c, fmt(t)]);
+      rows = Object.entries(agg).map(([c, t]) => [c, fmt(t)]);
+      totalReporte = Object.values(agg).reduce((s, t) => s + t, 0);
       break;
+    }
     case "Listado de Proveedores":
       headers = ["Proveedor"];
       rows = DB.proveedores.map(p => [p]);
+      totalReporte = null;
       break;
     case "Movimientos de Caja": {
       headers = ["Fecha", "Hora", "Caja", "Tipo", "Ref", "Ing. Bs", "Egr. Bs", "Ing. $", "Egr. $"];
       const movs = DB.movimientosCaja.filter(m => fechaEnRango(m.fecha, desde, hasta) && enCaja(m));
       rows = movs.map(m => [m.fecha, m.hora, m.caja || "", m.tipo, m.ref, fmt(m.ing), fmt(m.egr), m.ingUsd ? "$ " + fmt(m.ingUsd) : "", m.egrUsd ? "$ " + fmt(m.egrUsd) : ""]);
+      totalReporte = movs.reduce((s, m) => s + num(m.ing) - num(m.egr), 0);
       break;
     }
     case "Historial de Cierres de Caja": {
@@ -1239,23 +1799,27 @@ function generarReporte() {
         ["Ventas Efectivo USD", "—", "$ " + fmt(DB.movimientosCaja.filter(m => m.tipo === "Venta en Efectivo USD").reduce((s, m) => s + m.ingUsd, 0))],
         ["Total Ventas", fmt(DB.ventas.reduce((s, v) => s + v.total, 0)), "—"]
       ];
+      totalReporte = null;
       break;
     case "Listado de Productos":
       headers = ["Código", "Descripción", "Categoría", "Precio Bs."];
       rows = DB.productos.map(p => [p.codigo, p.descripcion, p.categoria, fmt(p.precio)]);
+      totalReporte = DB.productos.reduce((s, p) => s + num(p.precio), 0);
       break;
     case "Precios de Venta":
       headers = ["Código", "Descripción", "Costo $", "PVP $", "PVP Bs.", "Margen %"];
       rows = DB.productos.map(p => [p.codigo, p.descripcion, fmt(p.costoUSD), fmt(p.precioUSD), fmt(p.precio), fmt(p.margenPct)]);
+      totalReporte = DB.productos.reduce((s, p) => s + num(p.precio), 0);
       break;
     case "Servicios Realizados":
       headers = ["Código", "Descripción", "Precio Bs."];
       rows = DB.productos.filter(p => p.categoria === "SERVICIOS").map(p => [p.codigo, p.descripcion, fmt(p.precio)]);
+      totalReporte = DB.productos.filter(p => p.categoria === "SERVICIOS").reduce((s, p) => s + num(p.precio), 0);
       break;
     default:
       return null;
   }
-  return { nombre, headers, rows, total: totalReporte !== null ? totalReporte : ventas.reduce((s, v) => s + v.total, 0) };
+  return { nombre, headers, rows, total: totalReporte };
 }
 
 function verReporte() {
@@ -1273,13 +1837,13 @@ function verReporte() {
 function imprimirReporte() {
   const r = lastReport || generarReporte();
   if (!r) return alert("Genere primero el reporte (Vista Previa)");
-  imprimirHTML(r.nombre, r.headers, r.rows);
+  imprimirHTML(r.nombre, r.headers, r.rows, r.total);
 }
 
 function exportarReporte() {
   const r = lastReport || generarReporte();
   if (!r) return alert("Genere primero el reporte (Vista Previa)");
-  exportarCSV(r.nombre.toLowerCase().replace(/\s+/g, "_"), r.headers, r.rows);
+  exportarCSV(r.nombre.toLowerCase().replace(/\s+/g, "_"), r.headers, r.rows, r.total);
 }
 
 // ===== Inicialización =====
@@ -1290,29 +1854,26 @@ document.addEventListener("DOMContentLoaded", () => {
   renderCompras();
   renderInventario();
   renderReportes();
-  fillClienteSelect("dev-cliente");
   $("status-usuario").textContent = DB.parametros.cajero || "ADMIN";
   $("status-turno").textContent = DB.parametros.turno || 1;
   if (typeof sincronizarCajaActiva === "function") sincronizarCajaActiva();
   $("pos-caja-label").textContent = DB.parametros.caja || "CAJA 01";
-  // Autocompletar precio en devolución
-  const devCod = $("dev-cod");
-  if (devCod) devCod.addEventListener("blur", () => {
-    const p = DB.productos.find(x => x.codigo === devCod.value.trim());
-    if (p && !num($("dev-precio").value)) $("dev-precio").value = p.precio.toFixed(2).replace(".", ",");
+  const cotiProd = $("coti-n-prod");
+  if (cotiProd) cotiProd.addEventListener("blur", () => {
+    if (!cotiSelectedCod && cotiProd.value.trim()) {
+      const p = DB.productos.find(x => x.codigo === cotiProd.value.trim());
+      if (p && !num($("coti-n-precio").value)) $("coti-n-precio").value = p.precio.toFixed(2).replace(".", ",");
+    }
+    ocultarProductoCotiResults();
   });
-  const cotiCod = $("coti-n-cod");
-  if (cotiCod) cotiCod.addEventListener("blur", () => {
-    const p = DB.productos.find(x => x.codigo === cotiCod.value.trim());
-    if (p && !num($("coti-n-precio").value)) $("coti-n-precio").value = p.precio.toFixed(2).replace(".", ",");
-  });
-  const compCod = $("comp-n-cod");
+  const compCod = $("comp-n-prod");
   if (compCod) compCod.addEventListener("blur", () => {
     const p = DB.productos.find(x => x.codigo === compCod.value.trim());
-    if (p && !num($("comp-n-costo").value)) $("comp-n-costo").value = (p.costoUSD || 0).toFixed(2).replace(".", ",");
+    if (p && !num($("comp-n-costo").value)) $("comp-n-costo").value = String((p.costoUSD || 0).toFixed(2)).replace(".", ",");
   });
   // Enlace de pestañas
   document.querySelectorAll("[data-tabs] .tab, [data-tabs] .tab-title").forEach(t => {
     t.addEventListener("click", () => setTab(t));
   });
 });
+

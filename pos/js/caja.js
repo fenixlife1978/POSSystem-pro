@@ -131,7 +131,10 @@ function datosArqueo() {
       : r.id === "efectivo_usd" ? (caja && caja.fondoUSD || 0) : 0;
     let ventas = 0, dev = 0;
     ventasHoy.forEach(v => (v.pagos || []).forEach(p => { if (p.metodo === r.metodo) ventas += num(p.monto); }));
-    devHoy.forEach(d => { if ((d.metodo || "Efectivo Bs.") === r.metodo) dev += num(d.total || d.monto || 0); });
+    devHoy.forEach(d => {
+      const dPag = (d.pagos && d.pagos.length) ? d.pagos : [{ metodo: d.metodo || "Efectivo Bs.", monto: d.total || d.monto || 0 }];
+      dPag.forEach(p => { if (p.metodo === r.metodo) dev += num(p.monto); });
+    });
     const enSistema = r2(fondo + ventas - dev);
     return { ...r, fondo: r2(fondo), ventas: r2(ventas), dev: r2(dev), enSistema };
   });
@@ -187,7 +190,7 @@ function renderArqueo() {
       <td class="r">${cur}${fmt(f.ventas)}</td>
       <td class="r">${cur}${fmt(f.dev)}</td>
       <td class="r"><b>${cur}${fmt(f.enSistema)}</b></td>
-      <td class="r"><input type="text" inputmode="decimal" class="input-real" id="arq-real-${i}" data-moneda="${f.moneda}" value="${f.enSistema.toFixed(2).replace(".", ",")}" oninput="calcularArqueo()"></td>
+      <td class="r"><input type="text" inputmode="decimal" class="input-real" id="arq-real-${i}" data-moneda="${f.moneda}" placeholder="0,00" oninput="calcularArqueo()"></td>
       <td class="r"><span class="arq-diff arq-zero" id="arq-diff-${i}">0,00</span></td>
     </tr>`;
   }).join("");
@@ -202,13 +205,22 @@ function renderArqueo() {
 }
 
 function calcularArqueo() {
-  let totBs = 0, totUsd = 0;
+  let totBs = 0, totUsd = 0, pendiente = false;
   arqueoFilas.forEach((f, i) => {
-    const real = num(document.getElementById("arq-real-" + i).value);
-    const dif = r2(real - f.enSistema);
+    const inp = document.getElementById("arq-real-" + i);
+    const raw = inp ? inp.value.trim() : "";
     const el = document.getElementById("arq-diff-" + i);
-    el.textContent = (f.moneda === "USD" ? "$ " : "") + fmt(dif);
-    el.className = "arq-diff " + claseDif(dif);
+    if (raw === "") {
+      pendiente = true;
+      if (el) { el.textContent = "—"; el.className = "arq-diff arq-zero"; }
+      return;
+    }
+    const real = num(raw);
+    const dif = r2(real - f.enSistema);
+    if (el) {
+      el.textContent = (f.moneda === "USD" ? "$ " : "") + fmt(dif);
+      el.className = "arq-diff " + claseDif(dif);
+    }
     if (f.moneda === "Bs") totBs += dif; else totUsd += dif;
   });
   totBs = r2(totBs); totUsd = r2(totUsd);
@@ -219,7 +231,10 @@ function calcularArqueo() {
   eUsd.textContent = fmt(totUsd); eUsd.className = "arq-diff " + claseDif(totUsd);
 
   const badge = document.getElementById("arq-conciliacion");
-  if (totBs === 0 && totUsd === 0) {
+  if (pendiente) {
+    badge.textContent = "CONTEO PENDIENTE — escriba el Real de cada método (0 si no recibió)";
+    badge.className = "cr-badge pendiente";
+  } else if (totBs === 0 && totUsd === 0) {
     badge.textContent = "CONCILIADA EXACTA (Cero)";
     badge.className = "cr-badge exacta";
   } else {
@@ -236,6 +251,14 @@ function calcularArqueo() {
 function confirmarCierre() {
   const caja = cajaActual();
   if (!caja || caja.estado !== "abierta") { alert("La caja no está abierta."); return; }
+  for (let i = 0; i < arqueoFilas.length; i++) {
+    const inp = document.getElementById("arq-real-" + i);
+    if (!inp || inp.value.trim() === "") {
+      alert("Complete el conteo REAL de cada método de pago antes de cerrar (escriba 0 si no recibió ese método).");
+      if (inp) inp.focus();
+      return;
+    }
+  }
   const filas = arqueoFilas.map((f, i) => {
     const real = num(document.getElementById("arq-real-" + i).value);
     return { ...f, real: r2(real), diff: r2(real - f.enSistema) };
@@ -371,8 +394,14 @@ function abrirArqueo() {
 
 function imprimirArqueo() {
   const d = datosArqueo();
-  const rows = d.filas.map(f =>
-    [`${f.etiqueta} (${f.moneda})`, fmt(f.fondo), fmt(f.ventas), fmt(f.dev), fmt(f.enSistema), fmt(f.enSistema), "0,00"]);
+  const rows = d.filas.map((f, i) => {
+    const inp = document.getElementById("arq-real-" + i);
+    const v = inp ? inp.value.trim() : "";
+    const real = v !== "" ? num(v) : null;
+    const dif = real !== null ? r2(real - f.enSistema) : null;
+    return [`${f.etiqueta} (${f.moneda})`, fmt(f.fondo), fmt(f.ventas), fmt(f.dev), fmt(f.enSistema),
+      real !== null ? fmt(real) : "—", dif !== null ? fmt(dif) : "—"];
+  });
   imprimirHTML(`Arqueo de Caja — ${d.caja ? d.caja.nombre : ""} (${hoy()})`,
     ["Concepto", "Fondo Inicial", "Ventas", "Devoluciones", "En Sistema", "Real", "Diferencia"],
     rows.concat([["TOTAL VENTAS Bs.", "", "", "", "", fmt(d.totalVentasBs), ""],

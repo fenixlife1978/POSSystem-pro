@@ -264,9 +264,11 @@ function movimientoInv(producto, tipo, cant, ref, saldo) {
   DB.movimientosInv.unshift({ fecha: hoy(), hora: hora12(), producto, tipo, cant, ref, saldo });
 }
 
-function exportarCSV(nombre, headers, rows) {
+function exportarCSV(nombre, headers, rows, total) {
   const esc = v => `"${String(v == null ? "" : v).replace(/"/g, '""')}"`;
-  const csv = [headers.map(esc).join(";"), ...rows.map(r => r.map(esc).join(";"))].join("\r\n");
+  const filas = rows.map(r => r.map(esc).join(";"));
+  if (total !== null && total !== undefined) filas.push(["TOTAL", ...headers.slice(1).map(() => "").slice(0, -1), fmt(total)].map(esc).join(";"));
+  const csv = [headers.map(esc).join(";"), ...filas].join("\r\n");
   const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
@@ -276,9 +278,12 @@ function exportarCSV(nombre, headers, rows) {
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 200);
 }
 
-function imprimirHTML(titulo, headers, rows) {
+function imprimirHTML(titulo, headers, rows, total) {
   const w = window.open("", "_blank", "width=900,height=600");
   if (!w) { alert("Permita ventanas emergentes para imprimir."); return; }
+  const totalRow = (total !== null && total !== undefined)
+    ? `<tfoot><tr><td colspan="${headers.length}" style="text-align:right;font-weight:bold">TOTAL: ${fmt(total)} Bs.</td></tr></tfoot>`
+    : "";
   w.document.write(`<html><head><title>${titulo}</title>
     <style>body{font-family:Tahoma,Arial,sans-serif;font-size:12px;margin:20px}
     h2{color:#003399;border-bottom:1px solid #999;padding-bottom:4px}
@@ -287,7 +292,7 @@ function imprimirHTML(titulo, headers, rows) {
     th{background:#ece9d8}</style></head><body>
     <h2>${titulo}</h2>
     <table><thead><tr>${headers.map(h => `<th>${h}</th>`).join("")}</tr></thead>
-    <tbody>${rows.map(r => `<tr>${r.map(c => `<td>${c == null ? "" : c}</td>`).join("")}</tr>`).join("")}</tbody></table>
+    <tbody>${rows.map(r => `<tr>${r.map(c => `<td>${c == null ? "" : c}</td>`).join("")}</tr>`).join("")}</tbody>${totalRow}</table>
     <script>window.print();<\/script></body></html>`);
   w.document.close();
 }

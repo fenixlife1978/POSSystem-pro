@@ -122,6 +122,7 @@ function guardarServicio() {
   auditar(idx >= 0 ? "Servicio actualizado" : "Servicio creado", `${s.codigo} — ${s.descripcion} — PVP Bs. ${fmt(s.precio)}`);
   saveDB();
   selectServicio(s.codigo);
+  alert(idx >= 0 ? "Cambios guardados con éxito." : "Servicio guardado con éxito.");
 }
 
 function eliminarServicio() {

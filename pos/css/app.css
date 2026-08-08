@@ -68,7 +68,7 @@
 .open-status.closed { color: #cc0000; }
 
 /* Devoluciones */
-.dev-content { display: grid; grid-template-columns: 380px 1fr; gap: 4px; padding: 4px; }
+.r { text-align: right; }
 .dev-form-col { display: flex; flex-direction: column; gap: 4px; }
 .dev-totals { background: white; border: 1px solid #aaa; padding: 6px 10px; font-size: 12px; }
 .dev-totals .cotiz-total-row { color: #003399; font-size: 14px; font-weight: bold; margin-top: 4px; }
@@ -87,7 +87,7 @@
 #ajuste-window.floating { width: 560px; }
 #servicios-window.floating { width: 980px; }
 #kardex-window.floating { width: 820px; }
-#cotizacion-nueva-window.floating, #compra-nueva-window.floating { width: 1080px; }
+#cotizacion-nueva-window.floating { width: 1080px; }
 #reporte-vista-window.floating { width: 900px; }
 
 /* Botones pequeños dentro de tablas */

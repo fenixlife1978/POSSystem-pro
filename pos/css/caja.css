@@ -39,6 +39,7 @@
   border: 1px solid transparent;
 }
 .cr-badge.exacta { background: #dcfce7; color: #166534; border-color: #86efac; }
+.cr-badge.pendiente { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
 .cr-badge.diferencia { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
 .cr-badge.faltante { background: #fee2e2; color: #b91c1c; border-color: #fca5a5; }
 .cr-badge.sobrante { background: #dcfce7; color: #166534; border-color: #86efac; }

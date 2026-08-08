@@ -279,15 +279,21 @@ function renderAbonos() { renderCxC(); }
 function sincronizarCxP() {
   (DB.compras || []).forEach(c => {
     if (!DB.cuentasPagar.some(x => x.nro === c.nro)) {
-      DB.cuentasPagar.unshift({
-        nro: c.nro, fecha: c.fecha, vencimiento: sumarDias(c.fecha, 30),
-        proveedor: c.proveedor, total: num(c.total), pagado: 0, saldo: num(c.total),
-        estado: num(c.total) > 0 ? "Pendiente" : "Pagada",
-        lineas: (c.lineas || []).map(l => ({
-          codigo: l.codigo, descripcion: l.descripcion,
-          cantidad: l.cantidad, costo: l.costo || l.costoVES || 0, total: l.total
-        }))
-      });
+      const total = num(c.total);
+      const pagado = num(c.pagado) || 0;
+      const saldo = c.pendiente !== undefined ? num(c.pendiente) : (total - pagado);
+      if (saldo > 0) {
+        const dias = c.diasCredito || ((c.tipo === "Credito" || c.tipo === "Mixto") ? 30 : 0);
+        DB.cuentasPagar.unshift({
+          nro: c.nro, fecha: c.fecha, vencimiento: sumarDias(c.fecha, dias),
+          proveedor: c.proveedor, total, pagado, saldo,
+          estado: "Pendiente",
+          lineas: (c.lineas || []).map(l => ({
+            codigo: l.codigo, descripcion: l.descripcion,
+            cantidad: l.cantidad, costo: l.costo || l.costoVES || 0, total: l.total
+          }))
+        });
+      }
     }
   });
 }

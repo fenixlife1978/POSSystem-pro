@@ -53,9 +53,56 @@
 }
 .prov-results button:hover { background: #316AC5; color: #fff; }
 
+/* Los resultados fluyen dentro del formulario (sin superponerse a otros campos) */
+#compra-nueva-window .prov-results {
+  position: static;
+  top: auto;
+  left: auto;
+  right: auto;
+  margin-top: 3px;
+  box-shadow: none;
+}
+#pos-window .prov-results {
+  position: static;
+  top: auto;
+  left: auto;
+  right: auto;
+  margin-top: 3px;
+  box-shadow: none;
+}
+
 /* Tabla de recepción compacta (más columnas) */
 .comp-grid th { font-size: 9px; white-space: nowrap; }
 .comp-grid td { font-size: 10px; }
 .comp-grid td:nth-child(3), .comp-grid td:nth-child(4),
-.comp-grid td:nth-child(5), .comp-grid td:nth-child(6),
-.comp-grid td:nth-child(7), .comp-grid td:nth-child(8) { text-align: right; }
+.comp-grid td:nth-child(6), .comp-grid td:nth-child(7),
+.comp-grid td:nth-child(8) { text-align: right; }
+.comp-grid td:nth-child(5) { text-align: center; }
+
+/* Nueva Compra: dos columnas */
+.comp-n-content {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 12px;
+  padding: 8px 12px 12px 12px;
+  align-items: start;
+}
+.comp-n-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+#compra-nueva-window.floating { width: 1120px; }
+#compra-nueva-window .panel .grid { width: 100%; }
+#comp-n-body td:nth-child(2) { white-space: normal; min-width: 130px; }
+
+/* Información del detalle en el historial de compras */
+.compra-detail-info {
+  font-size: 12px;
+  background: #f8f6ed;
+  border: 1px solid #aaa;
+  padding: 6px 8px;
+  margin-bottom: 6px;
+  line-height: 1.5;
+}

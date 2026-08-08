@@ -40,7 +40,7 @@ body { position: relative; }
 #clientes-window.floating   { width: 1060px; }
 #productos-window.floating  { width: 1060px; }
 #cotizaciones-window.floating { width: 1000px; }
-#devoluciones-window.floating  { width: 1000px; }
+#devoluciones-window.floating  { width: 1180px; }
 #caja-window.floating       { width: 1080px; }
 #compras-window.floating    { width: 1000px; }
 #inventario-window.floating { width: 1000px; }

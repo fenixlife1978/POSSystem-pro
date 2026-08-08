@@ -215,6 +215,7 @@ function newSale() {
   clearProductInput();
   document.getElementById("cliente-codigo").value = "000001";
   document.getElementById("cliente-nombre").value = "CONSUMIDOR FINAL";
+  ocultarClientePos();
   document.getElementById("cliente-direccion").value = "";
   document.getElementById("cliente-rif").value = "";
   const tipo = document.getElementById("cliente-doc-tipo");
@@ -286,7 +287,7 @@ function renderPagoWindow(preseleccion) {
 
   const cliente = DB.clientes.find(c => c.nombre === document.getElementById("cliente-nombre").value.trim());
   const credBox = document.getElementById("cliente-credito");
-  const esCredito = !enCobro && ((credBox && credBox.checked) || (!!cliente && cliente.tipo === "Crédito"));
+  const esCredito = !enCobro && ((credBox && credBox.checked) || (!!cliente && (cliente.tipo === "Crédito" || cliente.tipo === "Mixto")));
 
   const sel = document.getElementById("pago-metodo");
   if (sel) {
@@ -522,9 +523,12 @@ function renderUltimasFacturas() {
   if (!body) return;
   const q = (document.getElementById("uf-search").value || "").trim().toLowerCase();
   const rows = ventasDelDia().filter(v => !q || v.nro.includes(q) || (v.cliente || "").toLowerCase().includes(q));
+  const estOf = v => (typeof devEstadoVenta === "function") ? devEstadoVenta(v) : "disponible";
+  const badge = est => est === "devuelta" ? '<span class="dev-badge devuelta">DEVUELTA</span>'
+    : est === "parcial" ? '<span class="dev-badge parcial">PARCIAL</span>' : "";
   body.innerHTML = rows.map(v =>
     `<tr data-nro="${v.nro}" onclick="selectUltimaFactura('${v.nro}', this)">
-      <td>${v.nro}</td><td>${v.hora}</td><td>${v.cliente}</td><td style="text-align:right">${fmt(v.total)}</td>
+      <td>${v.nro} ${badge(estOf(v))}</td><td>${v.hora}</td><td>${v.cliente}</td><td style="text-align:right">${fmt(v.total)}</td>
     </tr>`).join("") ||
     `<tr><td colspan="4" style="text-align:center;color:#888">No hay facturas del día</td></tr>`;
 }
@@ -623,6 +627,7 @@ function confirmarCobroDeuda() {
 }
 
 function limpiarClientePOS() {
+  ocultarClientePos();
   document.getElementById("cliente-codigo").value = "";
   document.getElementById("cliente-nombre").value = "";
   document.getElementById("cliente-direccion").value = "";
@@ -645,19 +650,32 @@ function docIdentidadCompleto() {
   return num ? (tipo + num) : "";
 }
 
+// Rellena los campos del cliente en el POS a partir de un cliente de DB
+function aplicarClientePOS(cli) {
+  if (!cli) { actualizarClienteNuevoRow(true); mostrarSaldoCliente(null); return; }
+  actualizarClienteNuevoRow(false);
+  document.getElementById("cliente-codigo").value = cli.codigo;
+  document.getElementById("cliente-nombre").value = cli.nombre;
+  document.getElementById("cliente-direccion").value = cli.direccion || "";
+  document.getElementById("cliente-telefono").value = cli.telefono || "";
+  const doc = cli.rif || "";
+  const m = String(doc).match(/^([VJEG])-(.*)$/i);
+  const tipo = document.getElementById("cliente-doc-tipo");
+  if (tipo && m) tipo.value = m[1].toUpperCase() + "-";
+  document.getElementById("cliente-rif").value = m ? m[2] : doc;
+  const cred = document.getElementById("cliente-credito");
+  if (cred) cred.checked = cli.tipo === "Crédito" || cli.tipo === "Mixto";
+  toggleCredito();
+  mostrarSaldoCliente(cli);
+}
+
 function buscarClientePorDocumento() {
   const doc = docIdentidadCompleto();
   if (!doc) { actualizarClienteNuevoRow(false); mostrarSaldoCliente(null); return; }
   const norm = s => (s || "").replace(/\s+/g, "").toUpperCase();
   const cli = DB.clientes.find(c => norm(c.rif) === norm(doc));
   if (cli) {
-    actualizarClienteNuevoRow(false);
-    document.getElementById("cliente-codigo").value = cli.codigo;
-    document.getElementById("cliente-nombre").value = cli.nombre;
-    document.getElementById("cliente-direccion").value = cli.direccion || "";
-    document.getElementById("cliente-telefono").value = cli.telefono || "";
-    if (cli.tipo === "Crédito") document.getElementById("cliente-credito").checked = true;
-    toggleCredito();
+    aplicarClientePOS(cli);
   } else {
     actualizarClienteNuevoRow(true);
     document.getElementById("cliente-codigo").value = "";
@@ -667,6 +685,46 @@ function buscarClientePorDocumento() {
     mostrarSaldoCliente(null);
   }
   mostrarSaldoCliente(cli);
+}
+
+// Búsqueda de clientes por nombre (palabras clave dentro del nombre/apellidos)
+let posClienteMatches = [];
+function buscarClientePos() {
+  const q = (document.getElementById("cliente-nombre").value || "").trim();
+  const box = document.getElementById("cliente-pos-results");
+  if (!q) { ocultarClientePos(); return; }
+  const palabras = q.toLowerCase().split(/\s+/).filter(Boolean);
+  const matches = DB.clientes.filter(c => {
+    const nombre = String(c.nombre || "").toLowerCase();
+    const otros = (String(c.codigo || "") + " " + String(c.rif || "")).toLowerCase();
+    if (palabras.every(p => nombre.includes(p))) return true;
+    if (palabras.every(p => otros.includes(p))) return true;
+    return false;
+  }).slice(0, 10);
+  posClienteMatches = matches;
+  if (!matches.length) { ocultarClientePos(); return; }
+  box.innerHTML = matches.map((c, i) =>
+    `<button type="button" onmousedown="event.preventDefault()" onclick="seleccionarClientePos(${i})">${c.codigo} — ${c.nombre}${c.rif ? " (" + c.rif + ")" : ""}</button>`
+  ).join("");
+  box.classList.add("show");
+}
+
+function ocultarClientePos() {
+  const box = document.getElementById("cliente-pos-results");
+  if (box) { box.classList.remove("show"); box.innerHTML = ""; }
+  posClienteMatches = [];
+}
+
+function onClientePosKey(e) {
+  if (e.key === "Enter") { e.preventDefault(); if (posClienteMatches.length) seleccionarClientePos(0); }
+  else if (e.key === "Escape") ocultarClientePos();
+}
+
+function seleccionarClientePos(i) {
+  const cli = posClienteMatches[i];
+  if (!cli) return;
+  aplicarClientePOS(cli);
+  ocultarClientePos();
 }
 
 function actualizarClienteNuevoRow(show) {
@@ -951,7 +1009,7 @@ document.addEventListener("keydown", function(e) {
     if (K === "F3")  { if (posOk("buscar")) { e.preventDefault(); openProductSearch(); } }
     if (K === "F4")  { if (posOk("buscar")) { e.preventDefault(); openClientSearch(); } }
     if (K === "F5")  { if (posOk("cotizaciones")) { e.preventDefault(); openModule("cotizaciones"); } }
-    if (K === "F6")  { if (posOk("devoluciones")) { e.preventDefault(); openModule("devoluciones"); } }
+    if (K === "F6")  { if (posOk("devoluciones")) { e.preventDefault(); nuevaDevolucion(); } }
     if (K === "F7")  { if (posOk("pos")) { e.preventDefault(); cancelSale(); } }
     if (K === "F8")  { if (posOk("pos")) { e.preventDefault(); applyDiscount(); } }
     if (K === "F9")  { if (posOk("pago")) { e.preventDefault(); pay("efectivo_bs"); } }
