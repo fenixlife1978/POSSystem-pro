@@ -1,0 +1,24 @@
+/* ===== Módulo Servicios ===== */
+.servicios-grid {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 4px;
+}
+
+#servicios-list { max-height: 480px; overflow: auto; }
+
+#sv-comp-table { margin-top: 6px; max-height: 220px; overflow: auto; }
+
+.sv-resumen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: #fffbe6;
+  border: 1px solid #e8d88a;
+  font-size: 12px;
+  color: #6b5b00;
+}
+
+.sv-resumen b { color: #003399; }
