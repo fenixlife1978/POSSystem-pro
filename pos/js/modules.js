@@ -69,7 +69,7 @@ function leerClienteForm() {
   const tipoPersona = $("cli-tipo-persona").value;
   const tipoDoc = $("cli-doc-tipo").value || "V-";
   const numDoc = $("cli-doc-num").value.trim();
-  const rif = $("cli-rif").value.trim() || (numDoc ? tipoDoc + numDoc : "");
+  const rif = ($("cli-rif").value.trim() || (numDoc ? tipoDoc + numDoc : "")).replace(/\./g, "");
   return {
     codigo: $("cli-cod").value.trim(),
     rif,
@@ -115,7 +115,7 @@ function cambiarTipoCliente() {
 }
 
 function validarDocVzla(rif) {
-  const s = (rif || "").trim().replace(/\s+/g, "");
+  const s = (rif || "").trim().replace(/[.\s]+/g, "");
   if (!s) return { ok: true, msg: "Sin documento (RIF opcional)" };
   const m = /^([VEJG])\s*-?\s*([0-9]+)(?:\s*-?\s*([0-9]))?$/.exec(s);
   if (!m) return { ok: false, msg: "Formato inválido. Use V-13313521 / E-12345678 o J-123456789-4" };
@@ -187,7 +187,8 @@ function seleccionarClienteEnPOS() {
   if (m) {
     const tipo = document.getElementById("cliente-doc-tipo");
     if (tipo) tipo.value = m[1].toUpperCase() + "-";
-    set("cliente-rif", rif.slice(m[0].length));
+    const num = rif.slice(m[0].length);
+    set("cliente-rif", /^[VE]/i.test(m[1]) ? formatearCedulaVe(num) : num);
   } else {
     set("cliente-rif", rif);
   }

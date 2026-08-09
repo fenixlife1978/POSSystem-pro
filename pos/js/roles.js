@@ -61,8 +61,6 @@ function aplicarPermisosRol() {
 
 // ===== DASHBOARD DE ADMINISTRACIÓN (tipo ERP) =====
 function renderDashboard() {
-  const body = _ro("dashboard-body");
-  if (!body) return;
   const dt = _ro("dash-datetime");
   if (dt) dt.textContent = ahoraFechaHora();
   const hoyDia = hoy();
@@ -116,9 +114,8 @@ function renderDashboard() {
   const card = (label, value, sub, cls) =>
     `<div class="dash-card"><div class="dash-label">${label}</div><div class="dash-value ${cls || ""}">${value}</div>${sub ? `<div class="dash-sub">${sub}</div>` : ""}</div>`;
 
-  body.innerHTML =
-    `<div class="dash-kpis">
-      ${card("Ventas de Hoy", fmt(hoyTotal), `${hoyVentas.length} factura(s) · ticket prom. ${fmt(hoyTicket)}`)}
+  const html =
+    `<div class="dash-kpis">      ${card("Ventas de Hoy", fmt(hoyTotal), `${hoyVentas.length} factura(s) · ticket prom. ${fmt(hoyTicket)}`)}
       ${card("Ventas del Mes", fmt(mesTotal), `${mesVentas.length} factura(s)`)}
       ${card("Cobrado Hoy (CxC)", fmt(cobradoHoy), `${(DB.abonos || []).filter(a => a.fecha === hoyDia).length} abono(s)`)}
       ${card("Cartera por Cobrar", fmt(carteraCxC), `${Object.keys(deudasClientes).length} cliente(s) deudor(es)`, carteraCxC ? "dash-amber" : "dash-green")}
@@ -171,11 +168,33 @@ function renderDashboard() {
         </table>
       </div>
     </div>`;
+  const b1 = _ro("admin-main");
+  const b2 = _ro("dashboard-body");
+  if (b1) b1.innerHTML = html;
+  if (b2) b2.innerHTML = html;
 }
 
 function abrirDashboard() {
   renderDashboard();
+  const main = _ro("admin-main");
+  if (main && document.body.classList.contains("role-admin")) {
+    document.body.classList.remove("admin-pos-view");
+    const tc = _ro("app-title-center");
+    if (tc) tc.textContent = "Administración ERP";
+    return;
+  }
   openModuleWindow("dashboard");
+}
+
+// Alterna la vista principal del administrador entre Dashboard y POS
+function cambiarVistaAdmin() {
+  const pos = document.body.classList.toggle("admin-pos-view");
+  const tc = _ro("app-title-center");
+  if (tc) tc.textContent = pos ? "Punto de Venta" : "Administración ERP";
+  if (pos) {
+    setTimeout(() => { const c = document.getElementById("prod-codigo"); if (c) c.focus(); }, 40);
+  }
+  return pos;
 }
 
 // ===== Gateo de ventanas por permiso =====

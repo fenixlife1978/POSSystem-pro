@@ -176,3 +176,20 @@
 .dash-legend-color { width: 10px; height: 10px; border-radius: 2px; display: inline-block; flex-shrink: 0; }
 .dash-cols3 { grid-template-columns: repeat(3, 1fr); }
 @media (max-width: 1100px) { .dash-cols3 { grid-template-columns: 1fr; } }
+
+/* ===== Administrador: el Dashboard es la pantalla principal y fija ===== */
+#admin-main { display: none; }
+body.role-admin #pos-window { height: calc(100vh - 24px); }
+body.role-admin #admin-main {
+  display: block;
+  flex: 1;
+  overflow: auto;
+  padding: 8px;
+  background: #ECE9D8;
+}
+body.role-admin .pos-content { display: none; }
+body.role-admin .toolbar { display: none; }
+body.role-admin.admin-pos-view #admin-main { display: none; }
+body.role-admin.admin-pos-view .pos-content { display: grid; }
+body.role-admin.admin-pos-view .toolbar { display: grid; }
+body.role-admin.admin-pos-view #pos-window { height: auto; }

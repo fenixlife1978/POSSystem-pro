@@ -178,6 +178,7 @@
         <button class="menu-command" data-perm="auditoria" onclick="openModule('auditoria')">Auditoría</button>
         <div class="menu-sep"></div>
         <button class="menu-command" data-perm="dashboard" onclick="abrirDashboard()">Dashboard</button>
+        <button class="menu-command" data-perm="dashboard" onclick="cambiarVistaAdmin()">Alternar Vista Dashboard / POS</button>
         <button class="menu-command" data-perm="parametros" onclick="resetDemoData()">Restaurar Datos de Ejemplo</button>
         <button class="menu-command" data-perm="parametros" onclick="saveDB();alert('Datos guardados correctamente.')">Guardar Datos</button>
       </span>
@@ -198,8 +199,12 @@
     <button class="tool-btn" data-perm="devoluciones" onclick="nuevaDevolucion()" title="Devolución (F6)"><div class="tool-icon">↩</div><div class="tool-label">F6 - Devolución</div></button>
     <button class="tool-btn" data-perm="pos" onclick="cancelSale()" title="Anular Venta (F7)"><div class="tool-icon">❌</div><div class="tool-label">F7 - Anular</div></button>
     <button class="tool-btn" data-perm="pos" onclick="applyDiscount()" title="Descuento (F8)"><div class="tool-icon">%</div><div class="tool-label">F8 - Descuento</div></button>
+    <button class="tool-btn" data-perm="pago" onclick="pay('mixto')" title="Cobrar / Calculadora (F9)"><div class="tool-icon">💵</div><div class="tool-label">F9 - Cobrar</div></button>
     <button class="tool-btn" data-perm="pos" onclick="exitApp()" title="Salir (F12)"><div class="tool-icon">🚪</div><div class="tool-label">F12 - Salir</div></button>
   </div>
+
+  <!-- Pantalla principal y fija del Administrador: Dashboard -->
+  <div class="admin-main" id="admin-main"></div>
 
   <div class="pos-content">
     <div class="pos-left">
@@ -235,7 +240,7 @@
                 <option value="J-">J-</option>
                 <option value="G-">G-</option>
               </select>
-              <input type="text" id="cliente-rif" class="input-small" placeholder="Nº de documento" onkeydown="if(event.key==='Enter'){event.preventDefault();buscarClientePorDocumento();}">
+              <input type="text" id="cliente-rif" class="input-small" placeholder="Nº de documento" onchange="formatearCedulaInputPOS()" onkeydown="if(event.key==='Enter'){event.preventDefault();buscarClientePorDocumento();}">
               <button class="btn-mini" title="Buscar cliente por documento" onclick="buscarClientePorDocumento()">🔍</button>
               <label style="margin-left:8px">Teléfono:</label>
               <input type="text" id="cliente-telefono" class="input-small">

@@ -650,6 +650,16 @@ function docIdentidadCompleto() {
   return num ? (tipo + num) : "";
 }
 
+// Formatea la cédula V-/E- mientras se escribe (XX.XXX.XXX)
+function formatearCedulaInputPOS() {
+  const tipo = document.getElementById("cliente-doc-tipo");
+  const num = document.getElementById("cliente-rif");
+  if (!num || !tipo) return;
+  if (/^[VE]-$/i.test(tipo.value) && /^\d+$/.test(num.value)) {
+    num.value = formatearCedulaVe(num.value);
+  }
+}
+
 // Rellena los campos del cliente en el POS a partir de un cliente de DB
 function aplicarClientePOS(cli) {
   if (!cli) { actualizarClienteNuevoRow(true); mostrarSaldoCliente(null); return; }
@@ -662,7 +672,9 @@ function aplicarClientePOS(cli) {
   const m = String(doc).match(/^([VJEG])-(.*)$/i);
   const tipo = document.getElementById("cliente-doc-tipo");
   if (tipo && m) tipo.value = m[1].toUpperCase() + "-";
-  document.getElementById("cliente-rif").value = m ? m[2] : doc;
+  document.getElementById("cliente-rif").value = (m && /^[VE]/i.test(m[1]))
+    ? formatearCedulaVe(m[2])
+    : (m ? m[2] : doc);
   const cred = document.getElementById("cliente-credito");
   if (cred) cred.checked = cli.tipo === "Crédito" || cli.tipo === "Mixto";
   toggleCredito();
@@ -672,7 +684,7 @@ function aplicarClientePOS(cli) {
 function buscarClientePorDocumento() {
   const doc = docIdentidadCompleto();
   if (!doc) { actualizarClienteNuevoRow(false); mostrarSaldoCliente(null); return; }
-  const norm = s => (s || "").replace(/\s+/g, "").toUpperCase();
+  const norm = s => (s || "").replace(/[.\s]+/g, "").toUpperCase();
   const cli = DB.clientes.find(c => norm(c.rif) === norm(doc));
   if (cli) {
     aplicarClientePOS(cli);
@@ -704,7 +716,7 @@ function buscarClientePos() {
   posClienteMatches = matches;
   if (!matches.length) { ocultarClientePos(); return; }
   box.innerHTML = matches.map((c, i) =>
-    `<button type="button" onmousedown="event.preventDefault()" onclick="seleccionarClientePos(${i})">${c.codigo} — ${c.nombre}${c.rif ? " (" + c.rif + ")" : ""}</button>`
+    `<button type="button" onmousedown="event.preventDefault()" onclick="seleccionarClientePos(${i})">${c.codigo} — ${c.nombre}${c.rif ? " (" + (typeof formatoDocVzla === "function" ? formatoDocVzla(c.rif) : c.rif) + ")" : ""}</button>`
   ).join("");
   box.classList.add("show");
 }
@@ -746,7 +758,7 @@ function clienteNuevoMarcado() {
 function registrarClienteNuevoDesdePOS() {
   if (!clienteNuevoMarcado()) return null;
   const nombre = document.getElementById("cliente-nombre").value.trim();
-  const doc = docIdentidadCompleto();
+  const doc = docIdentidadCompleto().replace(/\./g, "");
   if (!nombre) { alert("Debe ingresar el nombre del cliente para registrarlo."); return null; }
   const cred = document.getElementById("cliente-credito");
   const cli = {
@@ -774,7 +786,7 @@ function registrarClienteNuevoDesdePOS() {
 function saldoClienteActual() {
   const nombre = document.getElementById("cliente-nombre").value.trim();
   const doc = docIdentidadCompleto();
-  const norm = s => (s || "").replace(/\s+/g, "").toUpperCase();
+  const norm = s => (s || "").replace(/[.\s]+/g, "").toUpperCase();
   return DB.clientes.find(c => (c.nombre === nombre) || (doc && norm(c.rif) === norm(doc)));
 }
 
@@ -1012,7 +1024,7 @@ document.addEventListener("keydown", function(e) {
     if (K === "F6")  { if (posOk("devoluciones")) { e.preventDefault(); nuevaDevolucion(); } }
     if (K === "F7")  { if (posOk("pos")) { e.preventDefault(); cancelSale(); } }
     if (K === "F8")  { if (posOk("pos")) { e.preventDefault(); applyDiscount(); } }
-    if (K === "F9")  { if (posOk("pago")) { e.preventDefault(); pay("efectivo_bs"); } }
+    if (K === "F9")  { if (posOk("pago")) { e.preventDefault(); pay("mixto"); } }
     if (K === "F10") { if (posOk("pago")) { e.preventDefault(); pay("tarjeta_punto"); } }
     if (K === "F11") { if (posOk("pago")) { e.preventDefault(); pay("mixto"); } }
     if (K === "F12") { if (posOk("pos")) { e.preventDefault(); exitApp(); } }

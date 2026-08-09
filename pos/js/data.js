@@ -194,6 +194,24 @@ const r2 = n => Math.round((num(n) + Number.EPSILON) * 100) / 100;
 const getTasa = () => num(DB.parametros.tasaBCV) || 1;
 const getIva = () => num(DB.parametros.iva) || 0;
 
+// Formatea la cédula V-/E- con puntos: 13313521 -> 13.313.521 (XX.XXX.XXX)
+function formatearCedulaVe(numDoc) {
+  const s = String(numDoc == null ? "" : numDoc).trim();
+  const m = s.match(/^([0-9]+?)(?:-([0-9]+))?$/);
+  if (!m) return s;
+  const cuerpo = m[1].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return m[2] !== undefined ? cuerpo + "-" + m[2] : cuerpo;
+}
+
+// Formatea el documento completo en el POS: solo personas naturales (V-/E-) llevan puntos
+function formatoDocVzla(doc) {
+  const m = String(doc || "").match(/^([VEJG])\s*-?\s*([0-9]+)(?:\s*-?\s*([0-9]))?$/i);
+  if (!m) return doc;
+  const tipo = m[1].toUpperCase();
+  if (tipo !== "V" && tipo !== "E") return doc;
+  return tipo + "-" + formatearCedulaVe(m[2] + (m[3] !== undefined ? "-" + m[3] : ""));
+}
+
 function hoy() {
   const d = new Date();
   const dd = String(d.getDate()).padStart(2, "0");
