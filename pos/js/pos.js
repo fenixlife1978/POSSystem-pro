@@ -74,14 +74,20 @@ function addToCart() {
   focusProdCodigo();
 }
 
+// Índice de la línea del carrito seleccionada (destino del descuento F8)
+let carritoSel = -1;
+
 function renderCarrito() {
   const tbody = document.getElementById("detalle-venta-body");
   if (!tbody) return;
+  if (carritoSel >= DB.carrito.length) carritoSel = -1;
   tbody.innerHTML = "";
   const tasa = getTasa();
   DB.carrito.forEach((it, idx) => {
     const usd = it.precioUSD !== undefined ? it.precioUSD : it.precio / tasa;
     const tr = document.createElement("tr");
+    tr.className = (idx === carritoSel ? "selected " : "") + "cursor";
+    tr.onclick = () => seleccionarLineaCarrito(idx);
     tr.innerHTML = `
       <td>${it.codigo}</td>
       <td>${it.descripcion}</td>
@@ -100,8 +106,17 @@ function renderCarrito() {
   recalcTotales();
 }
 
+// Selecciona una línea del carrito para aplicarle descuento (F8)
+function seleccionarLineaCarrito(idx) {
+  if (idx < 0 || idx >= DB.carrito.length) return;
+  carritoSel = idx;
+  const tbody = document.getElementById("detalle-venta-body");
+  if (tbody) tbody.querySelectorAll("tr").forEach((tr, i) => tr.classList.toggle("selected", i === idx));
+}
+
 function quitarLinea(idx) {
   DB.carrito.splice(idx, 1);
+  if (carritoSel >= DB.carrito.length) carritoSel = -1;
   renderCarrito();
 }
 
@@ -265,6 +280,7 @@ function clearProductInput() {
 function newSale() {
   if (DB.carrito.length && !confirm("¿Desea iniciar una nueva venta? Se perderá el contenido actual.")) return;
   DB.carrito = [];
+  carritoSel = -1;
   renderCarrito();
   clearProductInput();
   document.getElementById("cliente-codigo").value = "000001";
@@ -287,15 +303,28 @@ function cancelSale() {
   if (!DB.carrito.length) { alert("No hay venta activa para anular"); return; }
   if (confirm("¿Está seguro de anular la venta actual?")) {
     DB.carrito = [];
+    carritoSel = -1;
     renderCarrito();
   }
 }
 
 function applyDiscount() {
   if (!DB.carrito.length) { alert("Agregue productos antes de aplicar descuento"); return; }
-  const d = num(prompt("Porcentaje de descuento general:", "0"));
-  DB.carrito.forEach(it => it.descuento = d);
-  DB.carrito.forEach(it => it.total = (it.cantidad * it.precio) * (1 - d / 100));
+  if (carritoSel < 0 || carritoSel >= DB.carrito.length) {
+    if (DB.carrito.length === 1) {
+      carritoSel = 0;
+    } else {
+      alert("Seleccione el producto en el carrito (haga clic sobre su fila) y luego presione F8 para aplicarle el descuento.");
+      return;
+    }
+  }
+  const it = DB.carrito[carritoSel];
+  const entrada = prompt(`Porcentaje de descuento para ${it.codigo} — ${it.descripcion}:`, String(it.descuento || 0));
+  if (entrada === null) return;
+  const d = num(entrada);
+  if (d < 0 || d > 100) { alert("El descuento debe estar entre 0 y 100."); return; }
+  it.descuento = d;
+  it.total = (it.cantidad * it.precio) * (1 - d / 100);
   renderCarrito();
 }
 

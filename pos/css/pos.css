@@ -215,6 +215,8 @@
 }
 .nuevo-cliente-check input { width: 15px; height: 15px; cursor: pointer; accent-color: #ea580c; }
 .nuevo-cliente-hint { margin-left: 8px; font-size: 11px; color: #78716c; }
+.cart-hint { font-size: 11px; color: #78716c; margin: 2px 2px 4px 2px; }
+.cart-hint b { color: #316AC5; }
 
 .observaciones-row {
   display: flex; align-items: center; gap: 8px;

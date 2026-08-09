@@ -198,7 +198,7 @@
     <button class="tool-btn" data-perm="cotizaciones" onclick="openModule('cotizaciones')" title="Cotización (F5)"><div class="tool-icon">📝</div><div class="tool-label">F5 - Cotización</div></button>
     <button class="tool-btn" data-perm="devoluciones" onclick="nuevaDevolucion()" title="Devolución (F6)"><div class="tool-icon">↩</div><div class="tool-label">F6 - Devolución</div></button>
     <button class="tool-btn" data-perm="pos" onclick="cancelSale()" title="Anular Venta (F7)"><div class="tool-icon">❌</div><div class="tool-label">F7 - Anular</div></button>
-    <button class="tool-btn" data-perm="pos" onclick="applyDiscount()" title="Descuento (F8)"><div class="tool-icon">%</div><div class="tool-label">F8 - Descuento</div></button>
+    <button class="tool-btn" data-perm="pos" onclick="applyDiscount()" title="Descuento al producto seleccionado (F8)"><div class="tool-icon">%</div><div class="tool-label">F8 - Descuento</div></button>
     <button class="tool-btn" data-perm="pago" onclick="pay('mixto')" title="Cobrar / Calculadora (F9)"><div class="tool-icon">💵</div><div class="tool-label">F9 - Cobrar</div></button>
     <button class="tool-btn" data-perm="pos" onclick="exitApp()" title="Salir (F12)"><div class="tool-icon">🚪</div><div class="tool-label">F12 - Salir</div></button>
   </div>
@@ -272,6 +272,7 @@
 
       <fieldset class="panel">
         <legend>Detalle de la Venta</legend>
+        <div class="cart-hint">Haga clic sobre un producto y presione <b>F8</b> para aplicarle descuento <b>solo a ese producto</b>.</div>
         <table class="grid" id="detalle-venta">
           <thead>
             <tr>
