@@ -225,3 +225,24 @@
   padding: 4px;
 }
 .observaciones-row label { font-size: 12px; }
+
+/* ===== Quiero Pagar (calculadora USD <-> Bs.) ===== */
+.qp-hint { font-size: 12px; color: #475569; margin: 2px 4px 10px 4px; }
+.qp-grid { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 4px 10px 4px; }
+.qp-field { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 160px; }
+.qp-field label { font-size: 12px; color: #1e293b; font-weight: bold; }
+.qp-input {
+  width: 100%; box-sizing: border-box;
+  padding: 6px 8px; font-size: 15px;
+  border: 1px solid #94a3b8; border-radius: 3px;
+  font-weight: bold; color: #0f172a;
+}
+.qp-input:focus { outline: 2px solid #316AC5; border-color: #316AC5; }
+.qp-result {
+  margin: 0 4px 10px 4px;
+  background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 4px;
+  padding: 12px; text-align: center;
+}
+.qp-equiv-label { font-size: 13px; color: #1e3a8a; margin-bottom: 6px; }
+.qp-equiv-big { font-size: 34px; font-weight: bold; color: #1d4ed8; line-height: 1.1; }
+.qp-equiv-hint { font-size: 11px; color: #64748b; margin-top: 6px; }

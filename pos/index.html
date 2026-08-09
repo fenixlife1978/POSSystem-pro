@@ -1151,8 +1151,43 @@
     <div class="pago-actions">
       <button class="mod-btn" onclick="llenarPagoBs()">💰 Pago Exacto (Bs.)</button>
       <button class="mod-btn" onclick="llenarPagoUsd()">💲 Pago Exacto (USD)</button>
+      <button class="mod-btn" onclick="rellenarPagoFaltante()" title="Autorellena el monto con la cantidad exacta que falta para cubrir la venta">🧮 Pago Faltante</button>
+      <button class="mod-btn" onclick="abrirQuieroPagar()" title="Calcula el equivalente en Bs./USD del monto que el cliente desea pagar">🖐 Quiero Pagar</button>
       <button class="mod-btn pago-confirmar" id="pago-confirmar" onclick="confirmPago()">✅ Finalizar Venta</button>
       <button class="mod-btn" onclick="closeWindow('pago-window')">✖ Cancelar (Esc)</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============== QUIERO PAGAR (calculadora USD / Bs.) ============== -->
+<div class="window hidden" id="quiero-pagar-window">
+  <div class="title-bar">
+    <div class="title-left"><span class="app-icon">🖐</span><span class="title-text">Quiero Pagar — Calculadora</span></div>
+    <div class="title-right">
+      <button class="win-btn">─</button><button class="win-btn">▢</button>
+      <button class="win-btn" onclick="closeWindow('quiero-pagar-window')">✕</button>
+    </div>
+  </div>
+  <div class="module-content">
+    <div class="qp-hint">Ingrese el monto que el cliente desea pagar y vea su equivalente al cambio.</div>
+    <div class="qp-grid">
+      <div class="qp-field">
+        <label>Monto en USD ($):</label>
+        <input type="text" inputmode="decimal" id="qp-usd" class="qp-input" placeholder="0,00" oninput="calcularQuieroPagar('usd')">
+      </div>
+      <div class="qp-field">
+        <label>Monto en Bs.:</label>
+        <input type="text" inputmode="decimal" id="qp-bs" class="qp-input" placeholder="0,00" oninput="calcularQuieroPagar('bs')">
+      </div>
+    </div>
+    <div class="qp-result">
+      <div class="qp-equiv-label" id="qp-equiv-label">Ingrese el monto que el cliente desea pagar</div>
+      <div class="qp-equiv-big" id="qp-equiv-big">$ 0,00</div>
+      <div class="qp-equiv-hint" id="qp-equiv-hint"></div>
+    </div>
+    <div class="pago-actions">
+      <button class="mod-btn" onclick="usarQuieroPagar()">✅ Usar este monto</button>
+      <button class="mod-btn" onclick="closeWindow('quiero-pagar-window')">✖ Cerrar</button>
     </div>
   </div>
 </div>

@@ -476,6 +476,101 @@ function llenarPagoUsd() {
   if (btn) btn.focus();
 }
 
+// Autorellena el campo de monto con la cantidad exacta que falta (en la moneda del método seleccionado)
+function rellenarPagoFaltante() {
+  const sel = document.getElementById("pago-metodo");
+  const monto = document.getElementById("pago-monto");
+  if (!sel || !monto) return;
+  const total = montoTotalPago();
+  let asignado = 0, credito = 0;
+  pagoTemp.forEach(p => {
+    if (p.id === "credito") credito += p.equiv;
+    else asignado += p.equiv;
+  });
+  const faltante = r2(total - asignado - credito);
+  if (faltante <= 0.005) { alert("La venta ya está cubierta, no hay monto faltante."); return; }
+  const m = METODOS_PAGO.find(x => x.id === sel.value);
+  if (!m) return;
+  const valor = m.moneda === "USD" ? r2(faltante / getTasa()) : faltante;
+  monto.value = valor.toFixed(2).replace(".", ",");
+  actualizarEquivMonto();
+  monto.focus();
+  monto.select();
+}
+
+// ===== QUERO PAGAR (calculadora USD <-> Bs.) =====
+let _qpUltimo = "usd";
+
+function abrirQuieroPagar() {
+  _qpUltimo = "usd";
+  const u = document.getElementById("qp-usd");
+  const b = document.getElementById("qp-bs");
+  if (u) u.value = "";
+  if (b) b.value = "";
+  calcularQuieroPagar("usd");
+  openModuleWindow("quiero-pagar");
+  if (u) setTimeout(() => u.focus(), 60);
+}
+
+function calcularQuieroPagar(origen) {
+  const u = document.getElementById("qp-usd");
+  const b = document.getElementById("qp-bs");
+  const eq = document.getElementById("qp-equiv-big");
+  const lbl = document.getElementById("qp-equiv-label");
+  const hint = document.getElementById("qp-equiv-hint");
+  if (!u || !b || !eq || !lbl) return;
+  _qpUltimo = origen;
+  const tasa = getTasa();
+  if (origen === "usd") {
+    const usd = num(u.value);
+    const bs = usd * tasa;
+    b.value = usd > 0 ? r2(bs).toFixed(2).replace(".", ",") : "";
+    if (usd > 0) {
+      eq.textContent = "Bs. " + fmt(bs);
+      lbl.textContent = `El cliente paga $ ${fmt(usd)} al cambio ${fmt(tasa)} Bs/USD:`;
+      hint.textContent = `Equivalente en Bolívares (Bs.): $ ${fmt(usd)} × ${fmt(tasa)} = Bs. ${fmt(bs)}`;
+    } else {
+      eq.textContent = "$ 0,00";
+      lbl.textContent = "Ingrese el monto que el cliente desea pagar";
+      hint.textContent = "";
+    }
+  } else {
+    const bs = num(b.value);
+    const usd = bs / tasa;
+    u.value = bs > 0 ? r2(usd).toFixed(2).replace(".", ",") : "";
+    if (bs > 0) {
+      eq.textContent = "$ " + fmt(usd);
+      lbl.textContent = `El cliente paga Bs. ${fmt(bs)} al cambio ${fmt(tasa)} Bs/USD:`;
+      hint.textContent = `Equivalente en Dólares ($): Bs. ${fmt(bs)} ÷ ${fmt(tasa)} = $ ${fmt(usd)}`;
+    } else {
+      eq.textContent = "$ 0,00";
+      lbl.textContent = "Ingrese el monto que el cliente desea pagar";
+      hint.textContent = "";
+    }
+  }
+}
+
+// Toma el monto calculado y lo deja listo en el campo de monto de la ventana de pago (en la moneda del método elegido)
+function usarQuieroPagar() {
+  const u = document.getElementById("qp-usd");
+  const b = document.getElementById("qp-bs");
+  const sel = document.getElementById("pago-metodo");
+  const monto = document.getElementById("pago-monto");
+  if (!u || !b || !sel || !monto) return;
+  const usd = num(u.value);
+  const bs = num(b.value);
+  if (usd <= 0 && bs <= 0) { alert("Ingrese el monto que el cliente desea pagar."); return; }
+  const montoBs = _qpUltimo === "usd" && usd > 0 ? r2(usd * getTasa()) : bs;
+  const montoUsd = _qpUltimo === "usd" && usd > 0 ? usd : r2(bs / getTasa());
+  const m = METODOS_PAGO.find(x => x.id === sel.value) || METODOS_PAGO[0];
+  const valor = m.moneda === "USD" ? montoUsd : montoBs;
+  monto.value = r2(valor).toFixed(2).replace(".", ",");
+  actualizarEquivMonto();
+  closeWindow("quiero-pagar-window");
+  monto.focus();
+  monto.select();
+}
+
 function updatePagoTotales() {
   const total = montoTotalPago();
   let asignado = 0;
