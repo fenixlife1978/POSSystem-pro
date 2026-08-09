@@ -507,9 +507,34 @@ function abrirQuieroPagar() {
   const b = document.getElementById("qp-bs");
   if (u) u.value = "";
   if (b) b.value = "";
+  const qpSel = document.getElementById("qp-metodo");
+  if (qpSel) {
+    const sel = document.getElementById("pago-metodo");
+    const cur = sel && sel.value ? sel.value : "efectivo_bs";
+    qpSel.innerHTML = METODOS_PAGO
+      .filter(m => !m.credit)
+      .map(m => `<option value="${m.id}">${m.label}</option>`).join("");
+    qpSel.value = cur;
+  }
+  actualizarFaltanteQuieroPagar();
   calcularQuieroPagar("usd");
   openModuleWindow("quiero-pagar");
   if (u) setTimeout(() => u.focus(), 60);
+}
+
+function actualizarFaltanteQuieroPagar() {
+  const el = document.getElementById("qp-faltante");
+  if (!el) return;
+  const total = montoTotalPago();
+  let asignado = 0, credito = 0;
+  pagoTemp.forEach(p => {
+    if (p.id === "credito") credito += p.equiv;
+    else asignado += p.equiv;
+  });
+  const faltante = r2(total - asignado - credito);
+  el.textContent = faltante > 0.005
+    ? `Faltante por cubrir: Bs. ${fmt(faltante)}  ( ${fmt(r2(faltante / getTasa()))} $ )`
+    : "La venta está completamente cubierta.";
 }
 
 function calcularQuieroPagar(origen) {
@@ -562,7 +587,11 @@ function usarQuieroPagar() {
   if (usd <= 0 && bs <= 0) { alert("Ingrese el monto que el cliente desea pagar."); return; }
   const montoBs = _qpUltimo === "usd" && usd > 0 ? r2(usd * getTasa()) : bs;
   const montoUsd = _qpUltimo === "usd" && usd > 0 ? usd : r2(bs / getTasa());
-  const m = METODOS_PAGO.find(x => x.id === sel.value) || METODOS_PAGO[0];
+  // Aplica también el método de pago elegido dentro de la ventana Quiero Pagar
+  const qpSel = document.getElementById("qp-metodo");
+  let selId = qpSel && qpSel.value ? qpSel.value : sel.value;
+  if (selId !== sel.value && METODOS_PAGO.some(x => x.id === selId)) sel.value = selId;
+  const m = METODOS_PAGO.find(x => x.id === selId) || METODOS_PAGO[0];
   const valor = m.moneda === "USD" ? montoUsd : montoBs;
   monto.value = r2(valor).toFixed(2).replace(".", ",");
   actualizarEquivMonto();
