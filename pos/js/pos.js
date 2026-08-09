@@ -1,5 +1,5 @@
 // ============== POS - Lógica del Punto de Venta ==============
-const fmt = n => (Number(n) || 0).toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmt = n => fmtVE(n, 2);
 const fmtUsd = n => "$ " + fmt(n);
 
 const METODOS_PAGO = [
@@ -91,7 +91,7 @@ function renderCarrito() {
       <td style="text-align:right">${fmt(it.descuento)}</td>
       <td style="text-align:right">${fmt(it.total)}</td>
       <td style="text-align:center">
-        <button class="btn-mini" title="Modificar cantidad" onclick="abrirQtyEdit(${idx})">⟲</button>
+        <button class="btn-mini" title="Modificar cantidad y precio" onclick="abrirQtyEdit(${idx})">⟲</button>
         <button class="btn-mini" title="Quitar" onclick="quitarLinea(${idx})">✕</button>
       </td>
     `;
@@ -108,11 +108,53 @@ function quitarLinea(idx) {
 // ===== Modal de cantidad =====
 let qtyTemp = null;
 
+// Precios alternativos configurados del producto (Regular / Mayor / Oferta / Promoción)
+function qtyPreciosDe(prod) {
+  if (!prod) return [];
+  const pr = prod.precios || {};
+  const lista = [
+    { id: "regular", label: "Regular",   usd: prod.precioUSD || 0,  bs: prod.precio || 0 },
+    { id: "mayor",   label: "Mayor",     usd: (pr.mayor && pr.mayor.usd) || 0, bs: (pr.mayor && pr.mayor.bs) || 0 },
+    { id: "oferta",  label: "Oferta",    usd: (pr.oferta && pr.oferta.usd) || 0, bs: (pr.oferta && pr.oferta.bs) || 0 },
+    { id: "promo",   label: "Promoción", usd: (pr.promo && pr.promo.usd) || 0,   bs: (pr.promo && pr.promo.bs) || 0 }
+  ];
+  return lista.filter(t => t.bs > 0);
+}
+
+function renderQtyPrecio(prod, tipoSel) {
+  const sel = document.getElementById("qty-tipo-precio");
+  const inp = document.getElementById("qty-precio");
+  if (!sel || !inp) return;
+  const lista = qtyPreciosDe(prod);
+  const opts = lista.map(t => `<option value="${t.id}">${t.label} — ${fmt(t.bs)} Bs. (${fmt(t.usd)} $)</option>`).join("");
+  sel.innerHTML = opts;
+  let tipo = (tipoSel && lista.some(t => t.id === tipoSel)) ? tipoSel : "regular";
+  if (!lista.some(t => t.id === tipo)) tipo = lista.length ? lista[0].id : "";
+  sel.value = tipo;
+  const tier = lista.find(t => t.id === tipo);
+  inp.value = tier ? r2(tier.bs).toFixed(2).replace(".", ",") : "0,00";
+  const hint = document.getElementById("qty-hint");
+  if (hint) {
+    hint.textContent = lista.length
+      ? "Precios disponibles: " + lista.map(t => `${t.label} ${fmt(t.bs)}`).join(" · ") + " Bs."
+      : "Sin precios especiales configurados.";
+  }
+}
+
+function qtySeleccionarTipoPrecio() {
+  const sel = document.getElementById("qty-tipo-precio");
+  const inp = document.getElementById("qty-precio");
+  if (!sel || !inp) return;
+  const prod = qtyTemp && (qtyTemp.p || (qtyTemp.idx >= 0 ? findProductoByCodigo((DB.carrito[qtyTemp.idx] || {}).codigo) : null));
+  const tier = qtyPreciosDe(prod).find(t => t.id === sel.value);
+  if (tier) inp.value = r2(tier.bs).toFixed(2).replace(".", ",");
+}
+
 function abrirQtyAdd(p) {
   qtyTemp = { p, idx: -1 };
   document.getElementById("qty-product").textContent = `${p.codigo} — ${p.descripcion}`;
   document.getElementById("qty-input").value = "1";
-  document.getElementById("qty-hint").textContent = `Precio unitario: ${fmt(p.precio)} Bs. (${fmt((p.precio || 0) / getTasa())} $)`;
+  renderQtyPrecio(p, "regular");
   document.getElementById("qty-modal").classList.remove("hidden");
   const inp = document.getElementById("qty-input");
   inp.focus();
@@ -126,7 +168,12 @@ function abrirQtyEdit(idx) {
   const prod = findProductoByCodigo(it.codigo);
   document.getElementById("qty-product").textContent = `${it.codigo} — ${it.descripcion}`;
   document.getElementById("qty-input").value = String(it.cantidad);
-  document.getElementById("qty-hint").textContent = prod ? `Precio unitario: ${fmt(prod.precio)} Bs.` : "";
+  let tipo = "regular";
+  if (prod) {
+    const match = qtyPreciosDe(prod).find(t => Math.abs(t.bs - it.precio) < 0.01);
+    tipo = match ? match.id : "regular";
+  }
+  renderQtyPrecio(prod, tipo);
   document.getElementById("qty-modal").classList.remove("hidden");
   const inp = document.getElementById("qty-input");
   inp.focus();
@@ -143,9 +190,16 @@ function ajustarQty(delta) {
 function confirmarQty() {
   const cant = num(document.getElementById("qty-input").value) || 1;
   if (cant <= 0) { alert("La cantidad debe ser mayor a 0"); return; }
+  const precioBs = num(document.getElementById("qty-precio").value);
+  const usaPrecio = precioBs > 0;
   if (qtyTemp && qtyTemp.idx >= 0) {
     const it = DB.carrito[qtyTemp.idx];
     if (it) {
+      if (usaPrecio) {
+        const prod = findProductoByCodigo(it.codigo);
+        it.precio = precioBs;
+        it.precioUSD = prod ? precioUSDReal(prod, precioBs) : r2(precioBs / getTasa());
+      }
       it.cantidad = cant;
       it.total = (cant * it.precio) * (1 - (it.descuento || 0) / 100);
       renderCarrito();
@@ -154,7 +208,7 @@ function confirmarQty() {
     focusProdCodigo();
   } else if (qtyTemp && qtyTemp.p) {
     const p = qtyTemp.p;
-    agregarProductoDirecto(p, cant, p.precio, 0);
+    agregarProductoDirecto(p, cant, usaPrecio ? precioBs : p.precio, 0);
     cerrarQty();
     const buscarW = document.getElementById("buscar-window");
     if (buscarW && !buscarW.classList.contains("hidden")) {

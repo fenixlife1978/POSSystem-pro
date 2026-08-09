@@ -183,7 +183,7 @@ select { height: 22px; }
   border: 2px solid #7F9DB9;
   box-shadow: 4px 4px 16px rgba(0, 0, 0, 0.4);
   padding: 16px;
-  width: 360px;
+  width: 420px;
   font-family: "Segoe UI", "Tahoma", Arial, sans-serif;
 }
 .qty-title {
@@ -227,6 +227,35 @@ select { height: 22px; }
   border: 1px solid #aaa;
 }
 .qty-btn:hover { background: linear-gradient(to bottom, #fff 0%, #d6d3c3 100%); }
+.qty-precio-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.qty-precio-row label {
+  font-size: 12px;
+  color: #222;
+  font-weight: bold;
+}
+.qty-precio-row select {
+  font-family: inherit;
+  font-size: 12px;
+  border: 1px solid #aaa;
+  height: 28px;
+  background: white;
+  max-width: 190px;
+}
+.qty-precio-row input {
+  width: 110px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: bold;
+  height: 28px;
+  border: 1px solid #aaa;
+  font-family: inherit;
+}
 .qty-hint { font-size: 11px; color: #444; text-align: center; margin-bottom: 12px; }
 .qty-actions {
   display: flex;

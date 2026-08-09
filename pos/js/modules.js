@@ -687,7 +687,53 @@ function imprimirCotizacion() {
   const row = document.querySelector("#cotizaciones-body tr.selected");
   if (!row) return alert("Seleccione una cotización");
   const c = DB.cotizaciones.find(x => x.nro === row.cells[0].textContent);
-  imprimirHTML(`Cotización ${c.nro} — ${c.cliente}`, ["Código", "Descripción", "Cantidad", "Precio", "Total"], (c.lineas || []).map(l => [l.codigo, l.descripcion, fmt(l.cantidad), fmt(l.precio), fmt(l.total)]));
+  imprimirCotizacionProfesional(c);
+}
+
+function imprimirCotizacionProfesional(c) {
+  if (!c) return;
+  const tasa = getTasa() || 1;
+  const sub = (c.lineas || []).reduce((s, l) => s + num(l.total), 0);
+  const iva = r2(sub * getIva() / 100);
+  const total = r2(sub + iva);
+  const cli = DB.clientes.find(x => x.nombre === c.cliente);
+  const validez = num(DB.parametros.validezCotizacion) || 15;
+  const venc = sumarDias(c.fecha, validez);
+
+  const filas = (c.lineas || []).map((l, i) =>
+    `<tr><td class="num">${i + 1}</td><td>${_escHtml(l.codigo)}</td><td>${_escHtml(l.descripcion)}</td>` +
+    `<td class="num">${fmt(l.cantidad)}</td><td class="num">${fmt(l.precio)}</td><td class="num">${fmt(l.total)}</td></tr>`
+  ).join("") || `<tr><td colspan="6" style="text-align:center;color:#888">Sin líneas</td></tr>`;
+
+  const body =
+    _metaPrintHtml(`COTIZACIÓN ${c.nro}`, `Fecha: ${c.fecha}  ·  Válida hasta: ${venc}`) +
+    `<div class="ficha"><table>` +
+      `<tr><td class="etq">Cliente:</td><td><b>${_escHtml(c.cliente)}</b></td><td class="etq">RIF / C.I.:</td><td>${_escHtml(cli ? cli.rif : "")}</td></tr>` +
+      `<tr><td class="etq">Dirección:</td><td colspan="3">${_escHtml(cli ? cli.direccion : "")}</td></tr>` +
+    `</table></div>` +
+    `<table>` +
+      `<thead><tr><th class="num">N°</th><th>Código</th><th>Descripción</th><th class="num">Cant.</th><th class="num">Precio</th><th class="num">Total Bs.</th></tr></thead>` +
+      `<tbody>${filas}</tbody>` +
+    `</table>` +
+    `<table class="totales">` +
+      `<tr><td class="lbl">Sub-Total</td><td class="num">${fmt(sub)}</td></tr>` +
+      `<tr><td class="lbl">I.V.A. (${getIva()}%)</td><td class="num">${fmt(iva)}</td></tr>` +
+      `<tr><td class="gr">TOTAL</td><td class="num">${fmt(total)} Bs.</td></tr>` +
+      `<tr><td class="lbl">Total (USD)</td><td class="num">$ ${fmt(total / tasa)}</td></tr>` +
+    `</table>` +
+    (c.observaciones ? `<div class="obs"><b>Observaciones:</b><br>${_escHtml(c.observaciones)}</div>` : "") +
+    `<div class="cond">CONDICIONES GENERALES:<br>` +
+      `1. Precios sujetos a cambios por variación de la tasa BCV.<br>` +
+      `2. Esta cotización tiene una validez de ${validez} días calendario.<br>` +
+      `3. La forma y condiciones de pago serán acordadas con el cliente.<br>` +
+      `4. Los productos cuentan con garantía de fábrica.</div>` +
+    `<div class="firmas">` +
+      `<div>______________________<br>Elaborado por</div>` +
+      `<div>______________________<br>Autorizado por</div>` +
+      `<div>______________________<br>Aceptado por el Cliente</div>` +
+    `</div>`;
+
+  imprimirDocumentoHTML("Cotización " + c.nro, body);
 }
 
 // ===== DEVOLUCIONES =====
@@ -1033,7 +1079,7 @@ function decimalesCompra() {
 }
 function fmtComp(n) {
   const d = decimalesCompra();
-  return (Number(n) || 0).toLocaleString("es-VE", { minimumFractionDigits: d, maximumFractionDigits: d });
+  return fmtVE(n, d);
 }
 function costoCostoBCV(costo) {
   const tasa = tasaCompraActual();

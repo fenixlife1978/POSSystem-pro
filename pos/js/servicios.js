@@ -139,6 +139,55 @@ function eliminarServicio() {
 }
 
 // ===== Componentes =====
+let svCompMatches = [];
+
+function svCompMatchesQuery(p, q) {
+  const s = [p.codigo, p.barra, p.descripcion, p.categoria, p.marca].map(x => String(x || "").toLowerCase());
+  const filtro = q.toLowerCase();
+  if (s.some(x => x === filtro) || s.some(x => x.includes(filtro))) return true;
+  const palabras = filtro.split(/\s+/).filter(Boolean);
+  return palabras.length > 1 && palabras.every(pal => s.some(x => x.includes(pal)));
+}
+
+function buscarServicioComponente() {
+  const box = _sv("sv-comp-results");
+  if (!box) return;
+  const q = (_sv("sv-comp-cod").value || "").trim();
+  if (!q) { ocultarServicioCompResults(); return; }
+  const matches = DB.productos.filter(p => !esServicio(p) && svCompMatchesQuery(p, q)).slice(0, 12);
+  svCompMatches = matches;
+  if (!matches.length) { ocultarServicioCompResults(); return; }
+  box.innerHTML = matches.map((p, i) =>
+    `<div class="prov-result" onmousedown="event.preventDefault()" onclick="seleccionarServicioComponente(${i})"><b>${p.codigo}</b> — ${p.descripcion} <span class="usd-sub">$ ${fmt(p.costoUSD || 0)}</span></div>`
+  ).join("");
+  box.classList.add("show");
+}
+
+function seleccionarServicioComponente(i) {
+  const p = svCompMatches[i];
+  if (!p) return;
+  _sv("sv-comp-cod").value = p.codigo;
+  ocultarServicioCompResults();
+  _sv("sv-comp-cant").focus();
+  _sv("sv-comp-cant").select();
+}
+
+function ocultarServicioCompResults() {
+  const box = _sv("sv-comp-results");
+  if (box) { box.classList.remove("show"); box.innerHTML = ""; }
+  svCompMatches = [];
+}
+
+function onServicioCompKey(ev) {
+  if (ev.key === "Enter") {
+    ev.preventDefault();
+    if (svCompMatches.length) seleccionarServicioComponente(0);
+    else cargarServicioComponente();
+  } else if (ev.key === "Escape") {
+    ocultarServicioCompResults();
+  }
+}
+
 function cargarServicioComponente() {
   const cod = _sv("sv-comp-cod").value.trim();
   const prod = DB.productos.find(x => x.codigo === cod && !esServicio(x));
@@ -148,6 +197,7 @@ function cargarServicioComponente() {
   if (exist) exist.cantidad += cant;
   else svTemp.push({ codigo: cod, descripcion: prod.descripcion, cantidad: cant, costoUSD: prod.costoUSD || 0 });
   renderServicioComponentes();
+  ocultarServicioCompResults();
   _sv("sv-comp-cod").value = "";
   _sv("sv-comp-cant").value = "1";
   _sv("sv-comp-cod").focus();
@@ -234,6 +284,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const cod = compCod.value.trim();
     const p = DB.productos.find(x => x.codigo === cod && !esServicio(x));
     if (p) _sv("sv-comp-cant").focus();
+    ocultarServicioCompResults();
   });
   const man = _sv("sv-manoobra");
   if (man) man.addEventListener("input", renderServicioComponentes);

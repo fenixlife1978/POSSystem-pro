@@ -600,7 +600,7 @@
         <div id="sv-panel-comp" data-panel class="hidden-panel">
           <div class="pricing-hint">Componentes del servicio (Kit/Combo). Cada componente consume su stock al venderse. Si no hay componentes, el servicio es solo mano de obra.</div>
           <table class="form-table">
-            <tr><td><label>Componente:</label></td><td><input type="text" id="sv-comp-cod" class="input-medium" placeholder="Código de producto"></td>
+            <tr><td><label>Componente:</label></td><td><div class="prov-search"><input type="text" id="sv-comp-cod" class="input-medium" placeholder="Código, nombre o palabra clave..." autocomplete="off" oninput="buscarServicioComponente()" onkeydown="onServicioCompKey(event)"><div class="prov-results" id="sv-comp-results"></div></div></td>
                 <td><label>Cant.:</label></td><td><input type="text" inputmode="decimal" id="sv-comp-cant" class="input-small" value="1"></td>
                 <td><button class="mod-btn" onclick="cargarServicioComponente()">➕ Agregar</button></td></tr>
           </table>
@@ -1756,15 +1756,20 @@
   </div>
 </div>
 
-<!-- Modal de cantidad -->
+<!-- Modal de cantidad y precio -->
 <div class="qty-overlay hidden" id="qty-modal">
   <div class="qty-box">
-    <div class="qty-title">Cantidad del Producto</div>
+    <div class="qty-title">Cantidad y Precio del Producto</div>
     <div class="qty-product" id="qty-product"></div>
     <div class="qty-row">
       <button class="qty-btn" onclick="ajustarQty(-1)">−</button>
       <input type="text" inputmode="decimal" id="qty-input" value="1">
       <button class="qty-btn" onclick="ajustarQty(1)">+</button>
+    </div>
+    <div class="qty-precio-row">
+      <label for="qty-tipo-precio">Precio:</label>
+      <select id="qty-tipo-precio" onchange="qtySeleccionarTipoPrecio()"></select>
+      <input type="text" inputmode="decimal" id="qty-precio" readonly>
     </div>
     <div class="qty-hint" id="qty-hint"></div>
     <div class="qty-actions">

@@ -22,3 +22,23 @@
 }
 
 .sv-resumen b { color: #003399; }
+
+/* Búsqueda inteligente de componentes (por código, palabras clave o nombre) */
+#servicios-window .prov-results,
+#servicios-window .prov-result {
+  position: static;
+  display: block;
+  width: 100%;
+  padding: 4px 6px;
+  margin: 0;
+  cursor: pointer;
+  font-size: 12px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-top: none;
+  text-align: left;
+}
+#servicios-window .prov-result:hover { background: #dfe8ff; }
+#servicios-window .prov-results { display: none; border: 1px solid #888; max-height: 180px; overflow-y: auto; }
+#servicios-window .prov-results.show { display: block; }
+#servicios-window .prov-result .usd-sub { float: right; color: #555; font-size: 11px; }

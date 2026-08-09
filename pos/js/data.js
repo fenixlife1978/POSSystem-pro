@@ -194,6 +194,19 @@ const r2 = n => Math.round((num(n) + Number.EPSILON) * 100) / 100;
 const getTasa = () => num(DB.parametros.tasaBCV) || 1;
 const getIva = () => num(DB.parametros.iva) || 0;
 
+// Formatea montos/precios como XXX.XXX,XX (punto = miles, coma = decimales), independiente del locale del navegador.
+function fmtVE(n, dec) {
+  const d = dec === undefined || dec === null ? 2 : Math.max(0, Number(dec) || 0);
+  let v = Number(n) || 0;
+  const neg = v < 0;
+  const s = Math.abs(v).toFixed(d);
+  const idx = s.indexOf(".");
+  const int = idx >= 0 ? s.slice(0, idx) : s;
+  const decPart = idx >= 0 ? s.slice(idx + 1) : "";
+  const miles = int.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return (neg ? "-" : "") + miles + (d > 0 ? "," + decPart : "");
+}
+
 // Formatea la cédula V-/E- con puntos: 13313521 -> 13.313.521 (XX.XXX.XXX)
 function formatearCedulaVe(numDoc) {
   const s = String(numDoc == null ? "" : numDoc).trim();
@@ -296,23 +309,101 @@ function exportarCSV(nombre, headers, rows, total) {
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 200);
 }
 
-function imprimirHTML(titulo, headers, rows, total) {
-  const w = window.open("", "_blank", "width=900,height=600");
+const _escHtml = v => String(v == null ? "" : v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+function _colNumero(h) {
+  return /(bs|usd|total|cant|precio|saldo|monto|costo|iva|ing|egr|deuda|pvp|margen|dif|esperado|conteo|existencia|minimo|unidades|ventas|abono|devol|%|cantidad)/i.test(h || "");
+}
+
+function _basePrintCSS() {
+  return `
+    *{box-sizing:border-box}
+    body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;font-size:11px;margin:22px;color:#1a1a1a}
+    .cabecera{border-bottom:3px solid #0B3D91;padding-bottom:8px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:flex-start}
+    .empresa{font-size:18px;font-weight:bold;color:#0B3D91;letter-spacing:.4px}
+    .empresa-data{font-size:10.5px;color:#333;margin-top:3px}
+    .cab-titulo{text-align:right;font-size:14px;font-weight:bold;color:#0B3D91}
+    .titulo{font-size:15px;font-weight:bold;color:#0B3D91;text-align:center;margin:4px 0 2px}
+    .subtitulo{font-size:11px;color:#555;text-align:center;margin-bottom:4px}
+    .meta{font-size:10px;color:#555;text-align:right;margin-bottom:8px}
+    table{border-collapse:collapse;width:100%}
+    th,td{border:1px solid #b9c3d4;padding:4px 6px}
+    thead th{background:#0B3D91;color:#fff;font-weight:bold;text-align:left}
+    td.num,th.num{text-align:right}
+    tbody tr:nth-child(even){background:#f2f5fb}
+    tfoot .fila-total td{background:#e9eef9;font-weight:bold;font-size:12px;border-top:2px solid #0B3D91}
+    .fila-total td.num{text-align:right}
+    .ficha{border:1px solid #b9c3d4;padding:8px;margin:6px 0;font-size:10.5px}
+    .ficha table{border:none}
+    .ficha td{border:none;padding:2px 4px}
+    .ficha .etq{color:#0B3D91;font-weight:bold;width:110px}
+    .totales{width:auto;margin-left:auto;margin-top:8px;border-collapse:collapse}
+    .totales td{padding:3px 10px;border:1px solid #b9c3d4}
+    .totales .lbl{background:#e9eef9;font-weight:bold}
+    .totales .gr{background:#0B3D91;color:#fff;font-weight:bold}
+    .obs{margin-top:10px;font-size:10.5px}
+    .cond{margin-top:12px;font-size:9.5px;color:#444;border-top:1px solid #ccc;padding-top:6px}
+    .firmas{display:flex;justify-content:space-between;margin-top:34px;font-size:10.5px;text-align:center}
+    .pie{margin-top:16px;font-size:9px;color:#666;border-top:1px solid #ccc;padding-top:6px;text-align:center}
+    @media print{body{margin:10mm}}`;
+}
+
+function _cabeceraPrintHtml() {
+  const p = DB.parametros || {};
+  const nombre = _escHtml((p.nombreEmpresa || "MI EMPRESA, C.A.").toUpperCase());
+  const rif = p.rif ? "RIF: " + _escHtml(p.rif) : "";
+  const dir = p.direccion ? _escHtml(p.direccion) : "";
+  const tel = p.telefono ? "Tel.: " + _escHtml(p.telefono) : "";
+  const linea = [rif, dir, tel].filter(Boolean).join("  •  ");
+  return `<div class="cabecera"><div>
+      <div class="empresa">${nombre}</div>
+      ${linea ? `<div class="empresa-data">${linea}</div>` : ""}
+    </div></div>`;
+}
+
+function _metaPrintHtml(titulo, subtitulo) {
+  const p = DB.parametros || {};
+  const f = `${hoy()}  ${hora12()}`;
+  return `<div class="titulo">${_escHtml(titulo)}</div>` +
+    (subtitulo ? `<div class="subtitulo">${_escHtml(subtitulo)}</div>` : "") +
+    `<div class="meta">Fecha: ${f} &nbsp;|&nbsp; Usuario: ${_escHtml(p.cajero || "ADMIN")}</div>`;
+}
+
+function _piePrintHtml() {
+  const p = DB.parametros || {};
+  return `<div class="pie">Documento generado electrónicamente por el Sistema POS de ${_escHtml(p.nombreEmpresa || "MI EMPRESA")} — Los valores se expresan en Bolívares (Bs.) salvo indicación contraria.</div>`;
+}
+
+function _abrirImpresion(titulo, bodyHtml) {
+  const w = window.open("", "_blank", "width=900,height=640");
   if (!w) { alert("Permita ventanas emergentes para imprimir."); return; }
-  const totalRow = (total !== null && total !== undefined)
-    ? `<tfoot><tr><td colspan="${headers.length}" style="text-align:right;font-weight:bold">TOTAL: ${fmt(total)} Bs.</td></tr></tfoot>`
-    : "";
-  w.document.write(`<html><head><title>${titulo}</title>
-    <style>body{font-family:Tahoma,Arial,sans-serif;font-size:12px;margin:20px}
-    h2{color:#003399;border-bottom:1px solid #999;padding-bottom:4px}
-    table{border-collapse:collapse;width:100%;margin-top:10px}
-    th,td{border:1px solid #999;padding:3px 6px;text-align:left}
-    th{background:#ece9d8}</style></head><body>
-    <h2>${titulo}</h2>
-    <table><thead><tr>${headers.map(h => `<th>${h}</th>`).join("")}</tr></thead>
-    <tbody>${rows.map(r => `<tr>${r.map(c => `<td>${c == null ? "" : c}</td>`).join("")}</tr>`).join("")}</tbody>${totalRow}</table>
+  w.document.write(`<html><head><title>${_escHtml(titulo)}</title>
+    <style>${_basePrintCSS()}</style></head><body>
+    ${_cabeceraPrintHtml()}
+    ${bodyHtml}
+    ${_piePrintHtml()}
     <script>window.print();<\/script></body></html>`);
   w.document.close();
+}
+
+function imprimirHTML(titulo, headers, rows, total, opts) {
+  const subtitulo = (opts && opts.subtitulo) || "";
+  const numClass = headers.map(h => _colNumero(h) ? " num" : "");
+  const totalRow = (total !== null && total !== undefined)
+    ? `<tfoot><tr class="fila-total"><td class="num" colspan="${headers.length}">TOTAL: ${fmt(total)} Bs.</td></tr></tfoot>`
+    : "";
+  const tbody = rows.map(r =>
+    `<tr>${r.map((c, i) => `<td class="${numClass[i].trim()}">${c == null ? "" : _escHtml(c)}</td>`).join("")}</tr>`
+  ).join("");
+  const body = _metaPrintHtml(titulo, subtitulo) +
+    `<table><thead><tr>${headers.map((h, i) => `<th class="${numClass[i].trim()}">${_escHtml(h)}</th>`).join("")}</tr></thead>` +
+    `<tbody>${tbody}</tbody>${totalRow}</table>`;
+  _abrirImpresion(titulo, body);
+}
+
+// Documento profesional personalizado (cotizaciones, facturas, etc.)
+function imprimirDocumentoHTML(titulo, bodyHtml) {
+  _abrirImpresion(titulo, bodyHtml);
 }
 
 // ============== PERSISTENCIA (localStorage) ==============
