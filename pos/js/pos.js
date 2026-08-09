@@ -317,7 +317,7 @@ function cobrarDeudaCliente() {
 }
 
 function montoTotalPago() {
-  if (cobroDeudaCliente) return num(cobroDeudaCliente.saldo) || 0;
+  if (cobroDeudaCliente) return bsDeUsd(num(cobroDeudaCliente.saldo) || 0);
   return calcTotals().total;
 }
 
@@ -496,11 +496,11 @@ function confirmPago() {
   };
   DB.ventas.push(venta);
 
-  // Acreditar saldo al cliente cuando la venta se registró a crédito
+  // Acreditar saldo al cliente cuando la venta se registró a crédito (la deuda se guarda en USD)
   if (credito > 0) {
     const cli = DB.clientes.find(c => c.nombre === cliente);
     if (cli) {
-      cli.saldo = r2((cli.saldo || 0) + credito);
+      cli.saldo = r2((cli.saldo || 0) + usdDeBs(credito));
       mostrarSaldoCliente(cli);
     }
     if (typeof crearCuentaCxC === "function") crearCuentaCxC(cliente, ref, credito, DB.carrito);
@@ -672,7 +672,7 @@ function confirmarCobroDeuda() {
   if (typeof renderCxC === "function") renderCxC();
 
   const resumen = pagos.map(p => `• ${p.metodo}: ${p.moneda === "USD" ? "$ " : ""}${fmt(p.monto)} ${p.moneda}`).join("\n");
-  alert(`COBRO DE DEUDA REGISTRADO\nCliente: ${cli.nombre}\nDeuda: Bs. ${fmt(r.totalDeuda)}\nAbonado: Bs. ${fmt(r.montoCobrado)}\nSaldo restante: Bs. ${fmt(r.saldoRestante)}\n\n${resumen}${r.vuelto > 0 ? `\n\nVuelto: Bs. ${fmt(r.vuelto)}` : ""}`);
+  alert(`COBRO DE DEUDA REGISTRADO\nCliente: ${cli.nombre}\nDeuda: ${saldoDual(r.totalDeuda)}\nAbonado: ${saldoDual(r.montoCobrado)}\nSaldo restante: ${saldoDual(r.saldoRestante)}\n\n${resumen}${r.vuelto > 0 ? `\n\nVuelto: ${fmtUS(r.vuelto)}` : ""}`);
 
   pagoTemp = [];
   cobroDeudaCliente = null;
@@ -850,13 +850,14 @@ function mostrarSaldoCliente(cli) {
   if (!el) return;
   const c = cli || saldoClienteActual();
   if (!c) {
-    el.textContent = "0,00"; el.className = "saldo-badge saldo-cero";
+    el.textContent = "$ 0,00"; el.className = "saldo-badge saldo-cero";
     if (btn) btn.style.display = "none";
     return;
   }
   const saldo = num(c.saldo) || 0;
   const signo = saldo > 0 ? "saldo-deudor" : (saldo < 0 ? "saldo-favor" : "saldo-cero");
-  el.textContent = (saldo > 0 ? "+ " : "") + fmt(Math.abs(saldo)) + (saldo > 0 ? " Deudor" : saldo < 0 ? " A Favor" : " Cero");
+  el.textContent = (saldo > 0 ? "+ " : "") + fmtUS(Math.abs(saldo)) + (saldo > 0 ? " Deudor" : saldo < 0 ? " A Favor" : " Cero")
+    + (saldo !== 0 ? `  (${fmtBsEq(Math.abs(saldo))})` : "");
   el.className = "saldo-badge " + signo;
   if (btn) btn.style.display = saldo > 0 ? "" : "none";
 }

@@ -259,7 +259,7 @@
           <tr>
             <td><label>Saldo:</label></td>
             <td>
-              <span id="cliente-saldo" class="saldo-badge saldo-cero">0,00</span>
+              <span id="cliente-saldo" class="saldo-badge saldo-cero">$ 0,00</span>
               <button class="btn-mini" id="btn-cobrar-deuda" title="Cobrar deuda pendiente del cliente" onclick="cobrarDeudaCliente()" style="display:none">💳 Pagar Deuda</button>
               <label class="credito-check" title="Marcar para vender a crédito">
                 <input type="checkbox" id="cliente-credito" onchange="toggleCredito()">
@@ -947,9 +947,9 @@
     <span>Vista:</span><select id="cxc-vista" onchange="renderCxC()"><option value="detalle">Detalle por Cuenta</option><option value="resumen">Resumen por Cliente</option></select>
   </div>
   <div class="credit-sum">
-    <span>Total Cartera: <b id="cxc-sum-cartera">0,00</b> Bs.</span>
-    <span>Vencidas: <b id="cxc-sum-vencidas">0,00</b> Bs.</span>
-    <span>Cobrado Hoy: <b id="cxc-sum-cobrado">0,00</b> Bs.</span>
+    <span>Total Cartera: <b id="cxc-sum-cartera">$ 0,00</b></span>
+    <span>Vencidas: <b id="cxc-sum-vencidas">$ 0,00</b></span>
+    <span>Cobrado Hoy: <b id="cxc-sum-cobrado">$ 0,00</b></span>
   </div>
   <table class="grid full-grid">
     <thead>
@@ -993,9 +993,9 @@
       <table class="form-table">
         <tr><td><label>Cliente:</label></td><td><input type="text" id="cxc-ab-cliente" class="input-large" readonly></td></tr>
         <tr><td><label>RIF:</label></td><td><input type="text" id="cxc-ab-rif" class="input-medium" readonly></td></tr>
-        <tr><td><label>Deuda actual:</label></td><td><b id="cxc-ab-deuda">0,00</b> Bs.</td></tr>
-        <tr><td><label>Monto a abonar:</label></td><td><input type="text" id="cxc-ab-monto" class="input-medium"></td></tr>
-        <tr><td><label>Forma de Pago:</label></td><td><select id="cxc-ab-forma"></select></td></tr>
+        <tr><td><label>Deuda actual:</label></td><td><b id="cxc-ab-deuda">$ 0,00</b></td></tr>
+        <tr><td><label>Monto a abonar:</label></td><td><input type="text" id="cxc-ab-monto" class="input-medium" oninput="actualizarEquivAbono()"><div class="pago-usd" id="cxc-ab-monto-usd"></div></td></tr>
+        <tr><td><label>Forma de Pago:</label></td><td><select id="cxc-ab-forma" onchange="actualizarEquivAbono()"></select></td></tr>
         <tr><td><label>Referencia:</label></td><td><input type="text" id="cxc-ab-ref" class="input-medium" placeholder="N° de pago/transferencia..."></td></tr>
       </table>
     </fieldset>
@@ -1026,9 +1026,9 @@
     <span>Estado:</span><select id="cxp-estado" onchange="filtrarCxP()"><option>Todos</option><option>Pendiente</option><option>Parcial</option><option>Pagada</option><option>Vencida</option></select>
   </div>
   <div class="credit-sum">
-    <span>Total por Pagar: <b id="cxp-sum-total">0,00</b> Bs.</span>
-    <span>Vencidas: <b id="cxp-sum-vencidas">0,00</b> Bs.</span>
-    <span>Pagado Hoy: <b id="cxp-sum-pagado">0,00</b> Bs.</span>
+    <span>Total por Pagar: <b id="cxp-sum-total">$ 0,00</b></span>
+    <span>Vencidas: <b id="cxp-sum-vencidas">$ 0,00</b></span>
+    <span>Pagado Hoy: <b id="cxp-sum-pagado">$ 0,00</b></span>
   </div>
   <table class="grid full-grid">
     <thead>
@@ -1071,10 +1071,10 @@
       <table class="form-table">
         <tr><td><label>Proveedor:</label></td><td><input type="text" id="cxp-pg-proveedor" class="input-large" readonly></td></tr>
         <tr><td><label>Compra / Cuenta:</label></td><td><input type="text" id="cxp-pg-cuenta" class="input-small" readonly></td></tr>
-        <tr><td><label>Saldo de la cuenta:</label></td><td><b id="cxp-pg-saldo">0,00</b> Bs.</td></tr>
-        <tr><td><label>Monto a pagar:</label></td><td><input type="text" id="cxp-pg-monto" class="input-medium"></td></tr>
+        <tr><td><label>Saldo de la cuenta:</label></td><td><b id="cxp-pg-saldo">$ 0,00</b></td></tr>
+        <tr><td><label>Monto a pagar:</label></td><td><input type="text" id="cxp-pg-monto" class="input-medium" oninput="actualizarEquivPagoCxP()"><div class="pago-usd" id="cxp-pg-monto-usd"></div></td></tr>
         <tr><td><label>Fecha:</label></td><td><input type="text" id="cxp-pg-fecha" class="input-small"></td></tr>
-        <tr><td><label>Forma de Pago:</label></td><td><select id="cxp-pg-forma"></select></td></tr>
+        <tr><td><label>Forma de Pago:</label></td><td><select id="cxp-pg-forma" onchange="actualizarEquivPagoCxP()"></select></td></tr>
         <tr><td><label>Referencia:</label></td><td><input type="text" id="cxp-pg-ref" class="input-medium" placeholder="N° de cheque/transferencia..."></td></tr>
         <tr><td><label>Observaciones:</label></td><td><input type="text" id="cxp-pg-obs" class="input-large"></td></tr>
       </table>

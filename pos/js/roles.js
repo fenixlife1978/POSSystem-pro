@@ -117,9 +117,9 @@ function renderDashboard() {
   const html =
     `<div class="dash-kpis">      ${card("Ventas de Hoy", fmt(hoyTotal), `${hoyVentas.length} factura(s) · ticket prom. ${fmt(hoyTicket)}`)}
       ${card("Ventas del Mes", fmt(mesTotal), `${mesVentas.length} factura(s)`)}
-      ${card("Cobrado Hoy (CxC)", fmt(cobradoHoy), `${(DB.abonos || []).filter(a => a.fecha === hoyDia).length} abono(s)`)}
-      ${card("Cartera por Cobrar", fmt(carteraCxC), `${Object.keys(deudasClientes).length} cliente(s) deudor(es)`, carteraCxC ? "dash-amber" : "dash-green")}
-      ${card("Cartera por Pagar", fmt(carteraCxP), `Vencidas: ${fmt(cxpVenc.reduce((s, c) => s + (c.saldo || 0), 0))}`, carteraCxP ? "dash-amber" : "dash-green")}
+      ${card("Cobrado Hoy (CxC)", fmtUS(cobradoHoy), `${(DB.abonos || []).filter(a => a.fecha === hoyDia).length} abono(s) · ${fmtBsEq(cobradoHoy)}`)}
+      ${card("Cartera por Cobrar", fmtUS(carteraCxC), `${Object.keys(deudasClientes).length} cliente(s) deudor(es) · ${fmtBsEq(carteraCxC)}`, carteraCxC ? "dash-amber" : "dash-green")}
+      ${card("Cartera por Pagar", fmtUS(carteraCxP), `Vencidas: ${fmtUS(cxpVenc.reduce((s, c) => s + (c.saldo || 0), 0))}`, carteraCxP ? "dash-amber" : "dash-green")}
       ${card("Stock Bajo", stockBajo.length, `${DB.productos.length} productos en catálogo`, stockBajo.length ? "dash-red" : "dash-green")}
       ${card("Compras Pendientes", DB.compras.filter(c => c.estatus === "Pendiente").length, `${DB.compras.length} compras`)}
       ${card("Clientes", DB.clientes.length, `${DB.clientes.filter(c => c.tipo === "Crédito").length} de crédito`)}
@@ -156,15 +156,15 @@ function renderDashboard() {
       <div class="dash-col">
         <div class="dash-col-title">Clientes con Deuda</div>
         <table class="grid">
-          <thead><tr><th>Cliente</th><th style="text-align:right">Saldo</th></tr></thead>
-          <tbody>${Object.entries(deudasClientes).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([n, s]) => `<tr><td>${n}</td><td style="text-align:right">${fmt(s)}</td></tr>`).join("") || `<tr><td colspan="2" style="text-align:center;color:#888">Sin deudas</td></tr>`}</tbody>
+          <thead><tr><th>Cliente</th><th style="text-align:right">Saldo $</th></tr></thead>
+          <tbody>${Object.entries(deudasClientes).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([n, s]) => `<tr><td>${n}</td><td style="text-align:right">${fmtUS(s)}<br><span class="usd-sub">${fmtBsEq(s)}</span></td></tr>`).join("") || `<tr><td colspan="2" style="text-align:center;color:#888">Sin deudas</td></tr>`}</tbody>
         </table>
       </div>
       <div class="dash-col">
         <div class="dash-col-title">Cuentas por Pagar Vencidas</div>
         <table class="grid">
-          <thead><tr><th>Proveedor</th><th style="text-align:right">Saldo</th></tr></thead>
-          <tbody>${cxpVenc.slice(0, 6).map(c => `<tr><td>${c.proveedor}</td><td style="text-align:right">${fmt(c.saldo)}</td></tr>`).join("") || `<tr><td colspan="2" style="text-align:center;color:#888">Sin vencidas</td></tr>`}</tbody>
+          <thead><tr><th>Proveedor</th><th style="text-align:right">Saldo $</th></tr></thead>
+          <tbody>${cxpVenc.slice(0, 6).map(c => `<tr><td>${c.proveedor}</td><td style="text-align:right">${fmtUS(c.saldo)}<br><span class="usd-sub">${fmtBsEq(c.saldo)}</span></td></tr>`).join("") || `<tr><td colspan="2" style="text-align:center;color:#888">Sin vencidas</td></tr>`}</tbody>
         </table>
       </div>
     </div>`;

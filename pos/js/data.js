@@ -11,6 +11,7 @@ const DB = {
     caja: "CAJA 01",
     cajero: "ADMIN",
     turno: 1,
+    monedaCxC: "USD",
     categorias: ["REPUESTOS", "LUBRICANTES", "BATERIAS", "FRENOS", "LLANTAS", "SERVICIOS", "GENERAL"],
     subcategorias: ["FILTROS", "ACEITES", "BATERIAS", "FRENOS", "LLANTAS", "BUJIAS", "CORREAS", "SENSORES", "GENERAL"],
     marcas: ["GENERICO", "FRAM", "WEGA", "MOBIL", "SHELL", "MAC", "NGK", "BREMBO", "FIRESTONE", "MICHELIN", "ACDELCO", "BOSCH", "NAKATA", "FERODO"],
@@ -35,10 +36,10 @@ const DB = {
   ],
   clientes: [
     { codigo: "000001", nombre: "CONSUMIDOR FINAL",       rif: "V-00000000-0", direccion: "", telefono: "", email: "", tipo: "Contado", limite: 0, dias: 0, vendedor: "--- NINGUNO ---", saldo: 0, tipoPersona: "natural", representante: "" },
-    { codigo: "000002", nombre: "AUTOMOTRIZ EL VALLE, C.A.", rif: "J-123456789-4", direccion: "Av. Principal #45", telefono: "0212-555-1010", email: "", tipo: "Crédito", limite: 5000, dias: 30, vendedor: "JUAN PEREZ", saldo: 3150.00, tipoPersona: "juridica", representante: "CARLOS PEREZ" },
-    { codigo: "000003", nombre: "TRANSPORTES LA VEGA, C.A.", rif: "J-223344556-8", direccion: "Calle 5 #12", telefono: "0212-555-2020", email: "", tipo: "Crédito", limite: 8000, dias: 45, vendedor: "MARIA GONZALEZ", saldo: 4500.00, tipoPersona: "juridica", representante: "LUIS RAMIREZ" },
+    { codigo: "000002", nombre: "AUTOMOTRIZ EL VALLE, C.A.", rif: "J-123456789-4", direccion: "Av. Principal #45", telefono: "0212-555-1010", email: "", tipo: "Crédito", limite: 5000, dias: 30, vendedor: "JUAN PEREZ", saldo: 86.31, tipoPersona: "juridica", representante: "CARLOS PEREZ" },
+    { codigo: "000003", nombre: "TRANSPORTES LA VEGA, C.A.", rif: "J-223344556-8", direccion: "Calle 5 #12", telefono: "0212-555-2020", email: "", tipo: "Crédito", limite: 8000, dias: 45, vendedor: "MARIA GONZALEZ", saldo: 123.29, tipoPersona: "juridica", representante: "LUIS RAMIREZ" },
     { codigo: "000004", nombre: "TALLER LOS AMIGOS",       rif: "V-11223344-5", direccion: "Urb. Industrial", telefono: "0212-555-3030", email: "", tipo: "Contado", limite: 0, dias: 0, vendedor: "--- NINGUNO ---", saldo: 0, tipoPersona: "natural", representante: "" },
-    { codigo: "000005", nombre: "INVERSIONES DEL SUR, C.A.", rif: "J-998877665-6", direccion: "Calle Sur #8", telefono: "0212-555-4040", email: "", tipo: "Crédito", limite: 10000, dias: 60, vendedor: "JUAN PEREZ", saldo: 1890.00, tipoPersona: "juridica", representante: "ANA TORRES" },
+    { codigo: "000005", nombre: "INVERSIONES DEL SUR, C.A.", rif: "J-998877665-6", direccion: "Calle Sur #8", telefono: "0212-555-4040", email: "", tipo: "Crédito", limite: 10000, dias: 60, vendedor: "JUAN PEREZ", saldo: 51.78, tipoPersona: "juridica", representante: "ANA TORRES" },
     { codigo: "000006", nombre: "CARROCERIAS ABC, C.A.",   rif: "J-445566778-9", direccion: "Zona Industrial", telefono: "0212-555-5050", email: "", tipo: "Crédito", limite: 6000, dias: 30, vendedor: "MARIA GONZALEZ", saldo: 0, tipoPersona: "juridica", representante: "PEDRO SILVA" },
     { codigo: "000007", nombre: "LUBRICENTRO EXPRESS",     rif: "V-33445566-7", direccion: "Av. Bolívar", telefono: "0212-555-6060", email: "", tipo: "Contado", limite: 0, dias: 0, vendedor: "--- NINGUNO ---", saldo: 0, tipoPersona: "natural", representante: "" },
     { codigo: "000008", nombre: "REPUESTOS ORIENTE, C.A.", rif: "J-556677889-0", direccion: "Av. Oriente", telefono: "0212-555-7070", email: "", tipo: "Crédito", limite: 7500, dias: 30, vendedor: "PEDRO MARTINEZ", saldo: 0, tipoPersona: "juridica", representante: "MARIA ROJAS" }
@@ -104,35 +105,35 @@ const DB = {
   carrito: [],
   ventas: [],
   abonos: [
-    { nro: "0000001", fecha: "20/07/2026", hora: "10:30 a.m.", cliente: "AUTOMOTRIZ EL VALLE, C.A.", rif: "J-123456789-4", codigo: "000002", totalDeuda: 2400.00, montoCobrado: 1000.00, saldoRestante: 1400.00, forma: "Efectivo Bs.", pagos: [{ metodo: "Efectivo Bs.", moneda: "Bs", monto: 1000.00, equivBs: 1000.00 }] },
-    { nro: "0000002", fecha: "18/07/2026", hora: "04:05 p.m.", cliente: "INVERSIONES DEL SUR, C.A.", rif: "J-998877665-6", codigo: "000005", totalDeuda: 4890.00, montoCobrado: 2000.00, saldoRestante: 2890.00, forma: "Transferencia", pagos: [{ metodo: "Transferencia", moneda: "Bs", monto: 2000.00, equivBs: 2000.00 }] },
-    { nro: "0000003", fecha: "25/07/2026", hora: "11:15 a.m.", cliente: "INVERSIONES DEL SUR, C.A.", rif: "J-998877665-6", codigo: "000005", totalDeuda: 2890.00, montoCobrado: 1000.00, saldoRestante: 1890.00, forma: "Pagomóvil", pagos: [{ metodo: "Pagomóvil", moneda: "Bs", monto: 1000.00, equivBs: 1000.00 }] },
-    { nro: "0000004", fecha: "12/07/2026", hora: "01:00 p.m.", cliente: "INVERSIONES DEL SUR, C.A.", rif: "J-998877665-6", codigo: "000005", totalDeuda: 960.00, montoCobrado: 960.00, saldoRestante: 0, forma: "Efectivo Bs.", pagos: [{ metodo: "Efectivo Bs.", moneda: "Bs", monto: 960.00, equivBs: 960.00 }] }
+    { nro: "0000001", fecha: "20/07/2026", hora: "10:30 a.m.", cliente: "AUTOMOTRIZ EL VALLE, C.A.", rif: "J-123456789-4", codigo: "000002", tasa: 36.50, totalDeuda: 65.75, montoCobrado: 27.40, saldoRestante: 38.36, forma: "Efectivo Bs.", pagos: [{ metodo: "Efectivo Bs.", moneda: "Bs", monto: 1000.00, equivBs: 1000.00 }] },
+    { nro: "0000002", fecha: "18/07/2026", hora: "04:05 p.m.", cliente: "INVERSIONES DEL SUR, C.A.", rif: "J-998877665-6", codigo: "000005", tasa: 36.50, totalDeuda: 133.97, montoCobrado: 54.79, saldoRestante: 79.18, forma: "Transferencia", pagos: [{ metodo: "Transferencia", moneda: "Bs", monto: 2000.00, equivBs: 2000.00 }] },
+    { nro: "0000003", fecha: "25/07/2026", hora: "11:15 a.m.", cliente: "INVERSIONES DEL SUR, C.A.", rif: "J-998877665-6", codigo: "000005", tasa: 36.50, totalDeuda: 79.18, montoCobrado: 27.40, saldoRestante: 51.78, forma: "Pagomóvil", pagos: [{ metodo: "Pagomóvil", moneda: "Bs", monto: 1000.00, equivBs: 1000.00 }] },
+    { nro: "0000004", fecha: "12/07/2026", hora: "01:00 p.m.", cliente: "INVERSIONES DEL SUR, C.A.", rif: "J-998877665-6", codigo: "000005", tasa: 36.50, totalDeuda: 26.30, montoCobrado: 26.30, saldoRestante: 0, forma: "Efectivo Bs.", pagos: [{ metodo: "Efectivo Bs.", moneda: "Bs", monto: 960.00, equivBs: 960.00 }] }
   ],
   cuentasCobrar: [
-    { id: "CXC000001", nro: "FACT 0000101", fecha: "12/07/2026", hora: "10:15 a.m.", vencimiento: "11/08/2026", codigo: "000002", nombre: "AUTOMOTRIZ EL VALLE, C.A.", rif: "J-123456789-4", total: 2400.00, pagado: 1000.00, saldo: 1400.00, estado: "Parcial",
+    { id: "CXC000001", nro: "FACT 0000101", fecha: "12/07/2026", hora: "10:15 a.m.", vencimiento: "11/08/2026", codigo: "000002", nombre: "AUTOMOTRIZ EL VALLE, C.A.", rif: "J-123456789-4", tasa: 36.50, total: 65.75, pagado: 27.40, saldo: 38.36, estado: "Parcial",
       lineas: [
         { codigo: "ACE001", descripcion: "ACEITE 10W-40 MOBIL 1L", cantidad: 5, precio: 280.00, total: 1400.00 },
         { codigo: "FIL001", descripcion: "FILTRO DE ACEITE FRAM PH8A", cantidad: 6, precio: 120.00, total: 720.00 },
         { codigo: "BUJ001", descripcion: "BUJIA NGK BPR6ES", cantidad: 8, precio: 35.00, total: 280.00 }
       ] },
-    { id: "CXC000002", nro: "FACT 0000105", fecha: "20/07/2026", hora: "11:40 a.m.", vencimiento: "19/08/2026", codigo: "000002", nombre: "AUTOMOTRIZ EL VALLE, C.A.", rif: "J-123456789-4", total: 1750.00, pagado: 0, saldo: 1750.00, estado: "Pendiente",
+    { id: "CXC000002", nro: "FACT 0000105", fecha: "20/07/2026", hora: "11:40 a.m.", vencimiento: "19/08/2026", codigo: "000002", nombre: "AUTOMOTRIZ EL VALLE, C.A.", rif: "J-123456789-4", tasa: 36.50, total: 47.95, pagado: 0, saldo: 47.95, estado: "Pendiente",
       lineas: [
         { codigo: "ACE002", descripcion: "ACEITE 5W-30 SHELL HELIX 1L", cantidad: 4, precio: 290.00, total: 1160.00 },
         { codigo: "FIL002", descripcion: "FILTRO DE AIRE WEGA WAI-960", cantidad: 4, precio: 85.00, total: 340.00 },
         { codigo: "SER002", descripcion: "SERVICIO DE ALINEACION", cantidad: 1, precio: 250.00, total: 250.00 }
       ] },
-    { id: "CXC000003", nro: "FACT 0000102", fecha: "15/06/2026", hora: "09:05 a.m.", vencimiento: "30/07/2026", codigo: "000003", nombre: "TRANSPORTES LA VEGA, C.A.", rif: "J-223344556-8", total: 3300.00, pagado: 0, saldo: 3300.00, estado: "Pendiente",
+    { id: "CXC000003", nro: "FACT 0000102", fecha: "15/06/2026", hora: "09:05 a.m.", vencimiento: "30/07/2026", codigo: "000003", nombre: "TRANSPORTES LA VEGA, C.A.", rif: "J-223344556-8", tasa: 36.50, total: 90.41, pagado: 0, saldo: 90.41, estado: "Pendiente",
       lineas: [
         { codigo: "LLA001", descripcion: "LLANTA 175/70 R13", cantidad: 1, precio: 1850.00, total: 1850.00 },
         { codigo: "BAT001", descripcion: "BATERIA 12V 42AH MAC GOLD", cantidad: 1, precio: 1450.00, total: 1450.00 }
       ] },
-    { id: "CXC000004", nro: "FACT 0000110", fecha: "01/06/2026", hora: "03:20 p.m.", vencimiento: "01/07/2026", codigo: "000003", nombre: "TRANSPORTES LA VEGA, C.A.", rif: "J-223344556-8", total: 1200.00, pagado: 0, saldo: 1200.00, estado: "Pendiente",
+    { id: "CXC000004", nro: "FACT 0000110", fecha: "01/06/2026", hora: "03:20 p.m.", vencimiento: "01/07/2026", codigo: "000003", nombre: "TRANSPORTES LA VEGA, C.A.", rif: "J-223344556-8", tasa: 36.50, total: 32.88, pagado: 0, saldo: 32.88, estado: "Pendiente",
       lineas: [
         { codigo: "DIS001", descripcion: "DISCO DE FRENO DEL. BREMBO", cantidad: 1, precio: 950.00, total: 950.00 },
         { codigo: "SER002", descripcion: "SERVICIO DE ALINEACION", cantidad: 1, precio: 250.00, total: 250.00 }
       ] },
-    { id: "CXC000005", nro: "FACT 0000108", fecha: "05/07/2026", hora: "02:10 p.m.", vencimiento: "03/09/2026", codigo: "000005", nombre: "INVERSIONES DEL SUR, C.A.", rif: "J-998877665-6", total: 4890.00, pagado: 3000.00, saldo: 1890.00, estado: "Parcial",
+    { id: "CXC000005", nro: "FACT 0000108", fecha: "05/07/2026", hora: "02:10 p.m.", vencimiento: "03/09/2026", codigo: "000005", nombre: "INVERSIONES DEL SUR, C.A.", rif: "J-998877665-6", tasa: 36.50, total: 133.97, pagado: 82.19, saldo: 51.78, estado: "Parcial",
       lineas: [
         { codigo: "LLA002", descripcion: "LLANTA 185/65 R14", cantidad: 1, precio: 2100.00, total: 2100.00 },
         { codigo: "BAT002", descripcion: "BATERIA 12V 60AH MAC GOLD", cantidad: 1, precio: 1850.00, total: 1850.00 },
@@ -140,30 +141,30 @@ const DB = {
         { codigo: "FIL001", descripcion: "FILTRO DE ACEITE FRAM PH8A", cantidad: 2, precio: 120.00, total: 240.00 },
         { codigo: "BUJ001", descripcion: "BUJIA NGK BPR6ES", cantidad: 4, precio: 35.00, total: 140.00 }
       ] },
-    { id: "CXC000006", nro: "FACT 0000115", fecha: "10/07/2026", hora: "12:30 p.m.", vencimiento: "08/08/2026", codigo: "000005", nombre: "INVERSIONES DEL SUR, C.A.", rif: "J-998877665-6", total: 960.00, pagado: 960.00, saldo: 0, estado: "Pagada",
+    { id: "CXC000006", nro: "FACT 0000115", fecha: "10/07/2026", hora: "12:30 p.m.", vencimiento: "08/08/2026", codigo: "000005", nombre: "INVERSIONES DEL SUR, C.A.", rif: "J-998877665-6", tasa: 36.50, total: 26.30, pagado: 26.30, saldo: 0, estado: "Pagada",
       lineas: [
         { codigo: "BPF001", descripcion: "PASTILLAS DE FRENO DEL. BREMBO", cantidad: 1, precio: 680.00, total: 680.00 },
         { codigo: "BUJ001", descripcion: "BUJIA NGK BPR6ES", cantidad: 8, precio: 35.00, total: 280.00 }
       ] }
   ],
   cuentasPagar: [
-    { nro: "0000001", fecha: "20/07/2026", vencimiento: "19/08/2026", proveedor: "DISTRIBUIDORA LUBRI, C.A.", total: 4880.00, pagado: 0, saldo: 4880.00, estado: "Pendiente",
+    { nro: "0000001", fecha: "20/07/2026", vencimiento: "19/08/2026", proveedor: "DISTRIBUIDORA LUBRI, C.A.", tasa: 36.50, total: 133.70, pagado: 0, saldo: 133.70, estado: "Pendiente",
       lineas: [
         { codigo: "ACE001", descripcion: "ACEITE 10W-40 MOBIL 1L", cantidad: 10, costo: 280.00, total: 2800.00 },
         { codigo: "ACE002", descripcion: "ACEITE 5W-30 SHELL HELIX 1L", cantidad: 6, costo: 290.00, total: 1740.00 },
         { codigo: "FIL002", descripcion: "FILTRO DE AIRE WEGA WAI-960", cantidad: 4, costo: 85.00, total: 340.00 }
       ] },
-    { nro: "0000002", fecha: "20/07/2026", vencimiento: "19/08/2026", proveedor: "REPUESTOS LA 24, C.A.", total: 2320.00, pagado: 1320.00, saldo: 1000.00, estado: "Parcial",
+    { nro: "0000002", fecha: "20/07/2026", vencimiento: "19/08/2026", proveedor: "REPUESTOS LA 24, C.A.", tasa: 36.50, total: 63.56, pagado: 36.16, saldo: 27.40, estado: "Parcial",
       lineas: [
         { codigo: "FIL001", descripcion: "FILTRO DE ACEITE FRAM PH8A", cantidad: 8, costo: 120.00, total: 960.00 },
         { codigo: "FIL002", descripcion: "FILTRO DE AIRE WEGA WAI-960", cantidad: 16, costo: 85.00, total: 1360.00 }
       ] },
-    { nro: "0000003", fecha: "15/07/2026", vencimiento: "14/08/2026", proveedor: "BATERIAS NACIONALES, C.A.", total: 3155.00, pagado: 3155.00, saldo: 0, estado: "Pagada",
+    { nro: "0000003", fecha: "15/07/2026", vencimiento: "14/08/2026", proveedor: "BATERIAS NACIONALES, C.A.", tasa: 36.50, total: 86.44, pagado: 86.44, saldo: 0, estado: "Pagada",
       lineas: [
         { codigo: "BAT001", descripcion: "BATERIA 12V 42AH MAC GOLD", cantidad: 2, costo: 1450.00, total: 2900.00 },
         { codigo: "FIL002", descripcion: "FILTRO DE AIRE WEGA WAI-960", cantidad: 3, costo: 85.00, total: 255.00 }
       ] },
-    { nro: "0000004", fecha: "10/07/2026", vencimiento: "01/08/2026", proveedor: "IMPORTADORA ORIENTE, C.A.", total: 5680.00, pagado: 0, saldo: 5680.00, estado: "Pendiente",
+    { nro: "0000004", fecha: "10/07/2026", vencimiento: "01/08/2026", proveedor: "IMPORTADORA ORIENTE, C.A.", tasa: 36.50, total: 155.62, pagado: 0, saldo: 155.62, estado: "Pendiente",
       lineas: [
         { codigo: "LLA001", descripcion: "LLANTA 175/70 R13", cantidad: 1, costo: 1850.00, total: 1850.00 },
         { codigo: "LLA002", descripcion: "LLANTA 185/65 R14", cantidad: 1, costo: 2100.00, total: 2100.00 },
@@ -172,7 +173,7 @@ const DB = {
       ] }
   ],
   pagosPagar: [
-    { nro: "0000001", fecha: "22/07/2026", hora: "10:00 a.m.", proveedor: "REPUESTOS LA 24, C.A.", cuenta: "0000002", monto: 1320.00, forma: "Transferencia", referencia: "TRF-5588", observaciones: "" }
+    { nro: "0000001", fecha: "22/07/2026", hora: "10:00 a.m.", proveedor: "REPUESTOS LA 24, C.A.", cuenta: "0000002", tasa: 36.50, monto: 36.16, forma: "Transferencia", referencia: "TRF-5588", observaciones: "" }
   ]
 };
 
@@ -193,6 +194,13 @@ function num(v) {
 const r2 = n => Math.round((num(n) + Number.EPSILON) * 100) / 100;
 const getTasa = () => num(DB.parametros.tasaBCV) || 1;
 const getIva = () => num(DB.parametros.iva) || 0;
+
+// Conversiones Bs <-> USD usando la tasa del sistema (moneda principal = USD)
+const usdDeBs = b => r2(num(b) / getTasa());
+const bsDeUsd = u => r2(num(u) * getTasa());
+function fmtUS(u) { return "$ " + fmtVE(num(u), 2); }
+function fmtBsEq(u) { return "Bs. " + fmtVE(bsDeUsd(u), 2); }
+function saldoDual(u) { return fmtUS(u) + "  (" + fmtBsEq(u) + ")"; }
 
 // Formatea montos/precios como XXX.XXX,XX (punto = miles, coma = decimales), independiente del locale del navegador.
 function fmtVE(n, dec) {
@@ -371,7 +379,7 @@ function _metaPrintHtml(titulo, subtitulo) {
 
 function _piePrintHtml() {
   const p = DB.parametros || {};
-  return `<div class="pie">Documento generado electrónicamente por el Sistema POS de ${_escHtml(p.nombreEmpresa || "MI EMPRESA")} — Los valores se expresan en Bolívares (Bs.) salvo indicación contraria.</div>`;
+  return `<div class="pie">Documento generado electrónicamente por el Sistema POS de ${_escHtml(p.nombreEmpresa || "MI EMPRESA")} — La moneda principal del sistema es el Dólar (USD); los montos en Bolívares (Bs.) se muestran como equivalencia al cambio del sistema.</div>`;
 }
 
 function _abrirImpresion(titulo, bodyHtml) {
@@ -456,8 +464,50 @@ function normalizeDB() {
   });
   (DB.clientes || []).forEach(c => { if (c.email === undefined) c.email = ""; if (c.saldo === undefined) c.saldo = 0; });
   (DB.movimientosCaja || []).forEach(m => { if (m.ingUsd === undefined) m.ingUsd = 0; if (m.egrUsd === undefined) m.egrUsd = 0; if (!m.caja) m.caja = cajaActual().nombre; });
+  migrarCuentasUSD();
   DB.carrito = [];
   sincronizarCajaActiva();
+}
+
+// Migración única: convierte CxC/CxP, abonos y saldos de clientes guardados en Bs. a USD
+function migrarCuentasUSD() {
+  if (!DB.parametros || DB.parametros.monedaCxC === "USD") return;
+  const tasa = getTasa();
+  (DB.clientes || []).forEach(c => {
+    if (c.saldoBs === undefined && c.saldo !== undefined) { c.saldoBs = num(c.saldo); c.saldo = r2(num(c.saldo) / tasa); }
+  });
+  (DB.cuentasCobrar || []).forEach(c => {
+    if (c.totalBs === undefined) {
+      c.totalBs = num(c.total); c.total = r2(num(c.total) / tasa);
+      c.pagadoBs = num(c.pagado || 0); c.pagado = r2(num(c.pagado || 0) / tasa);
+      c.saldoBs = num(c.saldo); c.saldo = r2(num(c.saldo) / tasa);
+      c.tasa = tasa;
+    }
+  });
+  (DB.abonos || []).forEach(a => {
+    if (a.totalDeudaBs === undefined) {
+      a.totalDeudaBs = num(a.totalDeuda); a.totalDeuda = r2(num(a.totalDeuda) / tasa);
+      a.montoCobradoBs = num(a.montoCobrado); a.montoCobrado = r2(num(a.montoCobrado) / tasa);
+      a.saldoRestanteBs = num(a.saldoRestante); a.saldoRestante = r2(num(a.saldoRestante) / tasa);
+      a.tasa = tasa;
+    }
+  });
+  (DB.cuentasPagar || []).forEach(c => {
+    if (c.totalBs === undefined) {
+      c.totalBs = num(c.total); c.total = r2(num(c.total) / tasa);
+      c.pagadoBs = num(c.pagado || 0); c.pagado = r2(num(c.pagado || 0) / tasa);
+      c.saldoBs = num(c.saldo); c.saldo = r2(num(c.saldo) / tasa);
+      c.tasa = tasa;
+    }
+  });
+  (DB.pagosPagar || []).forEach(p => {
+    if (p.montoBs === undefined) { p.montoBs = num(p.monto); p.monto = r2(num(p.monto) / tasa); p.tasa = tasa; }
+  });
+  // Reconciliación: saldo del cliente = suma de sus cuentas por cobrar en USD
+  (DB.clientes || []).forEach(cli => {
+    cli.saldo = r2((DB.cuentasCobrar || []).filter(c => c.nombre === cli.nombre).reduce((s, c) => s + (c.saldo || 0), 0));
+  });
+  DB.parametros.monedaCxC = "USD";
 }
 
 function loadDB() {

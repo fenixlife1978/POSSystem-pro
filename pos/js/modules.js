@@ -32,7 +32,7 @@ function selectCliente(cod) {
   const ventas = DB.ventas.filter(v => v.cliente === c.nombre);
   $("cli-ultima").textContent = ventas.length ? ventas[ventas.length - 1].fecha : "—";
   $("cli-total").textContent = fmt(ventas.reduce((s, v) => s + v.total, 0));
-  $("cli-saldo").textContent = fmt(c.saldo || 0);
+  $("cli-saldo").textContent = saldoDual(c.saldo || 0);
 }
 
 function selectClienteForm(c) {
@@ -1811,11 +1811,12 @@ function generarReporte() {
       totalReporte = null;
       break;
     case "Clientes con Deuda": {
-      const agg = {};
-      DB.ventas.filter(v => (v.forma || "").includes("Crédito")).forEach(v => { agg[v.cliente] = (agg[v.cliente] || 0) + v.total; });
-      headers = ["Cliente", "Deuda Bs."];
-      rows = Object.entries(agg).map(([c, t]) => [c, fmt(t)]);
-      totalReporte = Object.values(agg).reduce((s, t) => s + t, 0);
+      const deudores = DB.clientes.filter(c => (num(c.saldo) || 0) > 0);
+      headers = ["Cliente", "RIF", "Deuda $", "Deuda Bs."];
+      rows = deudores.map(c => [c.nombre, c.rif || "—", fmtUS(c.saldo), fmtBsEq(c.saldo)]);
+      const totUsd = deudores.reduce((s, c) => s + (num(c.saldo) || 0), 0);
+      rows.push(["TOTAL", "", fmtUS(totUsd), fmtBsEq(totUsd)]);
+      totalReporte = null;
       break;
     }
     case "Listado de Proveedores":

@@ -44,7 +44,7 @@ function claseEstado(estado) {
 // ---------------------------------------------------------------------------
 // CUENTAS POR COBRAR
 // ---------------------------------------------------------------------------
-function crearCuentaCxC(cliente, nroFactura, monto, lineas) {
+function crearCuentaCxC(cliente, nroFactura, montoBs, lineas) {
   const cli = DB.clientes.find(c => c.nombre === cliente);
   const dias = cli ? (num(cli.dias) || 30) : 30;
   let max = 0;
@@ -52,11 +52,13 @@ function crearCuentaCxC(cliente, nroFactura, monto, lineas) {
     const n = parseInt(String(c.id || "").replace(/\D/g, ""), 10);
     if (n > max) max = n;
   });
+  const tasa = getTasa();
+  const montoUsd = usdDeBs(montoBs);
   const cuenta = {
     id: "CXC" + String(max + 1).padStart(6, "0"),
     nro: nroFactura, fecha: hoy(), hora: hora12(), vencimiento: sumarDias(hoy(), dias),
     codigo: cli ? cli.codigo : "", nombre: cliente, rif: cli ? cli.rif : "",
-    total: r2(monto), pagado: 0, saldo: r2(monto), estado: "Pendiente",
+    tasa: r2(tasa), total: r2(montoUsd), totalBs: r2(montoBs), pagado: 0, saldo: r2(montoUsd), estado: "Pendiente",
     lineas: (lineas || []).map(it => ({
       codigo: it.codigo, descripcion: it.descripcion,
       cantidad: it.cantidad, precio: it.precio, total: it.total
@@ -83,11 +85,13 @@ function aplicarPagoCuentasCobrar(nombre, monto) {
   return r2(monto - rest);
 }
 
-// Registro central de abonos/cobros de deuda de clientes (usado por POS y CxC)
+// Registro central de abonos/cobros de deuda de clientes (usado por POS y CxC).
+// La deuda se mantiene en USD; los pagos en Bs. se convierten con la tasa del sistema.
 function registrarAbonoCliente(cli, pagos, origen) {
   const totalDeuda = num(cli.saldo) || 0;
   if (totalDeuda <= 0) return { error: "El cliente ya no tiene deuda pendiente." };
-  const asignado = pagos.reduce((s, p) => s + num(p.equivBs), 0);
+  const tasa = getTasa();
+  const asignado = pagos.reduce((s, p) => s + (p.moneda === "USD" ? num(p.monto) : usdDeBs(num(p.monto))), 0);
   if (asignado <= 0) return { error: "Ingrese un monto a cobrar." };
   const nro = genNro(DB.abonos, "nro", "", 7);
   const ref = `ABO ${nro}`;
@@ -96,7 +100,7 @@ function registrarAbonoCliente(cli, pagos, origen) {
   const vuelto = asignado > totalDeuda ? r2(asignado - totalDeuda) : 0;
 
   DB.abonos.unshift({
-    nro, fecha: hoy(), hora: hora12(),
+    nro, fecha: hoy(), hora: hora12(), tasa: r2(tasa),
     cliente: cli.nombre, rif: cli.rif, codigo: cli.codigo,
     totalDeuda, montoCobrado, saldoRestante,
     forma: pagos.map(p => p.metodo).join(" + "),
@@ -111,10 +115,10 @@ function registrarAbonoCliente(cli, pagos, origen) {
   pagos.forEach(p => {
     if (p.metodo === "Efectivo Bs.") movimientoCaja(origen + " (Efectivo Bs.)", ref, p.monto, 0, true);
     else if (p.metodo === "Efectivo USD (físico)") movimientoCaja(origen + " (Efectivo USD)", ref, 0, p.monto, true);
-    else if (p.metodo !== "Crédito (CxC)") movimientoCaja(origen + " (" + p.metodo + ")", ref, p.monto, 0, true);
+    else if (p.metodo !== "Crédito (CxC)") movimientoCaja(origen + " (" + p.metodo + ")", ref, p.moneda === "USD" ? 0 : p.monto, p.moneda === "USD" ? p.monto : 0, true);
   });
 
-  auditar(origen, `Abono ${nro} — ${fmt(montoCobrado)} Bs. — ${cli.nombre}`);
+  auditar(origen, `Abono ${nro} — ${fmtUS(montoCobrado)} (${fmtBsEq(montoCobrado)}) — ${cli.nombre}`);
   return { ok: true, nro, ref, totalDeuda, montoCobrado, saldoRestante, vuelto, forma: pagos.map(p => p.metodo).join(" + ") };
 }
 
@@ -137,6 +141,7 @@ function renderCxC() {
   const resumen = _cp("cxc-vista").value === "resumen";
   const datos = filtrarCxCData();
   const body = _cp("cxc-body");
+  const mon = m => `${fmtUS(m)}<br><span class="usd-sub">${fmtBsEq(m)}</span>`;
   if (resumen) {
     const porCliente = {};
     datos.forEach(c => {
@@ -149,8 +154,8 @@ function renderCxC() {
     body.innerHTML = Object.values(porCliente).map(g =>
       `<tr class="cursor" onclick="verClienteCxC('${g.nombre.replace(/'/g, "\\'")}')">
         <td>${g.nombre}</td><td>${g.rif}</td><td style="text-align:right">${g.cuentas}</td>
-        <td style="text-align:right">${fmt(g.total)}</td><td style="text-align:right">${fmt(g.pagado)}</td>
-        <td style="text-align:right"><b>${fmt(g.saldo)}</b></td>
+        <td style="text-align:right">${mon(g.total)}</td><td style="text-align:right">${mon(g.pagado)}</td>
+        <td style="text-align:right"><b>${mon(g.saldo)}</b></td>
         <td style="text-align:right">${g.vencidas}</td>
       </tr>`).join("") ||
       `<tr><td colspan="7" style="text-align:center;color:#888">Sin cuentas que coincidan con el filtro</td></tr>`;
@@ -159,8 +164,8 @@ function renderCxC() {
       const e = estadoCuentaCXC(c);
       return `<tr class="${cxcSel && cxcSel.id === c.id ? "selected" : ""} cursor" onclick="selectCxC('${c.id}', this)">
         <td>${c.nro}</td><td>${c.fecha}</td><td>${c.vencimiento}</td><td>${c.nombre}</td>
-        <td style="text-align:right">${fmt(c.total)}</td><td style="text-align:right">${fmt(c.pagado || 0)}</td>
-        <td style="text-align:right"><b>${fmt(c.saldo)}</b></td>
+        <td style="text-align:right">${mon(c.total)}</td><td style="text-align:right">${mon(c.pagado || 0)}</td>
+        <td style="text-align:right"><b>${mon(c.saldo)}</b></td>
         <td><span class="est-badge ${claseEstado(e)}">${e}</span></td>
       </tr>`;
     }).join("") ||
@@ -170,9 +175,9 @@ function renderCxC() {
   const cartera = DB.cuentasCobrar.reduce((s, c) => s + (c.saldo || 0), 0);
   const vencidas = DB.cuentasCobrar.filter(c => estadoCuentaCXC(c) === "Vencida").reduce((s, c) => s + (c.saldo || 0), 0);
   const cobradoHoy = DB.abonos.filter(a => a.fecha === hoy()).reduce((s, a) => s + (a.montoCobrado || 0), 0);
-  _cp("cxc-sum-cartera").textContent = fmt(cartera);
-  _cp("cxc-sum-vencidas").textContent = fmt(vencidas);
-  _cp("cxc-sum-cobrado").textContent = fmt(cobradoHoy);
+  _cp("cxc-sum-cartera").textContent = saldoDual(cartera);
+  _cp("cxc-sum-vencidas").textContent = saldoDual(vencidas);
+  _cp("cxc-sum-cobrado").textContent = saldoDual(cobradoHoy);
 
   if (cxcSel) {
     const act = DB.cuentasCobrar.find(c => c.id === cxcSel.id);
@@ -195,7 +200,7 @@ function selectCxC(id, row) {
     row.classList.add("selected");
   }
   _cp("cxc-fact-info").textContent = `Factura ${c.nro} — ${c.fecha} (venc. ${c.vencimiento}) — ${c.nombre}`;
-  _cp("cxc-items-total").textContent = fmt(c.total);
+  _cp("cxc-items-total").textContent = saldoDual(c.total);
   _cp("cxc-items-body").innerHTML = (c.lineas || []).map(l =>
     `<tr><td>${l.codigo}</td><td>${l.descripcion}</td><td style="text-align:right">${fmt(l.cantidad)}</td>
      <td style="text-align:right">${fmt(l.precio)}</td><td style="text-align:right">${fmt(l.total)}</td></tr>`).join("") ||
@@ -208,13 +213,13 @@ function renderAbonosCliente(nombre) {
   _cp("cxc-abonos-title").textContent = `Historial de Cobros — ${nombre}`;
   const cli = DB.clientes.find(x => x.nombre === nombre);
   _cp("cxc-cli-line").textContent = cli
-    ? `Límite: Bs. ${fmt(cli.limite || 0)}  |  Plazo: ${cli.dias || 0} días  |  Saldo: Bs. ${fmt(cli.saldo || 0)}`
+    ? `Límite: ${fmt(cli.limite || 0)} Bs. (${fmtUS(usdDeBs(cli.limite || 0))})  |  Plazo: ${cli.dias || 0} días  |  Saldo: ${saldoDual(cli.saldo || 0)}`
     : "";
   const abonos = DB.abonos.filter(a => a.cliente === nombre).slice(0, 50);
   _cp("cxc-abonos-body").innerHTML = abonos.map(a =>
     `<tr><td>ABO ${a.nro}</td><td>${a.fecha}</td><td>${a.hora}</td>
-     <td style="text-align:right">${fmt(a.montoCobrado)}</td><td>${a.forma}</td>
-     <td style="text-align:right">${fmt(a.saldoRestante)}</td></tr>`).join("") ||
+     <td style="text-align:right">${fmtUS(a.montoCobrado)}<br><span class="usd-sub">${fmtBsEq(a.montoCobrado)}</span></td><td>${a.forma}</td>
+     <td style="text-align:right">${fmtUS(a.saldoRestante)}</td></tr>`).join("") ||
     `<tr><td colspan="6" style="text-align:center;color:#888">Sin cobros registrados</td></tr>`;
 }
 
@@ -226,14 +231,26 @@ function abonarCxC() {
   if (!cli || (num(cli.saldo) || 0) <= 0) { alert("El cliente ya no tiene deuda pendiente."); return; }
   _cp("cxc-ab-cliente").value = cli.nombre;
   _cp("cxc-ab-rif").value = cli.rif || "";
-  _cp("cxc-ab-deuda").textContent = fmt(cli.saldo || 0);
+  _cp("cxc-ab-deuda").textContent = saldoDual(cli.saldo || 0);
   _cp("cxc-ab-monto").value = (Math.min(cxcSel.saldo || 0, cli.saldo || 0)).toFixed(2).replace(".", ",");
   _cp("cxc-ab-ref").value = "";
   if (!_cp("cxc-ab-forma").options.length) {
     _cp("cxc-ab-forma").innerHTML = formasPagoDisponibles().map(f => `<option>${f}</option>`).join("");
   }
-  _cp("cxc-ab-forma").value = "Efectivo Bs.";
+  _cp("cxc-ab-forma").value = "Efectivo USD (físico)";
+  actualizarEquivAbono();
   openModuleWindow("cxc-abono");
+}
+
+// Equivalencia Bs./USD del monto a abonar según la forma de pago seleccionada
+function actualizarEquivAbono() {
+  const forma = _cp("cxc-ab-forma");
+  const monto = _cp("cxc-ab-monto");
+  const el = _cp("cxc-ab-monto-usd");
+  if (!forma || !monto || !el) return;
+  const esUsd = monedaDeForma(forma.value) === "USD";
+  const val = num(monto.value);
+  el.textContent = esUsd ? fmtBsEq(val) : fmtUS(usdDeBs(val));
 }
 
 function guardarAbonoCxC() {
@@ -252,7 +269,7 @@ function guardarAbonoCxC() {
   renderMovimientosCaja();
   renderCxC();
   closeWindow("cxc-abono-window");
-  alert(`ABONO REGISTRADO\nCliente: ${cli.nombre}\nDeuda: Bs. ${fmt(r.totalDeuda)}\nAbonado: Bs. ${fmt(r.montoCobrado)}\nSaldo restante: Bs. ${fmt(r.saldoRestante)}`);
+  alert(`ABONO REGISTRADO\nCliente: ${cli.nombre}\nDeuda: ${saldoDual(r.totalDeuda)}\nAbonado: ${saldoDual(r.montoCobrado)}\nSaldo restante: ${saldoDual(r.saldoRestante)}`);
 }
 
 function cerrarAbonoCxC() { closeWindow("cxc-abono-window"); }
@@ -260,14 +277,14 @@ function cerrarAbonoCxC() { closeWindow("cxc-abono-window"); }
 function imprimirCxC() {
   const resumen = _cp("cxc-vista").value === "resumen";
   const datos = resumen ? [] : filtrarCxCData();
-  imprimirHTML("Cuentas por Cobrar", ["N° Factura", "Fecha", "Vencimiento", "Cliente", "Total", "Pagado", "Saldo", "Estado"],
-    datos.map(c => [c.nro, c.fecha, c.vencimiento, c.nombre, fmt(c.total), fmt(c.pagado || 0), fmt(c.saldo), estadoCuentaCXC(c)]));
+  imprimirHTML("Cuentas por Cobrar", ["N° Factura", "Fecha", "Vencimiento", "Cliente", "Total $", "Pagado $", "Saldo $", "Estado"],
+    datos.map(c => [c.nro, c.fecha, c.vencimiento, c.nombre, fmtUS(c.total), fmtUS(c.pagado || 0), fmtUS(c.saldo), estadoCuentaCXC(c)]));
 }
 
 function exportarCxC() {
   const datos = filtrarCxCData();
-  exportarCSV("Cuentas por Cobrar", ["N° Factura", "Fecha", "Vencimiento", "Cliente", "RIF", "Total", "Pagado", "Saldo", "Estado"],
-    datos.map(c => [c.nro, c.fecha, c.vencimiento, c.nombre, c.rif, fmt(c.total), fmt(c.pagado || 0), fmt(c.saldo), estadoCuentaCXC(c)]));
+  exportarCSV("Cuentas por Cobrar", ["N° Factura", "Fecha", "Vencimiento", "Cliente", "RIF", "Total $", "Total Bs.", "Pagado $", "Saldo $", "Estado"],
+    datos.map(c => [c.nro, c.fecha, c.vencimiento, c.nombre, c.rif, fmt(c.total), fmt(c.totalBs !== undefined ? c.totalBs : bsDeUsd(c.total)), fmt(c.pagado || 0), fmt(c.saldo), estadoCuentaCXC(c)]));
 }
 
 // Re-render disparado desde el POS tras un cobro de deuda
@@ -279,14 +296,17 @@ function renderAbonos() { renderCxC(); }
 function sincronizarCxP() {
   (DB.compras || []).forEach(c => {
     if (!DB.cuentasPagar.some(x => x.nro === c.nro)) {
-      const total = num(c.total);
-      const pagado = num(c.pagado) || 0;
-      const saldo = c.pendiente !== undefined ? num(c.pendiente) : (total - pagado);
-      if (saldo > 0) {
+      const totalBs = num(c.total);
+      const pagadoBs = num(c.pagado) || 0;
+      const saldoBs = c.pendiente !== undefined ? num(c.pendiente) : (totalBs - pagadoBs);
+      if (saldoBs > 0) {
         const dias = c.diasCredito || ((c.tipo === "Credito" || c.tipo === "Mixto") ? 30 : 0);
+        const tasa = getTasa();
         DB.cuentasPagar.unshift({
           nro: c.nro, fecha: c.fecha, vencimiento: sumarDias(c.fecha, dias),
-          proveedor: c.proveedor, total, pagado, saldo,
+          proveedor: c.proveedor, tasa: r2(tasa),
+          total: usdDeBs(totalBs), totalBs: r2(totalBs),
+          pagado: usdDeBs(pagadoBs), saldo: usdDeBs(saldoBs),
           estado: "Pendiente",
           lineas: (c.lineas || []).map(l => ({
             codigo: l.codigo, descripcion: l.descripcion,
@@ -313,12 +333,13 @@ function filtrarCxPData() {
 function renderCxP() {
   sincronizarCxP();
   const datos = filtrarCxPData();
+  const mon = m => `${fmtUS(m)}<br><span class="usd-sub">${fmtBsEq(m)}</span>`;
   _cp("cxp-body").innerHTML = datos.map(c => {
     const e = estadoCuentaCXP(c);
     return `<tr class="${cxpSel && cxpSel.nro === c.nro ? "selected" : ""} cursor" onclick="selectCxP('${c.nro}', this)">
       <td>${c.nro}</td><td>${c.fecha}</td><td>${c.proveedor}</td>
-      <td style="text-align:right">${fmt(c.total)}</td><td style="text-align:right">${fmt(c.pagado || 0)}</td>
-      <td style="text-align:right"><b>${fmt(c.saldo)}</b></td>
+      <td style="text-align:right">${mon(c.total)}</td><td style="text-align:right">${mon(c.pagado || 0)}</td>
+      <td style="text-align:right"><b>${mon(c.saldo)}</b></td>
       <td><span class="est-badge ${claseEstado(e)}">${e}</span></td>
     </tr>`;
   }).join("") ||
@@ -327,9 +348,9 @@ function renderCxP() {
   const totalPagar = DB.cuentasPagar.reduce((s, c) => s + (c.saldo || 0), 0);
   const vencidas = DB.cuentasPagar.filter(c => estadoCuentaCXP(c) === "Vencida").reduce((s, c) => s + (c.saldo || 0), 0);
   const pagadoHoy = DB.pagosPagar.filter(p => p.fecha === hoy()).reduce((s, p) => s + (p.monto || 0), 0);
-  _cp("cxp-sum-total").textContent = fmt(totalPagar);
-  _cp("cxp-sum-vencidas").textContent = fmt(vencidas);
-  _cp("cxp-sum-pagado").textContent = fmt(pagadoHoy);
+  _cp("cxp-sum-total").textContent = saldoDual(totalPagar);
+  _cp("cxp-sum-vencidas").textContent = saldoDual(vencidas);
+  _cp("cxp-sum-pagado").textContent = saldoDual(pagadoHoy);
 
   if (cxpSel) {
     const act = DB.cuentasPagar.find(c => c.nro === cxpSel.nro);
@@ -346,7 +367,7 @@ function selectCxP(nro, row) {
     row.classList.add("selected");
   }
   _cp("cxp-comp-info").textContent = `Compra ${c.nro} — ${c.fecha} (venc. ${c.vencimiento}) — ${c.proveedor}`;
-  _cp("cxp-comp-total").textContent = fmt(c.total);
+  _cp("cxp-comp-total").textContent = saldoDual(c.total);
   _cp("cxp-items-body").innerHTML = (c.lineas || []).map(l =>
     `<tr><td>${l.codigo}</td><td>${l.descripcion}</td><td style="text-align:right">${fmt(l.cantidad)}</td>
      <td style="text-align:right">${fmt(l.costo)}</td><td style="text-align:right">${fmt(l.total)}</td></tr>`).join("") ||
@@ -359,7 +380,7 @@ function renderPagosProveedor(proveedor) {
   const pagos = DB.pagosPagar.filter(p => p.proveedor === proveedor).slice(0, 50);
   _cp("cxp-pagos-body").innerHTML = pagos.map(p =>
     `<tr><td>PAG ${p.nro}</td><td>${p.fecha}</td><td>${p.forma}</td><td>${p.referencia || "—"}</td>
-     <td style="text-align:right">${fmt(p.monto)}</td></tr>`).join("") ||
+     <td style="text-align:right">${fmtUS(p.monto)}</td></tr>`).join("") ||
     `<tr><td colspan="5" style="text-align:center;color:#888">Sin pagos registrados</td></tr>`;
 }
 
@@ -370,7 +391,7 @@ function abrirPagoCxP() {
   if ((cxpSel.saldo || 0) <= 0) { alert("Esta cuenta ya está liquidada."); return; }
   _cp("cxp-pg-proveedor").value = cxpSel.proveedor;
   _cp("cxp-pg-cuenta").value = cxpSel.nro;
-  _cp("cxp-pg-saldo").textContent = fmt(cxpSel.saldo || 0);
+  _cp("cxp-pg-saldo").textContent = saldoDual(cxpSel.saldo || 0);
   _cp("cxp-pg-monto").value = (cxpSel.saldo || 0).toFixed(2).replace(".", ",");
   _cp("cxp-pg-fecha").value = hoy();
   _cp("cxp-pg-ref").value = "";
@@ -378,8 +399,20 @@ function abrirPagoCxP() {
   if (!_cp("cxp-pg-forma").options.length) {
     _cp("cxp-pg-forma").innerHTML = formasPagoDisponibles(["Cheque"]).map(f => `<option>${f}</option>`).join("");
   }
-  _cp("cxp-pg-forma").value = "Transferencia";
+  _cp("cxp-pg-forma").value = "Efectivo USD (físico)";
+  actualizarEquivPagoCxP();
   openModuleWindow("cxp-pago");
+}
+
+// Equivalencia Bs./USD del monto a pagar según la forma de pago seleccionada
+function actualizarEquivPagoCxP() {
+  const forma = _cp("cxp-pg-forma");
+  const monto = _cp("cxp-pg-monto");
+  const el = _cp("cxp-pg-monto-usd");
+  if (!forma || !monto || !el) return;
+  const esUsd = monedaDeForma(forma.value) === "USD";
+  const val = num(monto.value);
+  el.textContent = esUsd ? fmtBsEq(val) : fmtUS(usdDeBs(val));
 }
 
 function aplicarPagoCuentasPagar(proveedor, monto) {
@@ -401,14 +434,18 @@ function aplicarPagoCuentasPagar(proveedor, monto) {
 function guardarPagoCxP() {
   if (!cxpSel) { alert("Seleccione una cuenta por pagar."); return; }
   const proveedor = _cp("cxp-pg-proveedor").value.trim();
-  const monto = num(_cp("cxp-pg-monto").value);
-  if (monto <= 0) { alert("Ingrese un monto a pagar."); return; }
-  const saldoProv = DB.cuentasPagar.filter(c => c.proveedor === proveedor).reduce((s, c) => s + (c.saldo || 0), 0);
-  if (saldoProv <= 0) { alert("Este proveedor no tiene deuda pendiente."); return; }
-  const aplicar = r2(Math.min(monto, saldoProv));
-  const vuelto = monto > saldoProv ? r2(monto - saldoProv) : 0;
   const forma = _cp("cxp-pg-forma").value;
   const esUsd = monedaDeForma(forma) === "USD";
+  const tasa = getTasa();
+  const montoEntrada = num(_cp("cxp-pg-monto").value);
+  if (montoEntrada <= 0) { alert("Ingrese un monto a pagar."); return; }
+  const montoUsd = r2(esUsd ? montoEntrada : usdDeBs(montoEntrada));
+  const montoBs = r2(esUsd ? bsDeUsd(montoEntrada) : montoEntrada);
+  if (montoUsd <= 0) { alert("Ingrese un monto a pagar."); return; }
+  const saldoProv = DB.cuentasPagar.filter(c => c.proveedor === proveedor).reduce((s, c) => s + (c.saldo || 0), 0);
+  if (saldoProv <= 0) { alert("Este proveedor no tiene deuda pendiente."); return; }
+  const aplicar = r2(Math.min(montoUsd, saldoProv));
+  const vuelto = montoUsd > saldoProv ? r2(montoUsd - saldoProv) : 0;
   const fecha = _cp("cxp-pg-fecha").value || hoy();
   const referencia = _cp("cxp-pg-ref").value.trim();
   const observaciones = _cp("cxp-pg-obs").value.trim();
@@ -419,30 +456,32 @@ function guardarPagoCxP() {
   const ref = `PAG ${nro}`;
   DB.pagosPagar.unshift({
     nro, fecha, hora: hora12(), proveedor, cuenta: cxpSel.nro,
-    monto: aplicar, forma, referencia, observaciones
+    monto: aplicar, montoBs: r2(bsDeUsd(aplicar)), tasa: r2(tasa), forma, referencia, observaciones
   });
 
-  movimientoCaja("Pago a Proveedor", ref, esUsd ? 0 : aplicar, esUsd ? aplicar : 0, false);
-  auditar("Pago a proveedor", `Pago ${nro} — ${fmt(aplicar)} ${esUsd ? "USD" : "Bs."} — ${proveedor}`);
+  const bsMov = r2(esUsd ? bsDeUsd(montoEntrada) : montoEntrada);
+  const usdMov = r2(esUsd ? montoEntrada : usdDeBs(montoEntrada));
+  movimientoCaja("Pago a Proveedor", ref, bsMov, usdMov, false);
+  auditar("Pago a proveedor", `Pago ${nro} — ${fmtUS(aplicar)} (${fmtBsEq(aplicar)}) — ${proveedor}`);
   saveDB();
   renderMovimientosCaja();
   renderCxP();
   closeWindow("cxp-pago-window");
-  alert(`PAGO REGISTRADO\nProveedor: ${proveedor}\nMonto: ${esUsd ? "$ " : "Bs. "}${fmt(aplicar)}\nForma: ${forma}\nSaldo pendiente del proveedor: ${fmt(r2(saldoProv - aplicar))} Bs.${vuelto > 0 ? `\nVuelto: Bs. ${fmt(vuelto)}` : ""}`);
+  alert(`PAGO REGISTRADO\nProveedor: ${proveedor}\nMonto: ${fmtUS(aplicar)}\nForma: ${forma}\nSaldo pendiente del proveedor: ${saldoDual(r2(saldoProv - aplicar))}${vuelto > 0 ? `\nVuelto: ${fmtUS(vuelto)}` : ""}`);
 }
 
 function cerrarPagoCxP() { closeWindow("cxp-pago-window"); }
 
 function imprimirCxP() {
   const datos = filtrarCxPData();
-  imprimirHTML("Cuentas por Pagar", ["N° Compra", "Fecha", "Proveedor", "Total", "Pagado", "Saldo", "Estado"],
-    datos.map(c => [c.nro, c.fecha, c.proveedor, fmt(c.total), fmt(c.pagado || 0), fmt(c.saldo), estadoCuentaCXP(c)]));
+  imprimirHTML("Cuentas por Pagar", ["N° Compra", "Fecha", "Proveedor", "Total $", "Pagado $", "Saldo $", "Estado"],
+    datos.map(c => [c.nro, c.fecha, c.proveedor, fmtUS(c.total), fmtUS(c.pagado || 0), fmtUS(c.saldo), estadoCuentaCXP(c)]));
 }
 
 function exportarCxP() {
   const datos = filtrarCxPData();
-  exportarCSV("Cuentas por Pagar", ["N° Compra", "Fecha", "Vencimiento", "Proveedor", "Total", "Pagado", "Saldo", "Estado"],
-    datos.map(c => [c.nro, c.fecha, c.vencimiento, c.proveedor, fmt(c.total), fmt(c.pagado || 0), fmt(c.saldo), estadoCuentaCXP(c)]));
+  exportarCSV("Cuentas por Pagar", ["N° Compra", "Fecha", "Vencimiento", "Proveedor", "Total $", "Total Bs.", "Pagado $", "Saldo $", "Estado"],
+    datos.map(c => [c.nro, c.fecha, c.vencimiento, c.proveedor, fmt(c.total), fmt(c.totalBs !== undefined ? c.totalBs : bsDeUsd(c.total)), fmt(c.pagado || 0), fmt(c.saldo), estadoCuentaCXP(c)]));
 }
 
 // ---------------------------------------------------------------------------
