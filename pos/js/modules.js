@@ -1505,6 +1505,7 @@ function guardarCompra() {
     lineas: compTemp.map(l => ({ ...l }))
   };
   DB.compras.unshift(compra);
+  if (tipo === "Contado" && typeof asentCompra === "function") asentCompra(compra);
   aplicarCompraInventario(compra, true);
   if (!(DB.proveedores || []).some(x => String(x).toLowerCase() === String(proveedor).toLowerCase())) {
     DB.proveedores = DB.proveedores || [];

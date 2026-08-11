@@ -50,6 +50,7 @@ const DB = {
   respaldos: [],
   carrito: [],
   ventas: [],
+  libroDiario: [],
   abonos: [],
   cuentasCobrar: [],
   cuentasPagar: [],
@@ -326,6 +327,7 @@ function normalizeDB() {
   if (!DB.respaldos) DB.respaldos = [];
   if (!DB.devoluciones) DB.devoluciones = [];
   if (!DB.ventas) DB.ventas = [];
+  if (!DB.libroDiario) DB.libroDiario = [];
   if (!DB.abonos) DB.abonos = [];
   if (!DB.cuentasCobrar) DB.cuentasCobrar = [];
   if (!DB.cuentasPagar) DB.cuentasPagar = [];

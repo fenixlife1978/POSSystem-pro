@@ -19,6 +19,7 @@
 <link rel="stylesheet" href="css/creditpago.css">
 <link rel="stylesheet" href="css/reportes.css">
 <link rel="stylesheet" href="css/login.css">
+<link rel="stylesheet" href="css/contabilidad.css">
 </head>
 <body>
 
@@ -142,6 +143,12 @@
       <span class="dropdown">
         <button class="menu-command" data-perm="reportes" onclick="openModule('reportes')">Reportes</button>
         <button class="menu-command" data-perm="reportes" onclick="openModule('reportes')">Movimientos de Caja (Reporte)</button>
+      </span>
+    </span>
+    <span class="menu-item">Contabilidad
+      <span class="dropdown">
+        <button class="menu-command" data-perm="contabilidad" onclick="openModule('contabilidad')">Libro Diario (Ingresos y Egresos)</button>
+        <button class="menu-command" data-perm="contabilidad" onclick="contNuevoGasto()">Registrar Egreso Manual</button>
       </span>
     </span>
     <span class="menu-item">Utilidades
@@ -1806,6 +1813,148 @@
   </div>
 </div>
 
+<!-- ============== MÓDULO CONTABILIDAD (Ingresos y Egresos) ============== -->
+<div class="window hidden" id="contabilidad-window">
+  <div class="title-bar">
+    <div class="title-left"><span class="app-icon">📒</span><span class="title-text">Contabilidad</span></div>
+    <div class="title-right">
+      <button class="win-btn">─</button><button class="win-btn">▢</button>
+      <button class="win-btn" onclick="closeWindow('contabilidad-window')">✕</button>
+    </div>
+  </div>
+  <div class="module-toolbar">
+    <button class="mod-btn" onclick="contNuevoGasto()"><span class="mod-icon">💸</span> Nuevo Gasto (F2)</button>
+    <button class="mod-btn" onclick="contImprimir()"><span class="mod-icon">🖨️</span> Imprimir Libro (F7)</button>
+    <button class="mod-btn" onclick="closeWindow('contabilidad-window')"><span class="mod-icon">🚪</span> Salir (F12)</button>
+  </div>
+  <div class="cont-kpis">
+    <div class="cont-kpi-card ingreso">
+      <div class="cont-kpi-label">Ingresos Periodo <span>🟢</span></div>
+      <div class="cont-kpi-val" id="cont-kpi-ing">$ 0,00</div>
+    </div>
+    <div class="cont-kpi-card egreso">
+      <div class="cont-kpi-label">Egresos Periodo <span>🔴</span></div>
+      <div class="cont-kpi-val" id="cont-kpi-egr">$ 0,00</div>
+    </div>
+    <div class="cont-kpi-card balance">
+      <div class="cont-kpi-label">Balance Neto <span>⭐</span></div>
+      <div class="cont-kpi-val" id="cont-kpi-bal">$ 0,00</div>
+    </div>
+  </div>
+  <div class="cont-filters">
+    <div>
+      <label>Periodo</label>
+      <select id="cont-periodo" onchange="contCambiarPeriodo()"></select>
+    </div>
+    <div id="cont-rango-row" style="display:none">
+      <label>Desde</label><input type="text" id="cont-desde" class="input-small" placeholder="dd/mm/aaaa">
+      <label>Hasta</label><input type="text" id="cont-hasta" class="input-small" placeholder="dd/mm/aaaa">
+    </div>
+    <div style="flex:1;min-width:160px">
+      <label>Buscar por concepto / categoría</label>
+      <input type="text" id="cont-search" class="input-medium" style="width:100%" placeholder="Buscar..." oninput="contBuscarTexto()">
+    </div>
+  </div>
+  <table class="grid full-grid">
+    <thead>
+      <tr><th>Fecha</th><th>Concepto / Referencia</th><th>Método</th><th>Ingreso $</th><th>Egreso $</th><th>Acciones</th></tr>
+    </thead>
+    <tbody id="cont-body"></tbody>
+  </table>
+  <div class="cont-pag">
+    <span id="cont-pag-label">Página 1 de 1 | Total 0 movimientos</span>
+    <div style="display:flex;gap:8px">
+      <button id="cont-pag-prev" onclick="contPrevPage()">◀ Anterior</button>
+      <button id="cont-pag-next" onclick="contNextPage()">Siguiente ▶</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============== REGISTRAR EGRESO MANUAL (Contabilidad) ============== -->
+<div class="window hidden" id="cont-gasto-window">
+  <div class="title-bar">
+    <div class="title-left"><span class="app-icon">💸</span><span class="title-text">Registrar Egreso de Caja</span></div>
+    <div class="title-right">
+      <button class="win-btn">─</button><button class="win-btn">▢</button>
+      <button class="win-btn" onclick="contCerrarGasto()">✕</button>
+    </div>
+  </div>
+  <div class="module-content">
+    <fieldset class="panel">
+      <legend>Registro de Egreso Manual (Contabilidad)</legend>
+      <table class="form-table">
+        <tr><td><label>Categoría del Gasto:</label></td><td><select id="cont-gasto-categoria" class="input-large"></select></td></tr>
+        <tr><td><label>Concepto Detallado:</label></td><td><input type="text" id="cont-gasto-concepto" class="input-large" placeholder="EJ: PAGO SEMANA JUNIO - JUAN PEREZ"></td></tr>
+        <tr>
+          <td><label>Monto:</label></td>
+          <td>
+            <input type="text" id="cont-gasto-monto" class="input-medium" inputmode="decimal" oninput="contActualizarEquivGasto()">
+            <div class="pago-usd" id="cont-gasto-usd"></div>
+          </td>
+        </tr>
+        <tr><td><label>Método de Pago:</label></td><td><select id="cont-gasto-forma" class="input-medium" onchange="contActualizarEquivGasto()"></select></td></tr>
+      </table>
+    </fieldset>
+    <div class="pago-actions">
+      <button class="mod-btn" onclick="contGuardarGasto()">✅ Confirmar Gasto y Asentar</button>
+      <button class="mod-btn" onclick="contCerrarGasto()">✖ Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============== AUDITORÍA DE MOVIMIENTO (Contabilidad) ============== -->
+<div class="window hidden" id="cont-detalle-window">
+  <div class="title-bar">
+    <div class="title-left"><span class="app-icon">👁️</span><span class="title-text" id="cont-det-titulo">Auditoría de Movimiento</span></div>
+    <div class="title-right">
+      <button class="win-btn">─</button><button class="win-btn">▢</button>
+      <button class="win-btn" onclick="contCerrarDetalle()">✕</button>
+    </div>
+  </div>
+  <div class="module-content">
+    <div class="cont-det-grid">
+      <div class="cont-det-box">
+        <label>Categoría / Origen</label>
+        <div class="valor" id="cont-det-categoria">—</div>
+      </div>
+      <div class="cont-det-box">
+        <label>Fecha / Hora Registro</label>
+        <div class="valor" id="cont-det-fecha">—</div>
+      </div>
+    </div>
+    <div class="cont-det-box" style="margin-bottom:8px">
+      <label>Concepto Detallado</label>
+      <div class="concepto" id="cont-det-concepto">—</div>
+    </div>
+    <div class="cont-det-grid">
+      <div class="cont-det-box">
+        <label>Monto en Divisas (USD)</label>
+        <div class="valor" id="cont-det-usd">—</div>
+      </div>
+      <div class="cont-det-box">
+        <label>Equivalente Bolívares</label>
+        <div class="valor" id="cont-det-bs">—</div>
+      </div>
+    </div>
+    <div class="cont-det-box" style="margin-bottom:8px">
+      <label>Método / Referencia</label>
+      <div class="valor" id="cont-det-metodo" style="font-size:12px">—</div>
+    </div>
+    <div id="cont-det-items-wrap" style="display:none;margin-bottom:8px">
+      <fieldset class="panel">
+        <legend>Desglose de Ítems</legend>
+        <table class="grid full-grid">
+          <thead><tr><th>Cant</th><th>Descripción</th><th>Total</th></tr></thead>
+          <tbody id="cont-det-items-body"></tbody>
+        </table>
+      </fieldset>
+    </div>
+    <div class="pago-actions">
+      <button class="mod-btn" onclick="contCerrarDetalle()">✅ Cerrar Auditoría</button>
+    </div>
+  </div>
+</div>
+
 <script src="js/storage.js"></script>
 <script src="js/data.js"></script>
 <script src="js/pos.js"></script>
@@ -1816,6 +1965,7 @@
 <script src="js/utilidades.js"></script>
 <script src="js/windows.js"></script>
 <script src="js/roles.js"></script>
+<script src="js/contabilidad.js"></script>
 <script src="js/login.js"></script>
 </body>
 </html>

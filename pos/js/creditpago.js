@@ -107,6 +107,8 @@ function registrarAbonoCliente(cli, pagos, origen) {
     pagos
   });
 
+  if (typeof asentAbono === "function") asentAbono(cli.nombre, ref, pagos);
+
   aplicarPagoCuentasCobrar(cli.nombre, montoCobrado);
 
   const pendientes = DB.cuentasCobrar.filter(c => c.nombre === cli.nombre).reduce((s, c) => s + (c.saldo || 0), 0);
@@ -481,6 +483,8 @@ function guardarPagoCxP() {
     nro, fecha, hora: hora12(), proveedor, cuenta: cxpSel.nro,
     monto: aplicar, montoBs: r2(bsDeUsd(aplicar)), tasa: r2(tasa), forma, referencia, observaciones
   });
+
+  if (typeof asentPagoProv === "function") asentPagoProv(proveedor, ref, aplicar, forma);
 
   const bsMov = r2(esUsd ? bsDeUsd(montoEntrada) : montoEntrada);
   const usdMov = r2(esUsd ? montoEntrada : usdDeBs(montoEntrada));

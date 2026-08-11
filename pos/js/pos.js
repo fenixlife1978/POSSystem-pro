@@ -648,6 +648,7 @@ function confirmPago() {
     tasa: r2(tasa), pagos, lineas: DB.carrito.map(it => ({ ...it }))
   };
   DB.ventas.push(venta);
+  if (typeof asentVenta === "function") asentVenta(venta);
 
   // Acreditar saldo al cliente cuando la venta se registró a crédito (la deuda se guarda en USD)
   if (credito > 0) {
