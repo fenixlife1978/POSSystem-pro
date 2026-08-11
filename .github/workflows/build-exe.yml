@@ -26,7 +26,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: AutoWin-POS-EXE
+          name: POSsystem-pro-EXE
           path: |
             dist/*.exe
             dist/*.blockmap

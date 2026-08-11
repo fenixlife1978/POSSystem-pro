@@ -1,9 +1,9 @@
 {
   "name": "pos-auto-win",
   "version": "1.0.0",
-  "description": "Sistema POS para repuestos y lubricantes - AutoWin",
+  "description": "Sistema de Punto de Venta - POSsystem pro",
   "main": "main.js",
-  "author": "AutoWin",
+  "author": "POSsystem pro",
   "license": "UNLICENSED",
   "private": true,
   "scripts": {
@@ -16,7 +16,7 @@
   },
   "build": {
     "appId": "com.autowin.pos",
-    "productName": "AutoWin POS",
+    "productName": "POSsystem pro",
     "directories": {
       "output": "dist",
       "buildResources": "build"
@@ -32,13 +32,13 @@
         "portable",
         "nsis"
       ],
-      "icon": "build/icon.png"
+      "icon": "build/icon.ico"
     },
     "portable": {
-      "artifactName": "AutoWinPOS-${version}-portable.exe"
+      "artifactName": "POSsystem-pro-${version}-portable.exe"
     },
     "nsis": {
-      "artifactName": "AutoWinPOS-Setup-${version}.exe",
+      "artifactName": "POSsystem-pro-Setup-${version}.exe",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
     }
