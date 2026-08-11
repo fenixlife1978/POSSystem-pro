@@ -78,9 +78,12 @@ body:not(.logged-in) { overflow: hidden; }
 
 .logo-icon {
   width: 104px;
-  height: auto;
+  height: 104px;
+  object-fit: cover;
+  border-radius: 20px;
+  background: #0f172a;
   margin-bottom: 8px;
-  filter: drop-shadow(0 8px 26px rgba(56, 189, 248, 0.35));
+  box-shadow: 0 8px 26px rgba(56, 189, 248, 0.35);
 }
 
 .brand-title {

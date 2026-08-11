@@ -1845,24 +1845,36 @@ function generarReporte() {
       ];
       totalReporte = null; // ya incluye su propia fila TOTAL
       break;
-    case "Compras del Día":
-      headers = ["N°", "Proveedor", "Total Bs.", "Estatus"];
-      rows = DB.compras.filter(c => c.fecha === hoyDia).map(c => [c.nro, c.proveedor, fmt(c.total), c.estatus]);
-      totalReporte = DB.compras.filter(c => c.fecha === hoyDia).reduce((s, c) => s + num(c.total), 0);
-      break;
-    case "Compras por Proveedor": {
-      const agg = {};
-      DB.compras.forEach(c => { agg[c.proveedor] = (agg[c.proveedor] || 0) + num(c.total); });
-      headers = ["Proveedor", "Total Bs."];
-      rows = Object.entries(agg).map(([p, t]) => [p, fmt(t)]);
-      totalReporte = Object.values(agg).reduce((s, t) => s + t, 0);
+case "Compras del Día": {
+      const usdCompra = c => num(c.totalUSDBcv) || r2(num(c.total) / getTasa());
+      const comprasDia = DB.compras.filter(c => c.fecha === hoyDia);
+      headers = ["N°", "Proveedor", "Total $", "Total Bs.", "Estatus"];
+      rows = comprasDia.map(c => [c.nro, c.proveedor, fmtUS(usdCompra(c)), fmt(num(c.total)), c.estatus]);
+      rows.push(["", "TOTAL", fmtUS(comprasDia.reduce((s, c) => s + usdCompra(c), 0)), fmt(comprasDia.reduce((s, c) => s + num(c.total), 0)), ""]);
+      totalReporte = null;
       break;
     }
-    case "Existencias Actuales":
-      headers = ["Código", "Descripción", "Existencia", "Precio Bs."];
-      rows = DB.productos.map(p => [p.codigo, p.descripcion, fmt(p.existencia), fmt(p.precio)]);
-      totalReporte = DB.productos.reduce((s, p) => s + num(p.precio), 0);
+    case "Compras por Proveedor": {
+      const usdCompra = c => num(c.totalUSDBcv) || r2(num(c.total) / getTasa());
+      const agg = {};
+      DB.compras.forEach(c => {
+        if (!agg[c.proveedor]) agg[c.proveedor] = { usd: 0, bs: 0 };
+        agg[c.proveedor].usd += usdCompra(c);
+        agg[c.proveedor].bs += num(c.total);
+      });
+      headers = ["Proveedor", "Total $", "Total Bs."];
+      rows = Object.entries(agg).map(([p, a]) => [p, fmtUS(a.usd), fmt(a.bs)]);
+      rows.push(["TOTAL", fmtUS(Object.values(agg).reduce((s, a) => s + a.usd, 0)), fmt(Object.values(agg).reduce((s, a) => s + a.bs, 0))]);
+      totalReporte = null;
       break;
+    }
+    case "Existencias Actuales": {
+      headers = ["Código", "Descripción", "Existencia", "Precio $", "Precio Bs."];
+      rows = DB.productos.map(p => [p.codigo, p.descripcion, fmt(p.existencia), fmtUS(num(p.precioUSD)), fmt(num(p.precio))]);
+      rows.push(["", "TOTAL", "", fmtUS(DB.productos.reduce((s, p) => s + num(p.precioUSD), 0)), fmt(DB.productos.reduce((s, p) => s + num(p.precio), 0))]);
+      totalReporte = null;
+      break;
+    }
     case "Productos con Stock Bajo":
       headers = ["Código", "Descripción", "Existencia", "Mínimo"];
       rows = DB.productos.filter(p => p.existencia <= p.minimo).map(p => [p.codigo, p.descripcion, fmt(p.existencia), fmt(p.minimo)]);
@@ -1917,21 +1929,28 @@ function generarReporte() {
       ];
       totalReporte = null;
       break;
-    case "Listado de Productos":
-      headers = ["Código", "Descripción", "Categoría", "Precio Bs."];
-      rows = DB.productos.map(p => [p.codigo, p.descripcion, p.categoria, fmt(p.precio)]);
-      totalReporte = DB.productos.reduce((s, p) => s + num(p.precio), 0);
+case "Listado de Productos": {
+      headers = ["Código", "Descripción", "Categoría", "Precio $", "Precio Bs."];
+      rows = DB.productos.map(p => [p.codigo, p.descripcion, p.categoria, fmtUS(num(p.precioUSD)), fmt(num(p.precio))]);
+      rows.push(["", "TOTAL", "", fmtUS(DB.productos.reduce((s, p) => s + num(p.precioUSD), 0)), fmt(DB.productos.reduce((s, p) => s + num(p.precio), 0))]);
+      totalReporte = null;
       break;
-    case "Precios de Venta":
+    }
+    case "Precios de Venta": {
       headers = ["Código", "Descripción", "Costo $", "PVP $", "PVP Bs.", "Margen %"];
-      rows = DB.productos.map(p => [p.codigo, p.descripcion, fmt(p.costoUSD), fmt(p.precioUSD), fmt(p.precio), fmt(p.margenPct)]);
-      totalReporte = DB.productos.reduce((s, p) => s + num(p.precio), 0);
+      rows = DB.productos.map(p => [p.codigo, p.descripcion, fmt(num(p.costoUSD)), fmt(num(p.precioUSD)), fmt(num(p.precio)), fmt(p.margenPct)]);
+      rows.push(["", "TOTAL", fmtUS(DB.productos.reduce((s, p) => s + num(p.costoUSD), 0)), fmtUS(DB.productos.reduce((s, p) => s + num(p.precioUSD), 0)), fmt(DB.productos.reduce((s, p) => s + num(p.precio), 0)), ""]);
+      totalReporte = null;
       break;
-    case "Servicios Realizados":
-      headers = ["Código", "Descripción", "Precio Bs."];
-      rows = DB.productos.filter(p => p.categoria === "SERVICIOS").map(p => [p.codigo, p.descripcion, fmt(p.precio)]);
-      totalReporte = DB.productos.filter(p => p.categoria === "SERVICIOS").reduce((s, p) => s + num(p.precio), 0);
+    }
+    case "Servicios Realizados": {
+      const svs = DB.productos.filter(p => p.categoria === "SERVICIOS");
+      headers = ["Código", "Descripción", "Precio $", "Precio Bs."];
+      rows = svs.map(p => [p.codigo, p.descripcion, fmtUS(num(p.precioUSD)), fmt(num(p.precio))]);
+      rows.push(["", "TOTAL", fmtUS(svs.reduce((s, p) => s + num(p.precioUSD), 0)), fmt(svs.reduce((s, p) => s + num(p.precio), 0))]);
+      totalReporte = null;
       break;
+    }
     default:
       return null;
   }
