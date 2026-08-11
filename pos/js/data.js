@@ -414,8 +414,21 @@ function imprimirDocumentoHTML(titulo, bodyHtml) {
   _abrirImpresion(titulo, bodyHtml);
 }
 
-// ============== PERSISTENCIA (localStorage) ==============
+// ============== PERSISTENCIA (IndexedDB + espejo localStorage) ==============
+// Guarda en IndexedDB (ilimitado, usa la capa Storage de storage.js) y mantiene
+// un espejo en localStorage para arranque instantáneo y como fallback.
 const DB_KEY = "pos_sistema_db_v1";
+const MIRROR_MAX = 3.5 * 1024 * 1024; // el espejo solo si cabe en cuota (~5 MB navegador)
+
+let _saveTimer = null;
+let _saveChain = Promise.resolve();
+
+// Fuerza la escritura pendiente en IndexedDB (no debounced).
+function flushSaveDB() {
+  clearTimeout(_saveTimer);
+  _saveChain = _saveChain.then(() => Storage.save("db", DB)).catch(() => {});
+  return _saveChain;
+}
 
 function normalizeDB() {
   if (!DB.parametros) DB.parametros = { nombreEmpresa: "Mi Empresa, C.A.", rif: "", tasaBCV: 36.50, iva: 16, serie: "FACT", caja: "CAJA 01", cajero: "ADMIN", turno: 1 };
@@ -519,19 +532,49 @@ function loadDB() {
         if (saved[k] !== undefined) DB[k] = saved[k];
       });
     }
-  } catch (e) { console.error("Error cargando datos guardados:", e); }
+  } catch (e) { console.error("Error cargando espejo local:", e); }
   normalizeDB();
+  const arranque = JSON.stringify(DB);
+
+  // Fuente principal: IndexedDB. Si está vacía (primera vez) se siembra.
+  Storage.load("db").then(saved => {
+    if (!saved || typeof saved !== "object") { flushSaveDB(); return; }
+    if (document.body.classList.contains("logged-in")) return; // no interrumpir sesión activa
+    Object.keys(DB).forEach(k => delete DB[k]);
+    Object.assign(DB, saved);
+    normalizeDB();
+    if (JSON.stringify(DB) !== arranque && typeof window.__onDBLoaded === "function") {
+      setTimeout(() => window.__onDBLoaded(), 0);
+    }
+  }).catch(e => console.error("Error cargando IndexedDB:", e));
+
+  // Migración única: respaldos antiguos guardados en localStorage → IndexedDB.
+  if (typeof Storage.migrateLegacyBackups === "function") {
+    Storage.migrateLegacyBackups("pos_backup_").catch(e => console.error("Migración de respaldos:", e));
+  }
+
+  window.addEventListener("pagehide", () => { flushSaveDB(); });
+  window.addEventListener("beforeunload", () => { flushSaveDB(); });
 }
 
 function saveDB() {
-  try { localStorage.setItem(DB_KEY, JSON.stringify(DB)); }
-  catch (e) { console.error("Error guardando datos:", e); }
+  try {
+    const data = JSON.stringify(DB);
+    if (data.length <= MIRROR_MAX) localStorage.setItem(DB_KEY, data);
+  } catch (e) { console.error("Espejo localStorage excedido:", e); }
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(() => {
+    _saveChain = _saveChain.then(() => Storage.save("db", DB)).catch(() => {});
+  }, 350);
 }
 
 function resetDemoData() {
   if (confirm("¿Restaurar los datos de ejemplo? Se perderán los cambios actuales.")) {
-    localStorage.removeItem(DB_KEY);
-    location.reload();
+    flushSaveDB().then(() => {
+      Storage.remove("db");
+      localStorage.removeItem(DB_KEY);
+      location.reload();
+    });
   }
 }
 

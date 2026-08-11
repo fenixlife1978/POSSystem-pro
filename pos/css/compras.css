@@ -74,10 +74,9 @@
 /* Tabla de recepción compacta (más columnas) */
 .comp-grid th { font-size: 9px; white-space: nowrap; }
 .comp-grid td { font-size: 10px; }
-.comp-grid td:nth-child(3), .comp-grid td:nth-child(4),
-.comp-grid td:nth-child(6), .comp-grid td:nth-child(7),
-.comp-grid td:nth-child(8) { text-align: right; }
-.comp-grid td:nth-child(5) { text-align: center; }
+.comp-grid td:nth-child(3), .comp-grid td:nth-child(4), .comp-grid td:nth-child(5),
+.comp-grid td:nth-child(7), .comp-grid td:nth-child(8), .comp-grid td:nth-child(9) { text-align: right; }
+.comp-grid td:nth-child(6) { text-align: center; }
 
 /* Nueva Compra: dos columnas */
 .comp-n-content {

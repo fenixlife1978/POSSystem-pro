@@ -74,6 +74,8 @@ function requestAccess() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  // Cuando la carga asíncrona de IndexedDB completa los datos (datos distintos al espejo)
+  window.__onDBLoaded = () => { try { fillRolSelect(); } catch (e) {} };
   fillRolSelect();
   ["login-usuario", "login-rol", "login-clave"].forEach(id => {
     const el = _lg(id);

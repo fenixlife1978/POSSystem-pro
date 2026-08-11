@@ -875,10 +875,16 @@
   </div>
   <table class="grid full-grid">
     <thead>
-      <tr><th>Código</th><th>Descripción</th><th>Existencia</th><th>Reservada</th><th>Disponible</th><th>Mínimo</th><th>Precio Bs.</th></tr>
+      <tr><th>Código</th><th>Descripción</th><th>Existencia</th><th>Reservada</th><th>Disponible</th><th>Mínimo</th><th>Costo CPP (USD)</th><th>Precio Venta (USD)</th><th>Precio Venta (Bs.)</th></tr>
     </thead>
     <tbody id="inventario-body"></tbody>
   </table>
+  <div class="inv-summary">
+    <div class="inv-summary-title">Inventario General</div>
+    <div>Productos mostrados: <b id="inv-total-prod">0</b></div>
+    <div>Valor Total de Inventario (Precio Costo CPP): <b id="inv-total-costo">$ 0,00</b> <span class="usd-sub" id="inv-total-costo-bs">(Bs. 0,00)</span></div>
+    <div>Total Precio de Venta: <b id="inv-total-venta">$ 0,00</b> <span class="usd-sub" id="inv-total-venta-bs">(Bs. 0,00)</span></div>
+  </div>
   <div class="inv-legend">
     <span><span class="legend-box red"></span> Sin Stock</span>
     <span><span class="legend-box yellow"></span> Stock Bajo</span>
@@ -1347,7 +1353,7 @@
     <fieldset class="panel">
       <legend>Datos del Ajuste</legend>
       <table class="form-table">
-        <tr><td><label>Producto:</label></td><td><input type="text" id="ajuste-codigo" class="input-small" onblur="cargarAjusteProducto()"><button class="btn-mini" onclick="openProductSearch()">...</button>
+        <tr><td><label>Producto:</label></td><td><input type="text" id="ajuste-codigo" class="input-small" onblur="cargarAjusteProducto()"><button class="btn-mini" onclick="openProductSearch('ajuste-codigo')">...</button>
             <span id="ajuste-nombre" class="ajuste-nombre"></span></td></tr>
         <tr><td><label>Existencia Actual:</label></td><td id="ajuste-actual">0,00</td></tr>
         <tr><td><label>Tipo:</label></td><td><select id="ajuste-tipo" onchange="actualizarAjusteResultado()"><option>Nuevo Stock</option><option>Entrada (+)</option><option>Salida (−)</option></select></td></tr>
@@ -1496,7 +1502,7 @@
         <div id="comp-n-mixto-fields" style="display:none">
           <table class="form-table">
             <tr><td><label>Monto Pagado (Bs.):</label></td><td><input type="text" inputmode="decimal" id="comp-n-pagob" class="input-medium" placeholder="0,00" oninput="recalcPagoMixto('bs')"></td></tr>
-            <tr><td><label>Monto Pagado (USD):</label></td><td><input type="text" inputmode="decimal" id="comp-n-pagousd" class="input-medium" placeholder="0,00" oninput="recalcPagoMixto('usd')"></td></tr>
+            <tr><td><label>Monto Pagado (USD Prov.):</label></td><td><input type="text" inputmode="decimal" id="comp-n-pagousd" class="input-medium" placeholder="0,00" title="USD al precio del proveedor (USDT / paralelo)" oninput="recalcPagoMixto('usd')"></td></tr>
           </table>
         </div>
       </fieldset>
@@ -1524,15 +1530,19 @@
       <fieldset class="panel">
         <legend>4. Detalle de Compra</legend>
         <table class="grid comp-grid">
-          <thead><tr><th>Código</th><th>Producto</th><th>Cant.</th><th>Costo USD</th><th>Exento IVA</th><th>Subtotal Bs.</th><th>I.V.A.</th><th>Total</th><th></th></tr></thead>
+          <thead><tr><th>Código</th><th>Producto</th><th>Cant.</th><th>Costo Prov. (USD)</th><th>Costo Base (USD BCV)</th><th>Exento IVA</th><th>Subtotal Bs.</th><th>I.V.A.</th><th>Total</th><th></th></tr></thead>
           <tbody id="comp-n-body"></tbody>
         </table>
       </fieldset>
       <div class="cotiz-totals">
         <div>Total Factura (Bs.): <b id="comp-n-total">0,00</b></div>
+        <div>Total Factura (USD Prov.): <b id="comp-n-total-usd-prov">0,00 $</b></div>
         <div>Total Factura (USD BCV): <b id="comp-n-total-usd">0,00 $</b></div>
-        <div>Total Pagado: <b id="comp-n-pagado">0,00</b></div>
-        <div class="cotiz-total-row">Total Pendiente (Crédito): <b id="comp-n-pendiente">0,00</b></div>
+        <div>Total Pagado (USD Prov.): <b id="comp-n-pagado-usd-prov">0,00 $</b> <span class="usd-sub" id="comp-n-pagado-bs-eq">(Bs. 0,00)</span></div>
+        <div id="comp-n-pagado-mixto-row" style="display:none">Total Pagado (Mixto) — USD Prov.: <b id="comp-n-pagado-mixto-prov">0,00</b> · USD BCV: <b id="comp-n-pagado-mixto-bcv">0,00 $</b></div>
+        <div>Total Pagado (Bs.): <b id="comp-n-pagado">0,00</b></div>
+        <div class="cotiz-total-row">Total Pendiente (Crédito) USD: <b id="comp-n-pendiente-usd">0,00 $</b> <span class="usd-sub" id="comp-n-pendiente-bs-eq">(Bs. 0,00)</span></div>
+        <div>Total Pendiente (Bs.): <b id="comp-n-pendiente">0,00</b></div>
       </div>
       <div class="pago-actions">
         <button class="mod-btn" onclick="guardarCompra()">💾 Guardar Compra (Recibida)</button>
@@ -1668,7 +1678,7 @@
             <td><label>Activo:</label></td><td><input type="checkbox" id="usu-activo" checked></td></tr>
         <tr><td><label>Nombre:</label></td><td colspan="3"><input type="text" id="usu-nombre" class="input-wide"></td></tr>
         <tr><td><label>Rol:</label></td><td><select id="usu-rol"><option>Administrador</option><option>Cajero</option><option>Consulta</option></select></td>
-            <td><label>Clave:</label></td><td><input type="password" id="usu-clave" class="input-medium"></td></tr>
+            <td><label>Clave:</label></td><td><input type="password" id="usu-clave" class="input-medium"><div id="usu-clave-note" style="display:none;font-size:9px;color:#b35c00;margin-top:2px">Solo se cambia en "Cambio de Contraseña"</div></td></tr>
       </table>
     </div>
   </div>
@@ -1820,6 +1830,7 @@
   </div>
 </div>
 
+<script src="js/storage.js"></script>
 <script src="js/data.js"></script>
 <script src="js/pos.js"></script>
 <script src="js/modules.js"></script>

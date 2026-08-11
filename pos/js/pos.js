@@ -1103,6 +1103,7 @@ function addSearchedProduct(cod) {
   const target = window._buscarTarget;
   if (target && document.getElementById(target)) {
     document.getElementById(target).value = p.codigo;
+    if (target === "ajuste-codigo" && typeof cargarAjusteProducto === "function") cargarAjusteProducto();
     const precioInput = document.getElementById(target.replace("-cod", "-precio").replace("-costo", "-costo"));
     if (target === "comp-n-cod") {
       const c = document.getElementById("comp-n-costo");

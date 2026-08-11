@@ -1,0 +1,46 @@
+{
+  "name": "pos-auto-win",
+  "version": "1.0.0",
+  "description": "Sistema POS para repuestos y lubricantes - AutoWin",
+  "main": "main.js",
+  "author": "AutoWin",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.autowin.pos",
+    "productName": "AutoWin POS",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "pos/**/*",
+      "main.js",
+      "preload.js",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "portable",
+        "nsis"
+      ],
+      "icon": "build/icon.png"
+    },
+    "portable": {
+      "artifactName": "AutoWinPOS-${version}-portable.exe"
+    },
+    "nsis": {
+      "artifactName": "AutoWinPOS-Setup-${version}.exe",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

@@ -19,3 +19,17 @@
 .legend-box.green { background: #4caf50; }
 .row-low { background: #fff4cc; }
 .row-out { background: #fbe0e0; }
+
+/* Resumen de inventario (valor CPP y valor de venta) */
+.inv-summary {
+  background: #ECE9D8;
+  border-top: 1px solid #ccc;
+  padding: 6px 12px;
+  font-size: 12px;
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  flex-wrap: wrap;
+  line-height: 1.5;
+}
+.inv-summary-title { font-weight: bold; color: #003399; }

@@ -242,15 +242,24 @@ function abonarCxC() {
   openModuleWindow("cxc-abono");
 }
 
-// Equivalencia Bs./USD del monto a abonar según la forma de pago seleccionada
+// Equivalencia Bs./USD del monto a abonar según la forma de pago seleccionada.
+// La deuda es FIJA en USD; solo la equivalencia en Bs. cambia con la tasa del día.
+let _abonoLastForma = "";
 function actualizarEquivAbono() {
   const forma = _cp("cxc-ab-forma");
   const monto = _cp("cxc-ab-monto");
   const el = _cp("cxc-ab-monto-usd");
   if (!forma || !monto || !el) return;
   const esUsd = monedaDeForma(forma.value) === "USD";
+  const prev = _abonoLastForma;
+  _abonoLastForma = forma.value;
   const val = num(monto.value);
-  el.textContent = esUsd ? fmtBsEq(val) : fmtUS(usdDeBs(val));
+  if (prev && prev !== forma.value && val > 0) {
+    const prevUsd = monedaDeForma(prev) === "USD";
+    monto.value = (prevUsd ? bsDeUsd(val) : usdDeBs(val)).toFixed(2).replace(".", ",");
+  }
+  const v = num(monto.value);
+  el.textContent = esUsd ? fmtBsEq(v) : fmtUS(usdDeBs(v));
 }
 
 function guardarAbonoCxC() {
@@ -301,12 +310,17 @@ function sincronizarCxP() {
       const saldoBs = c.pendiente !== undefined ? num(c.pendiente) : (totalBs - pagadoBs);
       if (saldoBs > 0) {
         const dias = c.diasCredito || ((c.tipo === "Credito" || c.tipo === "Mixto") ? 30 : 0);
-        const tasa = getTasa();
+        // Tasa BCV del día de la compra: el USD de la cuenta es FIJO y se calcula
+        // con la tasa de ese día, nunca con la tasa actual del día de pago.
+        const tasa = num(c.bcv_rate_at_purchase) || getTasa();
+        const toUsd = b => (tasa > 0 ? num(b) / tasa : usdDeBs(b));
         DB.cuentasPagar.unshift({
           nro: c.nro, fecha: c.fecha, vencimiento: sumarDias(c.fecha, dias),
           proveedor: c.proveedor, tasa: r2(tasa),
-          total: usdDeBs(totalBs), totalBs: r2(totalBs),
-          pagado: usdDeBs(pagadoBs), saldo: usdDeBs(saldoBs),
+          total: num(c.totalUSDBcv) || r2(toUsd(totalBs)),
+          totalBs: r2(totalBs),
+          pagado: num(c.pagadoUSDBcv) || r2(toUsd(pagadoBs)),
+          saldo: num(c.pendienteUSD) || r2(toUsd(saldoBs)),
           estado: "Pendiente",
           lineas: (c.lineas || []).map(l => ({
             codigo: l.codigo, descripcion: l.descripcion,
@@ -404,15 +418,24 @@ function abrirPagoCxP() {
   openModuleWindow("cxp-pago");
 }
 
-// Equivalencia Bs./USD del monto a pagar según la forma de pago seleccionada
+// Equivalencia Bs./USD del monto a pagar según la forma de pago seleccionada.
+// La deuda es FIJA en USD; solo la equivalencia en Bs. cambia con la tasa del día.
+let _cxpLastForma = "";
 function actualizarEquivPagoCxP() {
   const forma = _cp("cxp-pg-forma");
   const monto = _cp("cxp-pg-monto");
   const el = _cp("cxp-pg-monto-usd");
   if (!forma || !monto || !el) return;
   const esUsd = monedaDeForma(forma.value) === "USD";
+  const prev = _cxpLastForma;
+  _cxpLastForma = forma.value;
   const val = num(monto.value);
-  el.textContent = esUsd ? fmtBsEq(val) : fmtUS(usdDeBs(val));
+  if (prev && prev !== forma.value && val > 0) {
+    const prevUsd = monedaDeForma(prev) === "USD";
+    monto.value = (prevUsd ? bsDeUsd(val) : usdDeBs(val)).toFixed(2).replace(".", ",");
+  }
+  const v = num(monto.value);
+  el.textContent = esUsd ? fmtBsEq(v) : fmtUS(usdDeBs(v));
 }
 
 function aplicarPagoCuentasPagar(proveedor, monto) {

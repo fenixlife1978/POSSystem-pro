@@ -1138,9 +1138,17 @@ function selectCompra(nro, row) {
   const tipo = c.tipo || "Contado";
   const pagado = num(c.pagado) || 0;
   const pendiente = c.pendiente !== undefined ? num(c.pendiente) : (num(c.total) - pagado);
+  const tasaProv = num(c.purchase_rate_value) || getTasa();
+  const bcv = num(c.bcv_rate_at_purchase) || getTasa();
+  const totalBs = num(c.total) || 0;
+  const totalProv = num(c.totalUSDProv) || (tasaProv > 0 ? totalBs / tasaProv : 0);
+  const totalBcv = num(c.totalUSDBcv) || (bcv > 0 ? totalBs / bcv : 0);
+  const pendUSD = num(c.pendienteUSD) || (bcv > 0 ? pendiente / bcv : 0);
   $("compra-detail-info").innerHTML =
     `<div><b>${c.nro}</b> — ${c.fecha} — <b>${c.proveedor}</b></div>` +
-    `<div>Tipo: ${tipo}${(tipo === "Credito" || tipo === "Mixto") && c.diasCredito ? ` · Días de crédito: ${c.diasCredito}` : ""}${pagos ? ` · Pagos: ${pagos}` : ""}${c.observaciones ? ` · Obs.: ${c.observaciones}` : ""}</div>`;
+    `<div>Tipo: ${tipo}${(tipo === "Credito" || tipo === "Mixto") && c.diasCredito ? ` · Días de crédito: ${c.diasCredito}` : ""}${pagos ? ` · Pagos: ${pagos}` : ""}${c.observaciones ? ` · Obs.: ${c.observaciones}` : ""}</div>` +
+    `<div>Factura: USD Prov. <b>${fmtComp(totalProv)} $</b> · USD BCV <b>${fmtComp(totalBcv)} $</b> · Bs. <b>${fmtComp(totalBs)}</b></div>` +
+    `<div>Crédito pendiente: USD <b>${fmtComp(pendUSD)} $</b> (Bs. ${fmtComp(pendiente)})</div>`;
 
   const sub = lineas.reduce((s, d) => s + (d.total || 0), 0);
   const iva = lineas.reduce((s, d) => s + (d.iva || 0), 0);
@@ -1172,6 +1180,7 @@ function nuevaCompra() {
   $("comp-n-costo").value = "";
   $("comp-n-prev").value = "";
   $("comp-n-pond").value = "";
+  $("comp-n-exento").checked = false;
   ocultarProductosCompra();
   cambiarMonedaCompra();
   cambiarTipoCompra();
@@ -1351,19 +1360,46 @@ function totalFacturaBsCompra() {
 function recalcPagosCompra(totalFactura) {
   const t = $("comp-n-tipo").value;
   const tasa = tasaCompraActual();
-  let pagado = 0;
-  if (t === "Contado") pagado = totalFactura;
-  else if (t === "Mixto") pagado = r2(num($("comp-n-pagob").value) + num($("comp-n-pagousd").value) * tasa);
-  $("comp-n-pagado").textContent = fmtComp(pagado);
-  $("comp-n-pendiente").textContent = fmtComp(r2(totalFactura - pagado));
-  return { totalFactura, pagado, pendiente: r2(totalFactura - pagado) };
+  const bcv = tasaBcvCompra();
+  let pagadoBs = 0;
+  if (t === "Contado") pagadoBs = totalFactura;
+  else if (t === "Mixto") {
+    const pagob = num($("comp-n-pagob").value);
+    const pagousd = num($("comp-n-pagousd").value);
+    pagadoBs = pagob > 0 ? pagob : r2(pagousd * tasa);
+  }
+
+  const pendienteBs = r2(totalFactura - pagadoBs);
+  const pagadoUSDProv = tasa > 0 ? r2(pagadoBs / tasa) : 0;
+  const pagadoUSDBcv = bcv > 0 ? r2(pagadoBs / bcv) : 0;
+  const pendienteUSD = bcv > 0 ? r2(pendienteBs / bcv) : 0;
+
+  $("comp-n-pagado").textContent = fmtComp(pagadoBs);
+  $("comp-n-pagado-usd-prov").textContent = fmtComp(pagadoUSDProv) + " $";
+  $("comp-n-pagado-bs-eq").textContent = "(Bs. " + fmtComp(pagadoBs) + ")";
+  $("comp-n-pendiente").textContent = fmtComp(pendienteBs);
+  $("comp-n-pendiente-usd").textContent = fmtComp(pendienteUSD) + " $";
+  $("comp-n-pendiente-bs-eq").textContent = "(Bs. " + fmtComp(pendienteBs) + ")";
+
+  const mixtoRow = $("comp-n-pagado-mixto-row");
+  if (mixtoRow) {
+    mixtoRow.style.display = t === "Mixto" ? "" : "none";
+    if (t === "Mixto") {
+      $("comp-n-pagado-mixto-prov").textContent = fmtComp(pagadoUSDProv) + " $";
+      $("comp-n-pagado-mixto-bcv").textContent = fmtComp(pagadoUSDBcv) + " $";
+    }
+  }
+
+  return { totalFactura, pagado: pagadoBs, pendiente: pendienteBs, pagadoUSDProv, pagadoUSDBcv, pendienteUSD };
 }
 
 function recalcTotalesCompra() {
   const bcv = tasaBcvCompra();
+  const tasa = tasaCompraActual();
   const totalFactura = totalFacturaBsCompra();
   $("comp-n-total").textContent = fmtComp(totalFactura);
   $("comp-n-total-usd").textContent = fmtComp(bcv > 0 ? totalFactura / bcv : 0) + " $";
+  $("comp-n-total-usd-prov").textContent = fmtComp(tasa > 0 ? totalFactura / tasa : 0) + " $";
   recalcPagosCompra(totalFactura);
 }
 
@@ -1394,6 +1430,7 @@ function renderCompraNueva() {
       <td>${d.codigo}</td><td>${d.descripcion}</td>
       <td>${fmtComp(d.cantidad)}</td>
       <td>${fmtComp(d.costo)}</td>
+      <td>${fmtComp(d.costoBCV)}</td>
       <td><input type="checkbox" ${d.exentoIva ? "checked" : ""} onchange="cambiarExentoCompra(${i}, this.checked)"></td>
       <td>${fmtComp(d.total)}</td>
       <td>${fmtComp(d.iva)}</td>
@@ -1401,7 +1438,7 @@ function renderCompraNueva() {
       <td><button class="btn-mini" onclick="quitarLineaCompra(${i})">✕</button></td>
     </tr>`
   ).join("") ||
-  `<tr><td colspan="9" style="text-align:center;color:#888">Sin productos agregados</td></tr>`;
+  `<tr><td colspan="10" style="text-align:center;color:#888">Sin productos agregados</td></tr>`;
   recalcTotalesCompra();
 }
 
@@ -1438,6 +1475,8 @@ function guardarCompra() {
   if (!proveedor) { alert("Seleccione el proveedor"); return; }
   const tipo = $("comp-n-tipo").value;
   const res = recalcPagosCompra(totalFacturaBsCompra());
+  const tasaCompra = tasaCompraActual();
+  const bcv = tasaBcvCompra();
   const compra = {
     nro: $("comp-n-nro").value,
     fecha: $("comp-n-fecha").value,
@@ -1445,8 +1484,13 @@ function guardarCompra() {
     observaciones: $("comp-n-obs").value,
     cost_supplier_currency: monedaCompraActual(),
     purchase_rate_type: monedaCompraActual(),
-    purchase_rate_value: tasaCompraActual(),
-    bcv_rate_at_purchase: tasaBcvCompra(),
+    purchase_rate_value: tasaCompra,
+    bcv_rate_at_purchase: bcv,
+    totalUSDProv: r2(res.totalFactura / (tasaCompra > 0 ? tasaCompra : 1)),
+    totalUSDBcv: r2(res.totalFactura / (bcv > 0 ? bcv : 1)),
+    pagadoUSDProv: res.pagadoUSDProv,
+    pagadoUSDBcv: res.pagadoUSDBcv,
+    pendienteUSD: res.pendienteUSD,
     costeo: $("comp-n-costeo").value,
     tipo,
     diasCredito: tipo === "Contado" ? 0 : (num($("comp-n-dias").value) || 30),
@@ -1472,8 +1516,8 @@ function guardarCompra() {
   renderCompras();
   renderInventario();
   if (typeof renderCxP === "function") renderCxP();
-  closeWindow("compra-nueva-window");
   alert("Compra recibida y guardada con éxito.");
+  nuevaCompra();
 }
 
 function recibirCompra() {
@@ -1505,8 +1549,14 @@ function renderInventario() {
   const body = $("inventario-body");
   if (!body) return;
   const rows = filtrarInventarioData();
+  let totalCosto = 0;
+  let totalVenta = 0;
   body.innerHTML = rows.map(p => {
     const disponible = p.existencia - p.reservado;
+    const costoCPP = num(p.costoUSD) || 0;
+    const precioUSD = num(p.precioUSD) || 0;
+    totalCosto += num(p.existencia) * costoCPP;
+    totalVenta += num(p.existencia) * precioUSD;
     let cls = "";
     if (p.existencia === 0) cls = "row-out";
     else if (p.existencia <= p.minimo) cls = "row-low";
@@ -1516,9 +1566,27 @@ function renderInventario() {
       <td style="text-align:right">${fmt(p.reservado)}</td>
       <td style="text-align:right">${fmt(disponible)}</td>
       <td style="text-align:right">${fmt(p.minimo)}</td>
+      <td style="text-align:right">${fmt(costoCPP)}</td>
+      <td style="text-align:right">${fmt(precioUSD)}</td>
       <td style="text-align:right">${fmt(p.precio)}</td>
     </tr>`;
-  }).join("") || `<tr><td colspan="7" style="text-align:center;color:#888">Sin resultados</td></tr>`;
+  }).join("") || `<tr><td colspan="9" style="text-align:center;color:#888">Sin resultados</td></tr>`;
+
+  const elProd = $("inv-total-prod");
+  if (elProd) elProd.textContent = rows.length;
+  const elTotCosto = $("inv-total-costo");
+  if (elTotCosto) {
+    elTotCosto.textContent = fmtUS(totalCosto);
+    const bs = $("inv-total-costo-bs");
+    if (bs) bs.textContent = fmtBsEq(totalCosto);
+  }
+  const elTotVenta = $("inv-total-venta");
+  if (elTotVenta) {
+    elTotVenta.textContent = fmtUS(totalVenta);
+    const bs = $("inv-total-venta-bs");
+    if (bs) bs.textContent = fmtBsEq(totalVenta);
+  }
+
   // Poblar categorías una sola vez
   if ($("inv-cat").options.length <= 1) {
     const cats = [...new Set(DB.productos.map(p => p.categoria))];
@@ -1614,9 +1682,9 @@ function renderKardex() {
   const p = DB.productos.find(x => x.codigo === cod);
   $("kardex-totals").textContent = `Entradas: ${fmt(entradas)} | Salidas: ${fmt(-salidas)} | Existencia: ${fmt(p ? p.existencia : 0)}`;
 }
+function imprimirInventario() { imprimirHTML("Existencias Actuales", ["Código", "Descripción", "Existencia", "Reservada", "Disponible", "Mínimo", "Costo CPP (USD)", "Precio Venta (USD)", "Precio Venta (Bs.)"], DB.productos.map(p => [p.codigo, p.descripcion, fmt(p.existencia), fmt(p.reservado), fmt(p.existencia - p.reservado), fmt(p.minimo), fmt(p.costoUSD || 0), fmt(p.precioUSD || 0), fmt(p.precio)])); }
 
-function imprimirInventario() { imprimirHTML("Existencias Actuales", ["Código", "Descripción", "Existencia", "Reservada", "Disponible", "Mínimo"], DB.productos.map(p => [p.codigo, p.descripcion, fmt(p.existencia), fmt(p.reservado), fmt(p.existencia - p.reservado), fmt(p.minimo)])); }
-function exportarInventario() { exportarCSV("existencias", ["Codigo", "Descripcion", "Existencia", "Reservada", "Disponible", "Minimo"], DB.productos.map(p => [p.codigo, p.descripcion, p.existencia, p.reservado, p.existencia - p.reservado, p.minimo])); }
+function exportarInventario() { exportarCSV("existencias", ["Codigo", "Descripcion", "Existencia", "Reservada", "Disponible", "Minimo", "CostoCPP_USD", "PrecioVenta_USD", "PrecioVenta_Bs"], DB.productos.map(p => [p.codigo, p.descripcion, p.existencia, p.reservado, p.existencia - p.reservado, p.minimo, p.costoUSD || 0, p.precioUSD || 0, p.precio])); }
 
 // ===== REPORTES =====
 let lastReport = null;

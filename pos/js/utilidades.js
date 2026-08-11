@@ -161,6 +161,8 @@ function selectUsuario(usuario) {
   _g("usu-nombre").value = u.nombre || "";
   _g("usu-rol").value = u.rol || "Cajero";
   _g("usu-clave").value = u.clave || "";
+  _g("usu-clave").disabled = true;
+  _g("usu-clave-note").style.display = "";
   _g("usu-activo").checked = u.activo !== false;
   document.querySelectorAll("#usuarios-body tr").forEach(tr => tr.classList.toggle("selected", tr.cells[0].textContent === usuario));
 }
@@ -168,6 +170,8 @@ function selectUsuario(usuario) {
 function nuevoUsuario() {
   _g("usu-usuario").value = ""; _g("usu-nombre").value = "";
   _g("usu-rol").value = "Cajero"; _g("usu-clave").value = "";
+  _g("usu-clave").disabled = false;
+  _g("usu-clave-note").style.display = "none";
   _g("usu-activo").checked = true;
   document.querySelectorAll("#usuarios-body tr").forEach(tr => tr.classList.remove("selected"));
   _g("usu-usuario").focus();
@@ -178,7 +182,11 @@ function guardarUsuario() {
   const nombre = _g("usu-nombre").value.trim();
   if (!usuario) { alert("Ingrese el nombre de usuario"); return; }
   const idx = DB.usuarios.findIndex(x => x.usuario === usuario);
-  const data = { usuario, nombre: nombre || usuario, rol: _g("usu-rol").value, clave: _g("usu-clave").value, activo: _g("usu-activo").checked };
+  // La clave solo se asigna al CREAR el usuario; al editar un usuario existente
+  // se conserva la actual (solo se cambia desde "Cambio de Contraseña").
+  if (idx < 0 && !_g("usu-clave").value) { alert("Asigne la contraseña inicial del usuario."); return; }
+  const clave = idx >= 0 ? DB.usuarios[idx].clave : _g("usu-clave").value;
+  const data = { usuario, nombre: nombre || usuario, rol: _g("usu-rol").value, clave, activo: _g("usu-activo").checked };
   if (idx >= 0) DB.usuarios[idx] = { ...DB.usuarios[idx], ...data };
   else DB.usuarios.push(data);
   auditar(idx >= 0 ? "Usuario actualizado" : "Usuario creado", usuario);
@@ -198,7 +206,8 @@ function eliminarUsuario() {
 }
 
 // ===== Respaldos =====
-const BACKUP_PREFIX = "pos_backup_";
+// ===== Respaldos (almacenados en IndexedDB vía Storage) =====
+const BACKUP_PREFIX = "pos_backup_"; // conservado por compatibilidad con respaldos viejos en localStorage
 
 function renderRespaldos() {
   _g("respaldos-body").innerHTML = DB.respaldos.map(r =>
@@ -215,35 +224,36 @@ function renderRespaldos() {
 function crearRespaldo() {
   const id = "B" + Date.now();
   const snapshot = JSON.parse(JSON.stringify(DB));
-  try {
-    localStorage.setItem(BACKUP_PREFIX + id, JSON.stringify(snapshot));
-  } catch (e) { alert("No se pudo crear el respaldo (puede estar lleno el almacenamiento)."); return; }
-  DB.respaldos.unshift({ id, fecha: hoy(), hora: hora12(), registros: (DB.productos.length + " productos / " + DB.clientes.length + " clientes / " + DB.ventas.length + " ventas") });
-  auditar("Respaldo creado", id);
-  saveDB();
-  renderRespaldos();
-  alert("Respaldo creado correctamente.");
+  Storage.saveBackup(id, snapshot).then(ok => {
+    if (!ok) { alert("No se pudo crear el respaldo (almacenamiento lleno o bloqueado)."); return; }
+    DB.respaldos.unshift({ id, fecha: hoy(), hora: hora12(), registros: (DB.productos.length + " productos / " + DB.clientes.length + " clientes / " + DB.ventas.length + " ventas") });
+    auditar("Respaldo creado", id);
+    saveDB();
+    renderRespaldos();
+    alert("Respaldo creado correctamente.");
+  });
 }
 
 function restaurarRespaldo(id) {
   if (!confirm(`¿Restaurar el respaldo ${id}? Se reemplazarán los datos actuales.`)) return;
-  try {
-    const raw = localStorage.getItem(BACKUP_PREFIX + id);
-    if (!raw) { alert("No se encontró el respaldo"); return; }
-    const saved = JSON.parse(raw);
-    Object.keys(DB).forEach(k => { if (saved[k] !== undefined) DB[k] = saved[k]; });
+  Storage.getBackup(id).then(saved => {
+    if (!saved) { alert("No se encontró el respaldo"); return; }
+    Object.keys(DB).forEach(k => delete DB[k]);
+    Object.assign(DB, saved);
     DB.carrito = [];
-    saveDB();
-    alert("Respaldo restaurado. La pantalla se actualizará.");
-    location.reload();
-  } catch (e) { alert("Error al restaurar el respaldo"); }
+    flushSaveDB().then(() => {
+      alert("Respaldo restaurado. La pantalla se actualizará.");
+      location.reload();
+    });
+  }).catch(() => alert("Error al restaurar el respaldo"));
 }
 
-function descargarRespaldo(id) {
-  let raw = null;
-  if (id) raw = localStorage.getItem(BACKUP_PREFIX + id);
-  else if (DB.respaldos.length) raw = localStorage.getItem(BACKUP_PREFIX + DB.respaldos[0].id);
-  if (!raw) { alert("Seleccione un respaldo para descargar"); return; }
+async function descargarRespaldo(id) {
+  let snap = null;
+  if (id) snap = await Storage.getBackup(id);
+  else if (DB.respaldos.length) snap = await Storage.getBackup(DB.respaldos[0].id);
+  if (!snap) { alert("Seleccione un respaldo para descargar"); return; }
+  const raw = JSON.stringify(snap, null, 2);
   const blob = new Blob([raw], { type: "application/json" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
@@ -255,11 +265,12 @@ function descargarRespaldo(id) {
 
 function eliminarRespaldo(id) {
   if (!confirm(`¿Eliminar el respaldo ${id}?`)) return;
-  localStorage.removeItem(BACKUP_PREFIX + id);
-  DB.respaldos = DB.respaldos.filter(x => x.id !== id);
-  auditar("Respaldo eliminado", id);
-  saveDB();
-  renderRespaldos();
+  Storage.removeBackup(id).then(() => {
+    DB.respaldos = DB.respaldos.filter(x => x.id !== id);
+    auditar("Respaldo eliminado", id);
+    saveDB();
+    renderRespaldos();
+  });
 }
 
 // ===== Auditoría =====
