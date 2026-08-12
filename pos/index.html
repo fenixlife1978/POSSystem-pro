@@ -26,43 +26,39 @@
 
 <!-- ============== LOGIN ============== -->
 <div id="login-screen" class="login-bg">
-  <div class="login-glow login-glow-1"></div>
-  <div class="login-glow login-glow-2"></div>
   <div class="login-wrapper">
 
-    <!-- Logo e Isotipo del POS -->
+    <!-- Logo del POS -->
     <div class="brand-container">
       <img class="logo-icon" src="logo.png" alt="POSsystem pro">
-
-      <div class="brand-title">
-        <span class="pos">POS</span><span class="system">system</span>
-        <span class="brand-badge">pro</span>
-      </div>
-      <div class="brand-subtitle">Soluciones Administrativas</div>
     </div>
 
-    <!-- Formularios de Acceso -->
+    <!-- Formulario de Acceso -->
     <div class="login-card">
       <h2 class="card-title">Acceso al Sistema</h2>
-      <div class="card-subtitle">Ingrese sus credenciales para continuar</div>
 
       <form action="#" method="POST" onsubmit="event.preventDefault(); doLogin();">
 
         <!-- Campo Usuario -->
         <div class="form-group">
-          <svg class="field-icon" viewBox="0 0 24 24">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-            <circle cx="12" cy="7" r="4"></circle>
-          </svg>
+          <span class="field-icon-wrap">
+            <svg class="field-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+          </span>
           <input type="text" id="login-usuario" class="form-input" placeholder="Usuario (Email)" autocomplete="username" required>
         </div>
 
         <!-- Campo Rol -->
         <div class="form-group">
-          <svg class="field-icon" viewBox="0 0 24 24">
-            <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
-          </svg>
+          <span class="field-icon-wrap">
+            <svg class="field-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
+              <path d="M9 22v-4h6v4"></path>
+              <path d="M8 6h.01M16 6h.01M12 6h.01M8 10h.01M16 10h.01M12 10h.01M8 14h.01M16 14h.01M12 14h.01M8 18h.01M16 18h.01M12 18h.01"></path>
+            </svg>
+          </span>
           <select id="login-rol" class="form-select" required>
             <option value="" disabled selected>Rol (e.g., Administrador, Cajero)</option>
             <option value="admin">Administrador</option>
@@ -73,10 +69,12 @@
 
         <!-- Campo Contraseña -->
         <div class="form-group">
-          <svg class="field-icon" viewBox="0 0 24 24">
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-          </svg>
+          <span class="field-icon-wrap">
+            <svg class="field-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+          </span>
           <input type="password" id="login-clave" class="form-input" placeholder="Contraseña" autocomplete="current-password" required>
         </div>
 
@@ -89,8 +87,6 @@
       </form>
 
     </div>
-
-    <div class="login-footer">POSsystem pro &nbsp;·&nbsp; Soluciones Administrativas</div>
 
   </div>
 </div>
