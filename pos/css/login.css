@@ -1,11 +1,11 @@
-/* ============== LOGIN (Replica fiel de la imagen de referencia) ============== */
+/* ============== LOGIN (Dark Corporate / Glassmorphism) ============== */
 
 /* Ocultar la app hasta iniciar sesión */
 body:not(.logged-in) #pos-window { display: none !important; }
 body.logged-in #login-screen { display: none; }
 body:not(.logged-in) { overflow: hidden; }
 
-/* Reset y tipografía dentro de #login-screen */
+/* Reset y tipografía SOLO dentro del login (no afecta la app) */
 #login-screen,
 #login-screen *,
 #login-screen *::before,
@@ -13,7 +13,7 @@ body:not(.logged-in) { overflow: hidden; }
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
 }
 
 /* Pantalla completa */
@@ -24,27 +24,46 @@ body:not(.logged-in) { overflow: hidden; }
   overflow: hidden;
 }
 
-/* Fondo con imagen de oficina brillante */
+/* Fondo de oficina: degradado oscuro + rejilla + resplandores */
 .login-bg {
   height: 100vh;
   width: 100vw;
-  background-image: url('../img/office-bg.jpg');
-  background-size: cover;
-  background-position: center center;
-  background-repeat: no-repeat;
+  background:
+    radial-gradient(1100px 750px at 12% -12%, rgba(14, 165, 233, 0.22), transparent 60%),
+    radial-gradient(950px 700px at 108% 112%, rgba(99, 102, 241, 0.20), transparent 60%),
+    linear-gradient(160deg, #020617 0%, #0b1220 48%, #0f172a 100%);
   display: flex;
   justify-content: center;
   align-items: center;
   position: relative;
 }
 
-/* Oscurecimiento sutil del fondo para resaltar la tarjeta */
 .login-bg::before {
   content: "";
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.08);
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.045) 1px, transparent 1px);
+  background-size: 44px 44px;
   pointer-events: none;
+}
+
+.login-glow {
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0.55;
+  pointer-events: none;
+}
+.login-glow-1 {
+  width: 460px; height: 460px;
+  top: -130px; left: -90px;
+  background: radial-gradient(circle, rgba(14, 165, 233, 0.35), transparent 70%);
+}
+.login-glow-2 {
+  width: 420px; height: 420px;
+  bottom: -150px; right: -70px;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.32), transparent 70%);
 }
 
 .login-wrapper {
@@ -55,103 +74,143 @@ body:not(.logged-in) { overflow: hidden; }
   align-items: center;
   width: 100%;
   max-width: 410px;
-  padding: 20px;
+  padding: 22px 20px;
 }
 
-/* Encabezado / Logo superior centrado */
+/* Encabezado / Branding Logo */
 .brand-container {
   text-align: center;
-  margin-bottom: 24px;
-  width: 100%;
+  margin-bottom: 22px;
 }
 
 .logo-icon {
-  max-width: 250px;
-  height: auto;
-  object-fit: contain;
-  display: block;
-  margin: 0 auto;
-  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.15));
+  width: 104px;
+  height: 104px;
+  object-fit: cover;
+  border-radius: 20px;
+  background: #0f172a;
+  margin-bottom: 8px;
+  box-shadow: 0 8px 26px rgba(56, 189, 248, 0.35);
 }
 
-/* Tarjeta de acceso solida blanca */
+.brand-title {
+  font-size: 30px;
+  font-weight: 800;
+  color: #e2e8f0;
+  letter-spacing: -0.5px;
+  line-height: 1.1;
+}
+
+.brand-title span.pos {
+  color: #38bdf8;
+  font-style: italic;
+  font-weight: 900;
+}
+
+.brand-title span.system {
+  color: #e2e8f0;
+  font-weight: 700;
+}
+
+.brand-badge {
+  background: linear-gradient(135deg, #0ea5e9, #2563eb);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  vertical-align: middle;
+  margin-left: 5px;
+  display: inline-block;
+  font-style: normal;
+  box-shadow: 0 2px 10px rgba(14, 165, 233, 0.4);
+}
+
+.brand-subtitle {
+  font-size: 10px;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 3px;
+  margin-top: 6px;
+  text-transform: uppercase;
+}
+
+/* Tarjeta: fondo semisólido (sin backdrop-filter, más fluido en equipos de gama baja) */
 .login-card {
-  background: #ffffff;
+  background: rgba(15, 23, 42, 0.92);
   width: 100%;
-  padding: 32px 28px 28px 28px;
-  border-radius: 8px;
-  border: 1px solid #d1d5db;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+  padding: 34px 28px 26px 28px;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .card-title {
-  font-size: 20px;
-  font-weight: 600;
-  color: #111827;
+  font-size: 22px;
+  font-weight: 700;
+  color: #f1f5f9;
+  text-align: center;
+  margin-bottom: 4px;
+}
+
+.card-subtitle {
+  font-size: 12px;
+  color: #94a3b8;
   text-align: center;
   margin-bottom: 24px;
-  line-height: 1.2;
 }
 
-/* Controles de Entrada (Inputs con iconos en el lado izquierdo) */
+/* Controles de Entrada (Inputs y Iconos) */
 .form-group {
-  margin-bottom: 16px;
+  margin-bottom: 18px;
   position: relative;
-  width: 100%;
-}
-
-.field-icon-wrap {
-  position: absolute;
-  left: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-  z-index: 2;
 }
 
 .field-icon {
-  width: 18px;
-  height: 18px;
-  stroke: #6b7280;
+  display: block;
+  width: 22px;
+  height: 22px;
+  margin: 0 auto 8px auto;
+  fill: none;
+  stroke: #38bdf8;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 2px 6px rgba(56, 189, 248, 0.4));
 }
 
 .form-input, .form-select {
   width: 100%;
-  height: 44px;
-  padding: 10px 14px 10px 42px;
+  padding: 14px;
   font-size: 14px;
-  color: #374151;
-  text-align: left;
-  background-color: #ffffff;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
+  color: #e2e8f0;
+  text-align: center;
+  background-color: rgba(2, 6, 23, 0.55);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 10px;
   outline: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-  box-sizing: border-box;
+  transition: all 0.2s ease;
 }
 
-.form-input::placeholder { color: #9ca3af; }
+.form-input::placeholder { color: #64748b; }
 
 .form-input:focus, .form-select:focus {
-  background-color: #ffffff;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  background-color: rgba(2, 6, 23, 0.85);
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.18);
 }
 
 .form-select {
   appearance: none;
-  color: #6b7280;
-  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  color: #94a3b8;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2338bdf8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
   background-repeat: no-repeat;
   background-position: right 14px center;
   background-size: 16px;
   cursor: pointer;
 }
-.form-select:focus { color: #111827; }
-.form-select option { color: #111827; background: #ffffff; }
+.form-select:focus { color: #e2e8f0; }
+.form-select option { color: #0f172a; background: #f8fafc; }
 
 /* Mensaje de error */
 .login-error {
@@ -159,38 +218,43 @@ body:not(.logged-in) { overflow: hidden; }
   font-size: 13px;
   line-height: 18px;
   text-align: center;
-  color: #ef4444;
-  margin-bottom: 6px;
-  font-weight: 500;
+  color: #f87171;
+  margin-bottom: 2px;
 }
 
-/* Botón de Entrada (Azul vibrante) */
+/* Botón Iniciar Sesión */
 .btn-submit {
   width: 100%;
-  height: 44px;
-  background: #0070f3;
+  padding: 15px;
+  background: linear-gradient(135deg, #0ea5e9, #2563eb);
   color: #ffffff;
   font-size: 15px;
-  font-weight: 500;
-  letter-spacing: 0.2px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
   border: none;
-  border-radius: 6px;
+  border-radius: 10px;
   cursor: pointer;
-  box-shadow: 0 2px 6px rgba(0, 112, 243, 0.25);
-  transition: background-color 0.15s ease, transform 0.1s ease;
+  box-shadow: 0 8px 20px rgba(14, 165, 233, 0.35);
+  transition: all 0.2s ease;
 }
 
 .btn-submit:hover {
-  background: #0060df;
+  background: linear-gradient(135deg, #38bdf8, #3b82f6);
+  box-shadow: 0 10px 26px rgba(14, 165, 233, 0.45);
   transform: translateY(-1px);
 }
 
-.btn-submit:active {
-  transform: translateY(0);
+/* Solicitar Acceso / Olvidó contraseña */
+.login-footer {
+  margin-top: 18px;
+  font-size: 11px;
+  color: #475569;
+  letter-spacing: 1px;
 }
 
 /* Adaptación para pantallas pequeñas */
 @media (max-width: 480px) {
-  .login-card { padding: 24px 20px 20px 20px; }
-  .logo-icon { max-width: 210px; }
+  .login-card { padding: 26px 20px 20px 20px; }
+  .logo-icon { width: 88px; }
+  .brand-title { font-size: 26px; }
 }
