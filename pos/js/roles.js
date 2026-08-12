@@ -12,6 +12,7 @@ const PERMISOS = {
     modulos: new Set([
       "pos", "buscar", "pago",
       "clientes",
+      "taller", "taller-nueva",
       "devoluciones",
       "ultima-factura",
       "caja", "apertura", "cierre", "arqueo", "cierre-resumen"

@@ -94,6 +94,15 @@ function cambiarTipoPersona() {
   const esJ = $("cli-tipo-persona").value === "juridica";
   const dt = $("cli-doc-tipo");
   if (dt) dt.value = esJ ? "J-" : "V-";
+  // Persona Natural: solo cédula (V-/E-) — el RIF no aplica
+  ["J-", "G-"].forEach(val => {
+    const opt = dt && dt.querySelector(`option[value="${val}"]`);
+    if (opt) { opt.disabled = !esJ; opt.style.display = esJ ? "" : "none"; }
+  });
+  ["V-", "E-"].forEach(val => {
+    const opt = dt && dt.querySelector(`option[value="${val}"]`);
+    if (opt) { opt.disabled = esJ; opt.style.display = esJ ? "none" : ""; }
+  });
   const label = $("cli-nombre-label");
   if (label) label.textContent = esJ ? "Razón Social:" : "Nombres y Apellidos:";
   const rl = $("cli-representante-label"); if (rl) rl.textContent = esJ ? "Representante Legal:" : "Apellido de Casada:";
@@ -101,6 +110,9 @@ function cambiarTipoPersona() {
   const ji = $("cli-juridica-info"); if (ji) ji.classList.toggle("hidden-panel", !esJ);
   const extra = $("cli-fisc-extra-label"); if (extra) extra.style.display = esJ ? "" : "none";
   const extraIn = $("cli-fisc-extra-input"); if (extraIn) extraIn.style.display = esJ ? "" : "none";
+  // Persona natural: el campo R.I.F. queda oculto (solo se usa la cédula)
+  const rifLabel = $("cli-rif-label"); if (rifLabel) rifLabel.style.display = esJ ? "" : "none";
+  const rifInput = $("cli-rif-input"); if (rifInput) rifInput.style.display = esJ ? "" : "none";
 }
 
 function cambiarTipoCliente() {
@@ -210,6 +222,12 @@ function exportarClientes() {
   if (typeof rolPuedeModulo === "function" && !rolPuedeModulo("clientes-exportar")) { alert("No tiene permisos para exportar clientes."); return; }
   exportarCSV("clientes", ["Codigo", "Nombre", "RIF", "Telefono", "Tipo"], DB.clientes.map(c => [c.codigo, c.nombre, c.rif, c.telefono, c.tipo]));
 }
+
+function _datosClientes() {
+  return { headers: ["Código", "Nombre", "RIF", "Teléfono", "Tipo"], rows: DB.clientes.map(c => [c.codigo, c.nombre, c.rif, c.telefono, c.tipo]) };
+}
+function exportarPDFClientes() { const d = _datosClientes(); exportarPDF("Listado de Clientes", d.headers, d.rows); }
+function compartirClientes() { const d = _datosClientes(); compartirPDF("Listado de Clientes", d.headers, d.rows); }
 
 // ===== PRODUCTOS =====
 function renderProductos() {
@@ -445,6 +463,12 @@ function recalcPrecioTier(tier, from) {
 
 function imprimirProductos() { imprimirHTML("Listado de Productos", ["Código", "Descripción", "Categoría", "Costo $", "PVP $", "PVP Bs.", "Existencia"], DB.productos.map(p => [p.codigo, p.descripcion, p.categoria, fmt(p.costoUSD || 0), fmt(p.precioUSD || 0), fmt(p.precio || 0), fmt(p.existencia || 0)])); }
 function exportarProductos() { exportarCSV("productos", ["Codigo", "Descripcion", "Categoria", "CostoUSD", "PVPUSD", "PVPBs", "Existencia"], DB.productos.map(p => [p.codigo, p.descripcion, p.categoria, p.costoUSD || 0, p.precioUSD || 0, p.precio || 0, p.existencia || 0])); }
+
+function _datosProductos() {
+  return { headers: ["Código", "Descripción", "Categoría", "Costo $", "PVP $", "PVP Bs.", "Existencia"], rows: DB.productos.map(p => [p.codigo, p.descripcion, p.categoria, fmt(p.costoUSD || 0), fmt(p.precioUSD || 0), fmt(p.precio || 0), fmt(p.existencia || 0)]) };
+}
+function exportarPDFProductos() { const d = _datosProductos(); exportarPDF("Listado de Productos", d.headers, d.rows); }
+function compartirProductos() { const d = _datosProductos(); compartirPDF("Listado de Productos", d.headers, d.rows); }
 
 // ===== COTIZACIONES =====
 let cotiTemp = [];
@@ -692,6 +716,11 @@ function imprimirCotizacion() {
 
 function imprimirCotizacionProfesional(c) {
   if (!c) return;
+  imprimirDocumentoHTML("Cotización " + c.nro, _cuerpoCotizacionHtml(c));
+}
+
+function _cuerpoCotizacionHtml(c) {
+  if (!c) return "";
   const tasa = getTasa() || 1;
   const sub = (c.lineas || []).reduce((s, l) => s + num(l.total), 0);
   const iva = r2(sub * getIva() / 100);
@@ -733,7 +762,35 @@ function imprimirCotizacionProfesional(c) {
       `<div>______________________<br>Aceptado por el Cliente</div>` +
     `</div>`;
 
-  imprimirDocumentoHTML("Cotización " + c.nro, body);
+  return body;
+}
+
+// Exportar a PDF / Compartir una cotización seleccionada
+function cotizacionSeleccionada() {
+  const row = document.querySelector("#cotizaciones-body tr.selected");
+  if (!row) return null;
+  return DB.cotizaciones.find(x => x.nro === row.cells[0].textContent) || null;
+}
+
+function exportarPDFCotizacion() {
+  const c = cotizacionSeleccionada();
+  if (!c) return alert("Seleccione una cotización");
+  exportarDocumentoPDF("Cotización " + c.nro, _cuerpoCotizacionHtml(c));
+}
+
+function compartirCotizacion() {
+  const c = cotizacionSeleccionada();
+  if (!c) return alert("Seleccione una cotización");
+  const sub = (c.lineas || []).reduce((s, l) => s + num(l.total), 0);
+  const total = r2(sub + sub * getIva() / 100);
+  const lineas = (c.lineas || []).map(l => `${l.codigo} | ${l.descripcion} | x${fmt(l.cantidad)} | ${fmt(l.total)} Bs.`).join("\n");
+  const texto = `COTIZACIÓN ${c.nro}\nCliente: ${c.cliente}\nFecha: ${c.fecha}\n\n${lineas}\n\nTOTAL: ${fmt(total)} Bs.`;
+  window._compartirTexto = texto;
+  const t = document.getElementById("compartir-titulo");
+  if (t) t.textContent = "Cotización " + c.nro;
+  const a = document.getElementById("compartir-area");
+  if (a) a.value = texto;
+  abrirModalVentana("compartir-window");
 }
 
 // ===== DEVOLUCIONES =====
@@ -1542,7 +1599,29 @@ function imprimirCompra() {
   const row = document.querySelector("#compras-body tr.selected");
   if (!row) return alert("Seleccione una compra");
   const c = DB.compras.find(x => x.nro === row.cells[0].textContent);
-  imprimirHTML(`Compra ${c.nro} — ${c.proveedor}`, ["Código", "Descripción", "Cantidad", "Costo", "Total"], (c.lineas || []).map(l => [l.codigo, l.descripcion, fmt(l.cantidad), fmt(l.costo), fmt(l.total)]));
+imprimirHTML(`Compra ${c.nro} — ${c.proveedor}`, ["Código", "Descripción", "Cantidad", "Costo", "Total"], (c.lineas || []).map(l => [l.codigo, l.descripcion, fmt(l.cantidad), fmt(l.costo), fmt(l.total)]));
+}
+
+function _compraSeleccionada() {
+  const row = document.querySelector("#compras-body tr.selected");
+  if (!row) return null;
+  return DB.compras.find(x => x.nro === row.cells[0].textContent) || null;
+}
+
+function _datosCompra(c) {
+  return { headers: ["Código", "Descripción", "Cantidad", "Costo", "Total"], rows: (c.lineas || []).map(l => [l.codigo, l.descripcion, fmt(l.cantidad), fmt(l.costo), fmt(l.total)]) };
+}
+function exportarPDFCompra() {
+  const c = _compraSeleccionada();
+  if (!c) return alert("Seleccione una compra");
+  const d = _datosCompra(c);
+  exportarPDF(`Compra ${c.nro} — ${c.proveedor}`, d.headers, d.rows);
+}
+function compartirCompra() {
+  const c = _compraSeleccionada();
+  if (!c) return alert("Seleccione una compra");
+  const d = _datosCompra(c);
+  compartirPDF(`Compra ${c.nro} — ${c.proveedor}`, d.headers, d.rows);
 }
 
 // ===== INVENTARIO =====
@@ -1685,7 +1764,17 @@ function renderKardex() {
 }
 function imprimirInventario() { imprimirHTML("Existencias Actuales", ["Código", "Descripción", "Existencia", "Reservada", "Disponible", "Mínimo", "Costo CPP (USD)", "Precio Venta (USD)", "Precio Venta (Bs.)"], DB.productos.map(p => [p.codigo, p.descripcion, fmt(p.existencia), fmt(p.reservado), fmt(p.existencia - p.reservado), fmt(p.minimo), fmt(p.costoUSD || 0), fmt(p.precioUSD || 0), fmt(p.precio)])); }
 
-function exportarInventario() { exportarCSV("existencias", ["Codigo", "Descripcion", "Existencia", "Reservada", "Disponible", "Minimo", "CostoCPP_USD", "PrecioVenta_USD", "PrecioVenta_Bs"], DB.productos.map(p => [p.codigo, p.descripcion, p.existencia, p.reservado, p.existencia - p.reservado, p.minimo, p.costoUSD || 0, p.precioUSD || 0, p.precio])); }
+function exportarInventario() { exportarCSV("existencias", ["Codigo", "Descripcion", "Existencia", "Reservada", "Disponible", "Minimo", "CostoCPP_USD", "PrecioVenta_USD", "PrecioVenta_Bs"], DB.productos.map(p => [p.codigo, p.descripcion, p.existencia, p.reservado, p.existencia - p.reservado, p.minimo, p.costoUSD || 0, p.precioUSD || 0, p.precio]));
+}
+
+function _datosInventario() {
+  return {
+    headers: ["Código", "Descripción", "Existencia", "Reservada", "Disponible", "Mínimo", "Costo CPP (USD)", "Precio Venta (USD)", "Precio Venta (Bs.)"],
+    rows: DB.productos.map(p => [p.codigo, p.descripcion, fmt(p.existencia), fmt(p.reservado), fmt(p.existencia - p.reservado), fmt(p.minimo), fmt(p.costoUSD || 0), fmt(p.precioUSD || 0), fmt(p.precio)])
+  };
+}
+function exportarPDFInventario() { const d = _datosInventario(); exportarPDF("Existencias Actuales", d.headers, d.rows); }
+function compartirInventario() { const d = _datosInventario(); compartirPDF("Existencias Actuales", d.headers, d.rows); }
 
 // ===== REPORTES =====
 let lastReport = null;
@@ -1980,6 +2069,18 @@ function exportarReporte() {
   const r = lastReport || generarReporte();
   if (!r) return alert("Genere primero el reporte (Vista Previa)");
   exportarCSV(r.nombre.toLowerCase().replace(/\s+/g, "_"), r.headers, r.rows, r.total);
+}
+
+function exportarPDFReporte() {
+  const r = lastReport || generarReporte();
+  if (!r) return alert("Genere primero el reporte (Vista Previa)");
+  exportarPDF(r.nombre, r.headers, r.rows, r.total);
+}
+
+function compartirReporte() {
+  const r = lastReport || generarReporte();
+  if (!r) return alert("Genere primero el reporte (Vista Previa)");
+  compartirPDF(r.nombre, r.headers, r.rows, r.total);
 }
 
 // ===== Inicialización =====

@@ -44,9 +44,11 @@ function claseEstado(estado) {
 // ---------------------------------------------------------------------------
 // CUENTAS POR COBRAR
 // ---------------------------------------------------------------------------
-function crearCuentaCxC(cliente, nroFactura, montoBs, lineas) {
+function crearCuentaCxC(cliente, nroFactura, montoBs, lineas, diasOverride) {
   const cli = DB.clientes.find(c => c.nombre === cliente);
-  const dias = cli ? (num(cli.dias) || 30) : 30;
+  const dias = (diasOverride && num(diasOverride) > 0)
+    ? num(diasOverride)
+    : (cli ? (num(cli.dias) || 30) : 30);
   let max = 0;
   (DB.cuentasCobrar || []).forEach(c => {
     const n = parseInt(String(c.id || "").replace(/\D/g, ""), 10);
@@ -298,6 +300,17 @@ function exportarCxC() {
     datos.map(c => [c.nro, c.fecha, c.vencimiento, c.nombre, c.rif, fmt(c.total), fmt(c.totalBs !== undefined ? c.totalBs : bsDeUsd(c.total)), fmt(c.pagado || 0), fmt(c.saldo), estadoCuentaCXC(c)]));
 }
 
+function _datosCxC() {
+  const resumen = _cp("cxc-vista").value === "resumen";
+  const datos = resumen ? [] : filtrarCxCData();
+  return {
+    headers: ["N° Factura", "Fecha", "Vencimiento", "Cliente", "Total $", "Pagado $", "Saldo $", "Estado"],
+    rows: datos.map(c => [c.nro, c.fecha, c.vencimiento, c.nombre, fmtUS(c.total), fmtUS(c.pagado || 0), fmtUS(c.saldo), estadoCuentaCXC(c)])
+  };
+}
+function exportarPDFCxC() { const d = _datosCxC(); exportarPDF("Cuentas por Cobrar", d.headers, d.rows); }
+function compartirCxC() { const d = _datosCxC(); compartirPDF("Cuentas por Cobrar", d.headers, d.rows); }
+
 // Re-render disparado desde el POS tras un cobro de deuda
 function renderAbonos() { renderCxC(); }
 
@@ -510,6 +523,16 @@ function exportarCxP() {
   exportarCSV("Cuentas por Pagar", ["N° Compra", "Fecha", "Vencimiento", "Proveedor", "Total $", "Total Bs.", "Pagado $", "Saldo $", "Estado"],
     datos.map(c => [c.nro, c.fecha, c.vencimiento, c.proveedor, fmt(c.total), fmt(c.totalBs !== undefined ? c.totalBs : bsDeUsd(c.total)), fmt(c.pagado || 0), fmt(c.saldo), estadoCuentaCXP(c)]));
 }
+
+function _datosCxP() {
+  const datos = filtrarCxPData();
+  return {
+    headers: ["N° Compra", "Fecha", "Proveedor", "Total $", "Pagado $", "Saldo $", "Estado"],
+    rows: datos.map(c => [c.nro, c.fecha, c.proveedor, fmtUS(c.total), fmtUS(c.pagado || 0), fmtUS(c.saldo), estadoCuentaCXP(c)])
+  };
+}
+function exportarPDFCxP() { const d = _datosCxP(); exportarPDF("Cuentas por Pagar", d.headers, d.rows); }
+function compartirCxP() { const d = _datosCxP(); compartirPDF("Cuentas por Pagar", d.headers, d.rows); }
 
 // ---------------------------------------------------------------------------
 document.addEventListener("DOMContentLoaded", () => {

@@ -12,6 +12,7 @@
 <link rel="stylesheet" href="css/productos.css">
 <link rel="stylesheet" href="css/servicios.css">
 <link rel="stylesheet" href="css/cotizaciones.css">
+<link rel="stylesheet" href="css/taller.css">
 <link rel="stylesheet" href="css/devoluciones.css">
 <link rel="stylesheet" href="css/caja.css">
 <link rel="stylesheet" href="css/compras.css">
@@ -130,6 +131,7 @@
         <button class="menu-command" data-perm="clientes" onclick="openModule('clientes')">Clientes</button>
         <button class="menu-command" data-perm="productos" onclick="openModule('productos')">Productos</button>
         <button class="menu-command" data-perm="servicios" onclick="openModule('servicios')">Servicios</button>
+        <button class="menu-command" data-perm="taller" onclick="openModule('taller')">Taller</button>
         <button class="menu-command" data-perm="cotizaciones" onclick="openModule('cotizaciones')">Cotizaciones</button>
         <button class="menu-command" data-perm="devoluciones" onclick="nuevaDevolucion()">Devoluciones</button>
         <button class="menu-command" data-perm="compras" onclick="openModule('compras')">Compras</button>
@@ -178,9 +180,8 @@
     <button class="tool-btn" data-perm="pos" onclick="newSale()" title="Nueva Venta (F2)"><div class="tool-icon">📄</div><div class="tool-label">F2 - Nueva Venta</div></button>
     <button class="tool-btn" data-perm="buscar" onclick="openModule('buscar')" title="Buscar (F3)"><div class="tool-icon">🔍</div><div class="tool-label">F3 - Buscar</div></button>
     <button class="tool-btn" data-perm="buscar" onclick="openClientSearch()" title="Cliente (F4)"><div class="tool-icon">👤</div><div class="tool-label">F4 - Cliente</div></button>
-    <button class="tool-btn" data-perm="cotizaciones" onclick="openModule('cotizaciones')" title="Cotización (F5)"><div class="tool-icon">📝</div><div class="tool-label">F5 - Cotización</div></button>
+    <button class="tool-btn" data-perm="taller" onclick="openModule('taller')" title="Taller (F5)"><div class="tool-icon">🔧</div><div class="tool-label">F5 - Taller</div></button>
     <button class="tool-btn" data-perm="devoluciones" onclick="nuevaDevolucion()" title="Devolución (F6)"><div class="tool-icon">↩</div><div class="tool-label">F6 - Devolución</div></button>
-    <button class="tool-btn" data-perm="pos" onclick="cancelSale()" title="Anular Venta (F7)"><div class="tool-icon">❌</div><div class="tool-label">F7 - Anular</div></button>
     <button class="tool-btn" data-perm="pos" onclick="applyDiscount()" title="Descuento al producto seleccionado (F8)"><div class="tool-icon">%</div><div class="tool-label">F8 - Descuento</div></button>
     <button class="tool-btn" data-perm="pago" onclick="pay('mixto')" title="Cobrar / Calculadora (F9)"><div class="tool-icon">💵</div><div class="tool-label">F9 - Cobrar</div></button>
     <button class="tool-btn" data-perm="pos" onclick="exitApp()" title="Salir (F12)"><div class="tool-icon">🚪</div><div class="tool-label">F12 - Salir</div></button>
@@ -326,6 +327,8 @@
     <button class="mod-btn" data-perm="clientes-imprimir" onclick="imprimirClientes()"><span class="mod-icon">🖨️</span> Imprimir (F7)</button>
     <button class="mod-btn" onclick="seleccionarClienteEnPOS()"><span class="mod-icon">✅</span> Usar en POS</button>
     <button class="mod-btn" data-perm="clientes-exportar" onclick="exportarClientes()"><span class="mod-icon">📤</span> Exportar</button>
+    <button class="mod-btn" onclick="exportarPDFClientes()"><span class="mod-icon">📄</span> Exportar PDF</button>
+    <button class="mod-btn" onclick="compartirClientes()"><span class="mod-icon">🤝</span> Compartir</button>
     <button class="mod-btn" onclick="closeWindow('clientes-window')"><span class="mod-icon">🚪</span> Salir (F12)</button>
   </div>
   <div class="module-search">
@@ -373,7 +376,7 @@
         </div>
         <div id="cli-panel-fiscales" data-panel class="hidden-panel">
           <table class="form-table">
-            <tr><td><label>R.I.F. completo:</label></td><td><input type="text" id="cli-rif" class="input-medium" placeholder="V-12345678-0"></td>
+            <tr><td id="cli-rif-label"><label>R.I.F. completo:</label></td><td id="cli-rif-input"><input type="text" id="cli-rif" class="input-medium" placeholder="V-12345678-0"></td>
                 <td id="cli-fisc-extra-label"><label id="cli-representante-label">Representante Legal:</label></td><td id="cli-fisc-extra-input"><input type="text" id="cli-representante" class="input-medium"></td></tr>
             <tr id="cli-natural-info"><td colspan="4"><small>Persona Natural: cédula de identidad con formato <b>V-/E- NNNNNNNN</b> (6 a 8 dígitos; el dígito verificador es opcional). El <b>R.I.F. es opcional</b>: puede registrarse solo con la cédula.</small></td></tr>
             <tr id="cli-juridica-info" class="hidden-panel"><td colspan="4"><small>Persona Jurídica: RIF con formato <b>J-/G- NNNNNNNNN-N</b> (9 dígitos + dígito verificador). Debe indicar el representante legal.</small></td></tr>
@@ -426,6 +429,8 @@
     <button class="mod-btn" onclick="document.getElementById('productos-search').focus()"><span class="mod-icon">🔍</span> Buscar (F3)</button>
     <button class="mod-btn" onclick="imprimirProductos()"><span class="mod-icon">🖨️</span> Imprimir (F7)</button>
     <button class="mod-btn" onclick="exportarProductos()"><span class="mod-icon">📤</span> Exportar</button>
+    <button class="mod-btn" onclick="exportarPDFProductos()"><span class="mod-icon">📄</span> Exportar PDF</button>
+    <button class="mod-btn" onclick="compartirProductos()"><span class="mod-icon">🤝</span> Compartir</button>
     <button class="mod-btn" onclick="closeWindow('productos-window')"><span class="mod-icon">🚪</span> Salir (F12)</button>
   </div>
   <div class="module-search">
@@ -550,6 +555,8 @@
     <button class="mod-btn" onclick="document.getElementById('servicios-search').focus()"><span class="mod-icon">🔍</span> Buscar (F3)</button>
     <button class="mod-btn" onclick="imprimirServicios()"><span class="mod-icon">🖨️</span> Imprimir (F7)</button>
     <button class="mod-btn" onclick="exportarServicios()"><span class="mod-icon">📤</span> Exportar</button>
+    <button class="mod-btn" onclick="exportarPDFServicios()"><span class="mod-icon">📄</span> Exportar PDF</button>
+    <button class="mod-btn" onclick="compartirServicios()"><span class="mod-icon">🤝</span> Compartir</button>
     <button class="mod-btn" onclick="closeWindow('servicios-window')"><span class="mod-icon">🚪</span> Salir (F12)</button>
   </div>
   <div class="module-search">
@@ -628,6 +635,8 @@
     <button class="mod-btn" onclick="eliminarCotizacion()"><span class="mod-icon">❌</span> Eliminar (F6)</button>
     <button class="mod-btn" onclick="document.getElementById('coti-search').focus()"><span class="mod-icon">🔍</span> Buscar (F3)</button>
     <button class="mod-btn" onclick="imprimirCotizacion()"><span class="mod-icon">🖨️</span> Imprimir (F7)</button>
+    <button class="mod-btn" onclick="exportarPDFCotizacion()"><span class="mod-icon">📄</span> Exportar PDF</button>
+    <button class="mod-btn" onclick="compartirCotizacion()"><span class="mod-icon">🤝</span> Compartir</button>
     <button class="mod-btn" onclick="convertirCotizacionVenta()"><span class="mod-icon">🔄</span> Convertir a Venta</button>
     <button class="mod-btn" onclick="closeWindow('cotizaciones-window')"><span class="mod-icon">🚪</span> Salir (F12)</button>
   </div>
@@ -803,6 +812,8 @@
     <button class="mod-btn" onclick="renderCompras()"><span class="mod-icon">🗂️</span> Historial de Compras (F4)</button>
     <button class="mod-btn" onclick="document.getElementById('compra-search').focus()"><span class="mod-icon">🔍</span> Buscar (F3)</button>
     <button class="mod-btn" onclick="imprimirCompra()"><span class="mod-icon">🖨️</span> Imprimir (F7)</button>
+    <button class="mod-btn" onclick="exportarPDFCompra()"><span class="mod-icon">📄</span> Exportar PDF</button>
+    <button class="mod-btn" onclick="compartirCompra()"><span class="mod-icon">🤝</span> Compartir</button>
     <button class="mod-btn" onclick="closeWindow('compras-window')"><span class="mod-icon">🚪</span> Salir (F12)</button>
   </div>
   <div class="cotiz-filters">
@@ -849,6 +860,8 @@
     <button class="mod-btn" onclick="abrirKardex()"><span class="mod-icon">🗂️</span> Kardex (F5)</button>
     <button class="mod-btn" onclick="imprimirInventario()"><span class="mod-icon">🖨️</span> Imprimir (F7)</button>
     <button class="mod-btn" onclick="exportarInventario()"><span class="mod-icon">📤</span> Exportar</button>
+    <button class="mod-btn" onclick="exportarPDFInventario()"><span class="mod-icon">📄</span> Exportar PDF</button>
+    <button class="mod-btn" onclick="compartirInventario()"><span class="mod-icon">🤝</span> Compartir</button>
     <button class="mod-btn" onclick="closeWindow('inventario-window')"><span class="mod-icon">🚪</span> Salir (F12)</button>
   </div>
   <div class="inv-filters">
@@ -888,6 +901,8 @@
     <button class="mod-btn" onclick="verReporte()"><span class="mod-icon">👁️</span> Vista Previa (F7)</button>
     <button class="mod-btn" onclick="imprimirReporte()"><span class="mod-icon">🖨️</span> Imprimir (F8)</button>
     <button class="mod-btn" onclick="exportarReporte()"><span class="mod-icon">📤</span> Exportar</button>
+    <button class="mod-btn" onclick="exportarPDFReporte()"><span class="mod-icon">📄</span> Exportar PDF</button>
+    <button class="mod-btn" onclick="compartirReporte()"><span class="mod-icon">🤝</span> Compartir</button>
     <button class="mod-btn" onclick="closeWindow('reportes-window')"><span class="mod-icon">🚪</span> Salir (F12)</button>
   </div>
   <div class="reportes-content">
@@ -928,6 +943,8 @@
     <button class="mod-btn" onclick="abonarCxC()"><span class="mod-icon">💰</span> Abonar (F2)</button>
     <button class="mod-btn" onclick="imprimirCxC()"><span class="mod-icon">🖨️</span> Imprimir (F7)</button>
     <button class="mod-btn" onclick="exportarCxC()"><span class="mod-icon">📤</span> Exportar</button>
+    <button class="mod-btn" onclick="exportarPDFCxC()"><span class="mod-icon">📄</span> Exportar PDF</button>
+    <button class="mod-btn" onclick="compartirCxC()"><span class="mod-icon">🤝</span> Compartir</button>
     <button class="mod-btn" onclick="closeWindow('cxc-window')"><span class="mod-icon">🚪</span> Salir (F12)</button>
   </div>
   <div class="cotiz-filters">
@@ -1009,6 +1026,8 @@
     <button class="mod-btn" onclick="abrirPagoCxP()"><span class="mod-icon">💸</span> Registrar Pago (F2)</button>
     <button class="mod-btn" onclick="imprimirCxP()"><span class="mod-icon">🖨️</span> Imprimir (F7)</button>
     <button class="mod-btn" onclick="exportarCxP()"><span class="mod-icon">📤</span> Exportar</button>
+    <button class="mod-btn" onclick="exportarPDFCxP()"><span class="mod-icon">📄</span> Exportar PDF</button>
+    <button class="mod-btn" onclick="compartirCxP()"><span class="mod-icon">🤝</span> Compartir</button>
     <button class="mod-btn" onclick="closeWindow('cxp-window')"><span class="mod-icon">🚪</span> Salir (F12)</button>
   </div>
   <div class="cotiz-filters">
@@ -1426,6 +1445,166 @@
     <div class="pago-actions">
       <button class="mod-btn" onclick="guardarCotizacion()">💾 Guardar Cotización</button>
       <button class="mod-btn" onclick="closeWindow('cotizacion-nueva-window')">✖ Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============== MÓDULO TALLER / ÓRDENES DE SERVICIO ============== -->
+<div class="window hidden" id="taller-window">
+  <div class="title-bar">
+    <div class="title-left"><span class="app-icon">🔧</span><span class="title-text">Taller / Órdenes de Servicio</span></div>
+    <div class="title-right">
+      <button class="win-btn">─</button><button class="win-btn">▢</button>
+      <button class="win-btn" onclick="closeWindow('taller-window')">✕</button>
+    </div>
+  </div>
+  <div class="module-toolbar">
+    <button class="mod-btn" onclick="nuevaOrdenTaller()"><span class="mod-icon">📄</span> Nueva Orden</button>
+    <button class="mod-btn" onclick="editarOrdenTaller()"><span class="mod-icon">✏️</span> Editar</button>
+    <button class="mod-btn" onclick="document.getElementById('tal-search').focus()"><span class="mod-icon">🔍</span> Buscar</button>
+    <button class="mod-btn" onclick="imprimirOrdenTaller()"><span class="mod-icon">🖨️</span> Imprimir</button>
+    <button class="mod-btn" onclick="closeWindow('taller-window')"><span class="mod-icon">🚪</span> Salir</button>
+  </div>
+  <div class="taller-filters">
+    <span>Buscar:</span><input type="text" id="tal-search" class="input-medium" oninput="filtrarOrdenesTaller()" placeholder="Nro, cliente, placa o trabajo...">
+    <span>Estado:</span><select id="tal-estado" onchange="filtrarOrdenesTaller()"><option>Todos</option><option>Recibido</option><option>En Proceso</option><option>Listo</option><option>Entregado</option><option>Anulada</option></select>
+  </div>
+  <table class="grid full-grid">
+    <thead>
+      <tr><th>N° Orden</th><th>Fecha</th><th>Hora</th><th>Cliente</th><th>Vehículo</th><th>Trabajo</th><th>Total Bs.</th><th>Estado</th></tr>
+    </thead>
+    <tbody id="ordenes-taller-body"></tbody>
+  </table>
+  <div class="taller-layout">
+    <fieldset class="panel">
+      <legend>Trabajo / Repuestos y Servicios</legend>
+      <table class="grid">
+        <thead><tr><th>Código</th><th>Descripción</th><th>Cant.</th><th>Precio Bs.</th><th>USD</th><th>Total Bs.</th></tr></thead>
+        <tbody id="taller-lineas-body"></tbody>
+      </table>
+      <div class="cotiz-totals" id="taller-totales"></div>
+    </fieldset>
+    <div class="taller-side">
+      <div id="taller-ficha"></div>
+      <div id="taller-timeline"></div>
+      <div id="taller-acciones"></div>
+      <fieldset class="panel">
+        <legend>Historial del Cliente</legend>
+        <div class="taller-hist" id="taller-historial"></div>
+      </fieldset>
+    </div>
+  </div>
+</div>
+
+<!-- ============== NUEVA ORDEN DE SERVICIO ============== -->
+<div class="window hidden" id="taller-nueva-window">
+  <div class="title-bar">
+    <div class="title-left"><span class="app-icon">🔧</span><span class="title-text">Orden de Servicio</span></div>
+    <div class="title-right">
+      <button class="win-btn">─</button><button class="win-btn">▢</button>
+      <button class="win-btn" onclick="closeWindow('taller-nueva-window')">✕</button>
+    </div>
+  </div>
+  <div class="module-content">
+    <fieldset class="panel">
+      <legend>Datos de la Orden</legend>
+      <table class="form-table">
+        <tr><td><label>N°:</label></td><td><input type="text" id="tal-n-nro" class="input-small" disabled></td>
+            <td><label>Fecha:</label></td><td><input type="text" id="tal-n-fecha" class="input-small"></td></tr>
+        <tr><td><label>Cliente:</label></td><td colspan="3"><select id="tal-n-cliente" onchange="fillVehiculosTaller()"></select></td></tr>
+        <tr><td><label>Vehículo:</label></td><td colspan="3"><select id="tal-n-vehiculo" onchange="onCambioVehiculoTaller()"></select></td></tr>
+      </table>
+    </fieldset>
+    <table class="form-table taller-veh-row" id="tal-n-veh-row">
+      <tr>
+        <td><label>Placa:</label></td><td><input type="text" id="tal-n-placa" class="input-small" placeholder="ABC123"></td>
+        <td><label>Marca:</label></td><td><input type="text" id="tal-n-marca" class="input-medium"></td>
+        <td><label>Modelo:</label></td><td><input type="text" id="tal-n-modelo" class="input-medium"></td>
+        <td><label>Año:</label></td><td><input type="text" id="tal-n-anio" class="input-small"></td>
+        <td><label>Color:</label></td><td><input type="text" id="tal-n-color" class="input-medium"></td>
+      </tr>
+    </table>
+    <fieldset class="panel">
+      <legend>Trabajo / Diagnóstico</legend>
+      <textarea id="tal-n-trabajo" class="input-wide" rows="2" placeholder="Descripción del trabajo a realizar, vehículo, kilometraje, etc."></textarea>
+    </fieldset>
+    <fieldset class="panel">
+      <legend>Notas / Observaciones</legend>
+      <textarea id="tal-n-obs" class="input-wide" rows="2" placeholder="Observaciones adicionales (opcional)"></textarea>
+    </fieldset>
+    <fieldset class="panel">
+      <legend>Agregar Servicio / Repuesto</legend>
+      <table class="form-table">
+        <tr><td><label>Producto (código o palabra clave):</label></td>
+            <td colspan="3">
+              <div class="prov-search">
+                <input type="text" id="tal-n-prod" class="input-wide" autocomplete="off" placeholder="Código, nombre o palabra clave..." oninput="buscarProductoOrden()" onkeydown="onProductoOrdenKey(event)">
+                <div class="prov-results" id="tal-n-prod-results"></div>
+              </div>
+            </td></tr>
+        <tr><td><label>Cantidad:</label></td><td><input type="text" inputmode="decimal" id="tal-n-cant" class="input-medium" value="1"></td></tr>
+        <tr><td><label>Precio Unit. (Bs.):</label></td><td><input type="text" inputmode="decimal" id="tal-n-precio" class="input-medium" oninput="mostrarPrecioOrdenUsd()"> <span id="tal-n-precio-usd" class="usd-sub">= 0,00 $</span></td></tr>
+      </table>
+      <button class="btn-add-cart" onclick="agregarLineaOrden()">➕ Agregar a la Orden (Enter)</button>
+    </fieldset>
+    <fieldset class="panel">
+      <legend>Detalle</legend>
+      <table class="grid">
+        <thead><tr><th>Código</th><th>Descripción</th><th>Cant.</th><th>Precio Bs.</th><th>Precio USD</th><th>Total Bs.</th><th>Total USD</th><th></th></tr></thead>
+        <tbody id="tal-n-body"></tbody>
+      </table>
+    </fieldset>
+    <div class="cotiz-totals">
+      <div>Sub-Total: <b id="tal-n-sub">0,00</b></div>
+      <div id="tal-n-iva-label">I.V.A.: <b id="tal-n-iva">0,00</b></div>
+      <div class="cotiz-total-row">TOTAL: <b id="tal-n-total">0,00</b></div>
+    </div>
+    <div class="pago-actions">
+      <button class="mod-btn" onclick="guardarOrdenTaller()">💾 Guardar Orden</button>
+      <button class="mod-btn" onclick="closeWindow('taller-nueva-window')">✖ Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============== ENTREGAR A CRÉDITO (TALLER) ============== -->
+<div class="window hidden" id="taller-credito-window">
+  <div class="title-bar">
+    <div class="title-left"><span class="app-icon">🚪</span><span class="title-text">Entregar a Crédito</span></div>
+    <div class="title-right">
+      <button class="win-btn">─</button><button class="win-btn">▢</button>
+      <button class="win-btn" onclick="closeWindow('taller-credito-window')">✕</button>
+    </div>
+  </div>
+  <div class="module-content">
+    <div class="ficha" id="tal-cred-info" style="border:1px solid #b9c3d4;padding:10px;margin-bottom:12px;background:#eef3fb"></div>
+    <table class="form-table">
+      <tr><td><label>Días de Crédito:</label></td><td><input type="text" inputmode="numeric" id="tal-cred-dias" class="input-small" value="30"></td></tr>
+    </table>
+    <small>Se creará automáticamente una cuenta por cobrar (CxC) con vencimiento = hoy + días. La orden quedará en estado <b>Entregado</b>.</small>
+    <div class="pago-actions">
+      <button class="mod-btn" onclick="confirmarCreditoOrdenTaller()">✅ Confirmar Crédito</button>
+      <button class="mod-btn" onclick="closeWindow('taller-credito-window')">✖ Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============== COMPARTIR (PDF / REPORTE) ============== -->
+<div class="window hidden" id="compartir-window">
+  <div class="title-bar">
+    <div class="title-left"><span class="app-icon">📤</span><span class="title-text">Compartir Reporte</span></div>
+    <div class="title-right">
+      <button class="win-btn">─</button><button class="win-btn">▢</button>
+      <button class="win-btn" onclick="closeWindow('compartir-window')">✕</button>
+    </div>
+  </div>
+  <div class="module-content">
+    <div style="font-weight:bold;margin-bottom:8px" id="compartir-titulo">Reporte</div>
+    <textarea id="compartir-area" class="input-wide" rows="10" style="font-family:monospace;font-size:11px"></textarea>
+    <div class="pago-actions">
+      <button class="mod-btn" onclick="compartirWhatsApp()">📱 WhatsApp</button>
+      <button class="mod-btn" onclick="compartirCorreo()">✉️ Correo</button>
+      <button class="mod-btn" onclick="compartirCopiar()">📋 Copiar</button>
+      <button class="mod-btn" onclick="closeWindow('compartir-window')">✖ Cerrar</button>
     </div>
   </div>
 </div>
@@ -1959,6 +2138,7 @@
 <script src="js/data.js"></script>
 <script src="js/pos.js"></script>
 <script src="js/modules.js"></script>
+<script src="js/taller.js"></script>
 <script src="js/servicios.js"></script>
 <script src="js/caja.js"></script>
 <script src="js/creditpago.js"></script>

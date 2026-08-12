@@ -1,0 +1,581 @@
+// ============== TALLER / ÓRDENES DE SERVICIO ==============
+const _t$ = id => document.getElementById(id);
+
+let ordenTemp = [];
+let ordenEditNro = null;
+let ordenSelNro = null;
+
+function tallerEstadoBadge(estado) {
+  const map = { "Recibido": "tal-rec", "En Proceso": "tal-proc", "Listo": "tal-list", "Entregado": "tal-entre", "Anulada": "tal-anu" };
+  return `<span class="tal-badge ${map[estado] || "tal-rec"}">${_escHtml(estado)}</span>`;
+}
+
+function ordenTotalBs(o) {
+  return (o.lineas || []).reduce((s, l) => s + num(l.total), 0);
+}
+
+function ordenTotalUsd(o) {
+  const t = getTasa() || 1;
+  return (o.lineas || []).reduce((s, l) => s + num(l.totalUSD || (l.precioUSD || l.precio / t) * l.cantidad), 0);
+}
+
+function ordenTallerSel() {
+  return DB.ordenesTaller.find(x => x.nro === ordenSelNro) || null;
+}
+
+// ===== LISTADO =====
+function renderOrdenesTaller() {
+  const body = _t$("ordenes-taller-body");
+  if (!body) return;
+  const rows = filtrarOrdenesTallerData();
+  body.innerHTML = rows.map(o =>
+    `<tr data-nro="${o.nro}" class="${(o.nro === ordenSelNro ? "selected " : "") + "cursor"}" onclick="selectOrdenTaller('${o.nro}', this)">
+      <td>${o.nro}</td><td>${o.fecha}</td><td>${o.hora}</td><td>${_escHtml(o.cliente)}</td>
+      <td>${o.placa ? `<b class="taller-placa">${_escHtml(o.placa)}</b> — ${_escHtml(o.marca || "")} ${_escHtml(o.modelo || "")}` : "—"}</td>
+      <td>${_escHtml(o.trabajo || "")}</td>
+      <td style="text-align:right">${fmt(ordenTotalBs(o))}</td>
+      <td>${tallerEstadoBadge(o.estado)}</td>
+    </tr>`
+  ).join("");
+  const list = _t$("ordenes-taller-body");
+  if (!rows.length) { renderOrdenTallerDetalle(null); return; }
+  if (!rows.find(r => r.nro === ordenSelNro)) selectOrdenTaller(rows[0].nro, list.querySelector("tr"));
+}
+
+function filtrarOrdenesTallerData() {
+  const q = (_t$("tal-search").value || "").trim().toLowerCase();
+  const est = (_t$("tal-estado") || {}).value;
+  return DB.ordenesTaller.slice().reverse().filter(o =>
+    (!q || o.nro.toLowerCase().includes(q) || (o.cliente || "").toLowerCase().includes(q) ||
+      (o.placa || "").toLowerCase().replace(/\s+/g, "").includes(q.replace(/\s+/g, "")) || (o.trabajo || "").toLowerCase().includes(q)) &&
+    (est === "Todos" || o.estado === est)
+  );
+}
+
+function filtrarOrdenesTaller() { renderOrdenesTaller(); }
+
+function selectOrdenTaller(nro, row) {
+  ordenSelNro = nro;
+  document.querySelectorAll("#ordenes-taller-body tr").forEach(tr => tr.classList.remove("selected"));
+  if (row) row.classList.add("selected");
+  const o = DB.ordenesTaller.find(x => x.nro === nro);
+  renderOrdenTallerDetalle(o);
+}
+
+function renderOrdenTallerDetalle(o) {
+  const t = getTasa() || 1;
+  const lineasEl = _t$("taller-lineas-body");
+  const fichaEl = _t$("taller-ficha");
+  const timeEl = _t$("taller-timeline");
+  const actEl = _t$("taller-acciones");
+  if (!o) {
+    if (lineasEl) lineasEl.innerHTML = "";
+    if (fichaEl) fichaEl.innerHTML = '<div style="color:#888;padding:8px">Seleccione una orden de servicio.</div>';
+    if (timeEl) timeEl.innerHTML = "";
+    if (actEl) actEl.innerHTML = "";
+    if (_t$("taller-totales")) _t$("taller-totales").textContent = "";
+    if (_t$("taller-historial")) _t$("taller-historial").innerHTML = "";
+    return;
+  }
+  if (lineasEl) {
+    lineasEl.innerHTML = (o.lineas || []).map(l =>
+      `<tr><td>${_escHtml(l.codigo)}</td><td>${_escHtml(l.descripcion)}</td>` +
+      `<td style="text-align:right">${fmt(l.cantidad)}</td><td style="text-align:right">${fmt(l.precio)}</td>` +
+      `<td style="text-align:right">${fmt(num(l.totalUSD || (l.precioUSD || l.precio / t) * l.cantidad))}</td>` +
+      `<td style="text-align:right">${fmt(l.total)}</td></tr>`
+    ).join("") || '<tr><td colspan="6" style="text-align:center;color:#888">Sin líneas</td></tr>';
+  }
+  const sub = ordenTotalBs(o);
+  const iva = sub * (getIva() / 100);
+  if (_t$("taller-totales")) _t$("taller-totales").innerHTML =
+    `Sub-Total: <b>${fmt(sub)}</b> · I.V.A. (${getIva()}%): <b>${fmt(iva)}</b> · <span class="taller-total">TOTAL: <b>${fmt(sub + iva)} Bs.</b></span>`;
+  const vehiculo = [o.placa, o.marca, o.modelo, o.anio, o.color].filter(Boolean).join(" ");
+  if (fichaEl) fichaEl.innerHTML =
+    `<div class="taller-veh-box">
+       <div><b>Cliente:</b> ${_escHtml(o.cliente)} ${o.clienteCodigo ? `(${_escHtml(o.clienteCodigo)})` : ""}</div>
+       <div><b>Vehículo:</b> ${vehiculo ? `<span class="taller-placa">${_escHtml(vehiculo)}</span>` : "—"}</div>
+       <div><b>Trabajo / Diagnóstico:</b> ${_escHtml(o.trabajo || "—")}</div>
+       ${o.notas ? `<div><b>Notas:</b> ${_escHtml(o.notas)}</div>` : ""}
+       ${o.ventaRef ? `<div><b>Factura:</b> ${_escHtml(o.ventaRef)}</div>` : ""}
+     </div>`;
+  if (timeEl) {
+    const fila = (n, v) => v ? `<div><b>${n}:</b> ${v}</div>` : "";
+    timeEl.innerHTML =
+      `<div class="taller-timeline">` + fila("Ingreso", o.fechaIngreso + (o.horaIngreso ? " " + o.horaIngreso : "")) +
+      fila("Inicio de trabajo", o.fechaInicio + (o.horaInicio ? " " + o.horaInicio : "")) +
+      fila("Culminación", o.fechaCulminacion + (o.horaCulminacion ? " " + o.horaCulminacion : "")) +
+      fila("Entrega", o.fechaEntrega + (o.horaEntrega ? " " + o.horaEntrega : "")) +
+      (o.motivoAnulacion ? `</div><div style="margin-top:4px"><span class="tal-badge tal-anu">Anulada: ${_escHtml(o.motivoAnulacion)}</span></div>` : "</div>");
+  }
+  if (actEl) actEl.innerHTML = accionesOrdenTaller(o);
+  renderHistorialTaller(o);
+}
+
+function accionesOrdenTaller(o) {
+  const btns = [];
+  if (o.estado === "Recibido") {
+    btns.push(`<button class="mod-btn" onclick="cambiarEstadoOrdenTaller('En Proceso')">▶ Iniciar Trabajo</button>`);
+    btns.push(`<button class="mod-btn" onclick="cobrarEntregarOrdenTaller()">💰 Cobrar</button>`);
+    btns.push(`<button class="mod-btn" onclick="entregarCreditoOrdenTaller()">🚪 Entregar a Crédito</button>`);
+    btns.push(`<button class="mod-btn" onclick="editarOrdenTaller()">✏️ Editar</button>`);
+  } else if (o.estado === "En Proceso") {
+    btns.push(`<button class="mod-btn" onclick="cambiarEstadoOrdenTaller('Listo')">✔ Marcar Listo</button>`);
+    btns.push(`<button class="mod-btn" onclick="cobrarEntregarOrdenTaller()">💰 Cobrar</button>`);
+    btns.push(`<button class="mod-btn" onclick="entregarCreditoOrdenTaller()">🚪 Entregar a Crédito</button>`);
+    btns.push(`<button class="mod-btn" onclick="editarOrdenTaller()">✏️ Editar</button>`);
+  } else if (o.estado === "Listo") {
+    btns.push(`<button class="mod-btn" onclick="cobrarEntregarOrdenTaller()">💰 Cobrar y Entregar</button>`);
+    btns.push(`<button class="mod-btn" onclick="entregarCreditoOrdenTaller()">🚪 Entregar a Crédito</button>`);
+    btns.push(`<button class="mod-btn" onclick="editarOrdenTaller()">✏️ Editar</button>`);
+  }
+  if (o.estado === "Entregado" && o.cxcId) {
+    btns.push(`<span class="tal-badge tal-entre">Crédito — CxC ${_escHtml(o.cxcId)} (vence ${_escHtml(o.vencimiento || "—")})</span>`);
+  }
+  if (o.estado !== "Entregado" && o.estado !== "Anulada") {
+    btns.push(`<button class="mod-btn" onclick="anularOrdenTaller()">❌ Anular</button>`);
+  } else if (o.estado === "Entregado" && !o.ventaNro) {
+    btns.push(`<button class="mod-btn" onclick="anularOrdenTaller()">❌ Anular</button>`);
+  }
+  if (o.estado === "Entregado" && o.ventaNro) {
+    btns.push(`<span class="tal-badge tal-entre">Cobrado — Factura ${_escHtml(o.ventaRef || o.ventaNro)}</span>`);
+  }
+  if (!btns.length) return "";
+  return `<div class="pago-actions">${btns.join("")}</div>`;
+}
+
+function renderHistorialTaller(o) {
+  const hist = _t$("taller-historial");
+  if (!hist) return;
+  if (!o) { hist.innerHTML = ""; return; }
+  const previas = DB.ordenesTaller.slice().reverse().filter(x =>
+    x.nro !== o.nro && x.cliente === o.cliente
+  ).slice(0, 30);
+  if (!previas.length) { hist.innerHTML = '<div style="color:#888;padding:4px">Sin órdenes anteriores para este cliente.</div>'; return; }
+  hist.innerHTML = previas.map(x => {
+    const esPlaca = x.placa && o.placa && x.placa.toUpperCase().replace(/\s+/g, "") === o.placa.toUpperCase().replace(/\s+/g, "");
+    return `<div class="taller-hist-item" onclick="selectOrdenTaller('${x.nro}', document.querySelector('#ordenes-taller-body tr[data-nro=&quot;${x.nro}&quot;]'))">
+      <span>${x.nro} · ${x.fecha} · ${_escHtml(x.placa || "—")} ${esPlaca ? " <b>(misma placa)</b>" : ""}</span>
+      ${tallerEstadoBadge(x.estado)}
+    </div>`;
+  }).join("");
+}
+
+// ===== NUEVA / EDITAR =====
+function nuevaOrdenTaller() {
+  ordenTemp = [];
+  ordenEditNro = null;
+  _t$("tal-n-nro").value = genNro(DB.ordenesTaller, "nro", "", 7);
+  _t$("tal-n-fecha").value = hoy();
+  _t$("tal-n-trabajo").value = "";
+  _t$("tal-n-obs").value = "";
+  _t$("tal-n-placa").value = ""; _t$("tal-n-marca").value = ""; _t$("tal-n-modelo").value = ""; _t$("tal-n-anio").value = ""; _t$("tal-n-color").value = "";
+  fillClienteSelectTaller("tal-n-cliente");
+  renderOrdenNueva();
+  openModuleWindow("taller-nueva");
+}
+
+function editarOrdenTaller() {
+  const o = ordenTallerSel();
+  if (!o) { alert("Seleccione una orden"); return; }
+  if (o.estado === "Entregado" || o.estado === "Anulada") { alert("No puede editar una orden entregada o anulada."); return; }
+  ordenEditNro = o.nro;
+  _t$("tal-n-nro").value = o.nro;
+  _t$("tal-n-fecha").value = o.fecha;
+  _t$("tal-n-trabajo").value = o.trabajo || "";
+  _t$("tal-n-obs").value = o.notas || "";
+  fillClienteSelectTaller("tal-n-cliente", o.cliente);
+  const sel = _t$("tal-n-vehiculo");
+  const vs = tallerVehiculosCliente();
+  const v = vs.find(x => x.id === o.vehiculoId);
+  sel.value = v ? v.id : (o.placa ? "__nuevo__" : "");
+  if (v) { _t$("tal-n-placa").value = v.placa; _t$("tal-n-marca").value = v.marca || ""; _t$("tal-n-modelo").value = v.modelo || ""; _t$("tal-n-anio").value = v.anio || ""; _t$("tal-n-color").value = v.color || ""; }
+  else { _t$("tal-n-placa").value = o.placa || ""; _t$("tal-n-marca").value = o.marca || ""; _t$("tal-n-modelo").value = o.modelo || ""; _t$("tal-n-anio").value = o.anio || ""; _t$("tal-n-color").value = o.color || ""; }
+  onCambioVehiculoTaller();
+  ordenTemp = (o.lineas || []).map(l => ({ ...l }));
+  renderOrdenNueva();
+  openModuleWindow("taller-nueva");
+}
+
+function fillClienteSelectTaller(selId, seleccionado) {
+  const sel = _t$(selId);
+  if (!sel) return;
+  sel.innerHTML = DB.clientes.map(c => `<option ${c.nombre === seleccionado ? "selected" : ""}>${_escHtml(c.nombre)}</option>`).join("");
+  fillVehiculosTaller();
+}
+
+function tallerVehiculosCliente() {
+  const cli = DB.clientes.find(c => c.nombre === _t$("tal-n-cliente").value);
+  return cli && Array.isArray(cli.vehiculos) ? cli.vehiculos : [];
+}
+
+function fillVehiculosTaller() {
+  const sel = _t$("tal-n-vehiculo");
+  if (!sel) return;
+  const prev = sel.value;
+  const vs = tallerVehiculosCliente();
+  sel.innerHTML = "";
+  const opt = document.createElement("option");
+  opt.value = "";
+  opt.textContent = vs.length ? "Seleccionar vehículo..." : "Sin vehículos — registre uno nuevo...";
+  sel.appendChild(opt);
+  vs.forEach(v => {
+    const o = document.createElement("option");
+    o.value = v.id;
+    o.textContent = `${v.placa} — ${v.marca || ""} ${v.modelo || ""}${v.anio ? " " + v.anio : ""}${v.color ? " (" + v.color + ")" : ""}`.replace(/\s+/g, " ").trim();
+    sel.appendChild(o);
+  });
+  const optN = document.createElement("option");
+  optN.value = "__nuevo__";
+  optN.textContent = "➕ Nuevo vehículo...";
+  sel.appendChild(optN);
+  if (prev) sel.value = prev;
+  onCambioVehiculoTaller();
+}
+
+function onCambioVehiculoTaller() {
+  const sel = _t$("tal-n-vehiculo");
+  const row = _t$("tal-n-veh-row");
+  if (!sel || !row) return;
+  const nuevo = sel.value === "__nuevo__";
+  row.classList.toggle("visible", nuevo);
+  if (!nuevo) {
+    const v = tallerVehiculosCliente().find(x => x.id === sel.value);
+    if (v) {
+      _t$("tal-n-placa").value = v.placa || "";
+      _t$("tal-n-marca").value = v.marca || "";
+      _t$("tal-n-modelo").value = v.modelo || "";
+      _t$("tal-n-anio").value = v.anio || "";
+      _t$("tal-n-color").value = v.color || "";
+    } else {
+      _t$("tal-n-placa").value = ""; _t$("tal-n-marca").value = ""; _t$("tal-n-modelo").value = ""; _t$("tal-n-anio").value = ""; _t$("tal-n-color").value = "";
+    }
+  }
+}
+
+function tallerDatosVehiculo() {
+  const nuevo = _t$("tal-n-vehiculo").value === "__nuevo__";
+  const placa = _t$("tal-n-placa").value.trim().toUpperCase().replace(/\s+/g, "");
+  const marca = _t$("tal-n-marca").value.trim();
+  const modelo = _t$("tal-n-modelo").value.trim();
+  const anio = _t$("tal-n-anio").value.trim();
+  const color = _t$("tal-n-color").value.trim();
+  const cli = DB.clientes.find(c => c.nombre === _t$("tal-n-cliente").value);
+  let vehiculoId = _t$("tal-n-vehiculo").value;
+  if (nuevo && cli && placa) {
+    let v = (cli.vehiculos || []).find(x => (x.placa || "").toUpperCase().replace(/\s+/g, "") === placa);
+    if (!v) {
+      v = { id: "VH" + Date.now(), placa, marca, modelo, anio, color };
+      cli.vehiculos = cli.vehiculos || [];
+      cli.vehiculos.push(v);
+    } else {
+      v.marca = marca; v.modelo = modelo; v.anio = anio; v.color = color;
+    }
+    vehiculoId = v.id;
+  }
+  return { vehiculoId, placa, marca, modelo, anio, color };
+}
+
+// ===== LÍNEAS (repuestos / servicios) =====
+let talSelectedCod = null;
+
+function talProdMatches(p, q) {
+  const hay = `${p.codigo} ${p.descripcion || ""}`.toLowerCase();
+  return q.split(/\s+/).every(w => hay.includes(w));
+}
+
+function buscarProductoOrden() {
+  const term = _t$("tal-n-prod").value.trim().toLowerCase();
+  const list = _t$("tal-n-prod-results");
+  if (!term) { list.innerHTML = ""; list.style.display = "none"; return; }
+  const prods = DB.productos.filter(p => talProdMatches(p, term)).slice(0, 10);
+  list.innerHTML = prods.map((p, i) =>
+    `<div class="prov-result" onmousedown="event.preventDefault();seleccionarProductoOrden(${i})">
+       <b>${_escHtml(p.codigo)}</b> — ${_escHtml(p.descripcion)} <span class="usd-sub">Bs. ${fmt(p.precio || 0)} (${fmt((p.precio || 0) / (getTasa() || 1))} $)</span>
+     </div>`).join("");
+  list.style.display = prods.length ? "block" : "none";
+}
+
+function seleccionarProductoOrden(i) {
+  const term = _t$("tal-n-prod").value.trim().toLowerCase();
+  const prods = DB.productos.filter(p => talProdMatches(p, term)).slice(0, 10);
+  const p = prods[i];
+  if (!p) return;
+  talSelectedCod = p.codigo;
+  _t$("tal-n-prod").value = `${p.codigo} — ${p.descripcion}`;
+  _t$("tal-n-prod-results").style.display = "none";
+  if (!num(_t$("tal-n-precio").value)) _t$("tal-n-precio").value = String((p.precio || 0).toFixed(2)).replace(".", ",");
+  mostrarPrecioOrdenUsd();
+  _t$("tal-n-cant").focus();
+  _t$("tal-n-cant").select();
+}
+
+function ocultarProductoOrdenResults() {
+  const list = _t$("tal-n-prod-results");
+  if (list) list.style.display = "none";
+}
+
+function onProductoOrdenKey(ev) {
+  if (ev.key === "Enter") {
+    ev.preventDefault();
+    const list = _t$("tal-n-prod-results");
+    if (list && list.children.length) seleccionarProductoOrden(0);
+    else agregarLineaOrden();
+  } else if (ev.key === "Escape") {
+    ocultarProductoOrdenResults();
+  }
+}
+
+function mostrarPrecioOrdenUsd() {
+  const t = getTasa() || 1;
+  _t$("tal-n-precio-usd").textContent = `= ${fmt(num(_t$("tal-n-precio").value) / t)} $`;
+}
+
+function agregarLineaOrden() {
+  const raw = _t$("tal-n-prod").value.trim();
+  if (!raw) { alert("Busque y seleccione un producto"); return; }
+  let p = talSelectedCod ? DB.productos.find(x => x.codigo === talSelectedCod) : null;
+  if (!p || raw !== `${p.codigo} — ${p.descripcion}`) {
+    const txt = raw.toLowerCase();
+    p = DB.productos.find(x => x.codigo.toLowerCase() === txt) ||
+        DB.productos.find(x => (x.descripcion || "").toLowerCase() === txt);
+  }
+  if (!p) { alert("Producto no encontrado"); return; }
+  const cant = num(_t$("tal-n-cant").value) || 1;
+  const precio = num(_t$("tal-n-precio").value) || p.precio || 0;
+  const t = getTasa() || 1;
+  ordenTemp.push({
+    codigo: p.codigo, descripcion: p.descripcion, cantidad: cant,
+    precio, precioUSD: precio / t,
+    total: cant * precio, totalUSD: cant * precio / t
+  });
+  renderOrdenNueva();
+  talSelectedCod = null;
+  _t$("tal-n-prod").value = ""; _t$("tal-n-cant").value = "1"; _t$("tal-n-precio").value = "";
+  _t$("tal-n-precio-usd").textContent = "= 0,00 $";
+  _t$("tal-n-prod").focus();
+}
+
+function renderOrdenNueva() {
+  const t = getTasa() || 1;
+  _t$("tal-n-body").innerHTML = ordenTemp.map((d, i) =>
+    `<tr><td>${_escHtml(d.codigo)}</td><td>${_escHtml(d.descripcion)}</td><td style="text-align:right">${fmt(d.cantidad)}</td>` +
+    `<td style="text-align:right">${fmt(d.precio)}</td><td style="text-align:right">${fmt(d.precioUSD || d.precio / t)}</td>` +
+    `<td style="text-align:right">${fmt(d.total)}</td><td style="text-align:right">${fmt(d.totalUSD || d.total / t)}</td>` +
+    `<td><button class="btn-mini" onclick="quitarLineaOrden(${i})">✕</button></td></tr>`
+  ).join("");
+  const sub = ordenTemp.reduce((s, d) => s + d.total, 0);
+  const iva = sub * (getIva() / 100);
+  _t$("tal-n-sub").textContent = fmt(sub);
+  _t$("tal-n-iva").textContent = fmt(iva);
+  _t$("tal-n-total").textContent = fmt(sub + iva);
+}
+
+function quitarLineaOrden(i) { ordenTemp.splice(i, 1); renderOrdenNueva(); }
+
+function guardarOrdenTaller() {
+  if (!ordenTemp.length) { alert("Agregue al menos un servicio o repuesto"); return; }
+  const vh = tallerDatosVehiculo();
+  const nro = _t$("tal-n-nro").value.trim();
+  const cliente = _t$("tal-n-cliente").value;
+  const cli = DB.clientes.find(c => c.nombre === cliente);
+  const trabajo = _t$("tal-n-trabajo").value.trim();
+  const notas = _t$("tal-n-obs").value.trim();
+  const existente = DB.ordenesTaller.find(x => x.nro === nro);
+  const base = existente ? { ...existente } : {
+    nro, fecha: hoy(), hora: hora12(),
+    estado: "Recibido",
+    fechaIngreso: hoy(), horaIngreso: hora12(), fechaInicio: null, horaInicio: null,
+    fechaCulminacion: null, horaCulminacion: null, fechaEntrega: null, horaEntrega: null,
+    ventaNro: null, ventaRef: null
+  };
+  const orden = {
+    ...base,
+    fecha: _t$("tal-n-fecha").value || base.fecha,
+    cliente, clienteCodigo: cli ? cli.codigo : "",
+    vehiculoId: vh.vehiculoId, placa: vh.placa, marca: vh.marca, modelo: vh.modelo, anio: vh.anio, color: vh.color,
+    trabajo, notas, lineas: ordenTemp.map(l => ({ ...l }))
+  };
+  const idx = DB.ordenesTaller.findIndex(x => x.nro === nro);
+  if (idx >= 0) DB.ordenesTaller[idx] = orden;
+  else DB.ordenesTaller.push(orden);
+  const total = ordenTotalBs(orden);
+  auditar("Taller", `${ordenEditNro ? "Editada" : "Creada"} orden ${nro} — ${cliente}${vh.placa ? " · " + vh.placa : ""} — ${fmt(total)} Bs.`);
+  saveDB();
+  ordenSelNro = nro;
+  renderOrdenesTaller();
+  closeWindow("taller-nueva-window");
+  alert(ordenEditNro ? "Cambios guardados con éxito." : "Orden de servicio creada con éxito.");
+}
+
+// ===== ESTADOS / ACCIONES =====
+function cambiarEstadoOrdenTaller(estado) {
+  const o = ordenTallerSel();
+  if (!o) return;
+  const nowH = hoy();
+  const nowT = hora12();
+  if (estado === "En Proceso") { o.estado = "En Proceso"; o.fechaInicio = nowH; o.horaInicio = nowT; }
+  else if (estado === "Listo") { o.estado = "Listo"; o.fechaCulminacion = nowH; o.horaCulminacion = nowT; }
+  else if (estado === "Entregado" && o.estado === "Listo") { o.estado = "Entregado"; o.fechaEntrega = nowH; o.horaEntrega = nowT; }
+  else return;
+  auditar("Taller", `Orden ${o.nro} → ${estado}`);
+  saveDB();
+  renderOrdenesTaller();
+}
+
+function anularOrdenTaller() {
+  const o = ordenTallerSel();
+  if (!o) return;
+  if (o.estado === "Anulada") return;
+  const motivo = prompt("Motivo de anulación:", "");
+  if (motivo === null) return;
+  o.estado = "Anulada";
+  o.fechaAnulacion = hoy();
+  o.horaAnulacion = hora12();
+  o.motivoAnulacion = motivo.trim() || "No especificado";
+  auditar("Taller", `Orden ${o.nro} anulada — ${o.motivoAnulacion}`);
+  saveDB();
+  renderOrdenesTaller();
+}
+
+function cobrarEntregarOrdenTaller() {
+  const o = ordenTallerSel();
+  if (!o) return;
+  if (o.estado === "Entregado" || o.estado === "Anulada") { alert("La orden ya fue entregada o anulada."); return; }
+  if (!o.lineas || !o.lineas.length) { alert("La orden no tiene líneas para facturar."); return; }
+  if (!cajaAbierta()) { alert("PRIMERO DEBE APERTURAR LA CAJA para poder cobrar la orden."); return; }
+  if (DB.carrito.length) { alert("Finalice o anule la venta actual antes de cobrar esta orden."); return; }
+  const t = getTasa() || 1;
+  DB.carrito = o.lineas.map(l => ({
+    codigo: l.codigo, descripcion: l.descripcion, cantidad: l.cantidad,
+    precio: l.precio, precioUSD: l.precioUSD !== undefined ? l.precioUSD : l.precio / t,
+    descuento: 0, total: l.cantidad * l.precio
+  }));
+  _t$("cliente-nombre").value = o.cliente;
+  const cli = DB.clientes.find(c => c.nombre === o.cliente);
+  if (cli) _t$("cliente-codigo").value = cli.codigo;
+  const obs = _t$("observaciones");
+  if (obs) obs.value = `Orden de servicio ${o.nro}` + (o.placa ? ` · Placa ${o.placa}` : "") + (o.trabajo ? ` · ${o.trabajo}` : "");
+  window._tallerPendiente = o.nro;
+  auditar("Taller", `Cobrando orden ${o.nro} — se trasladó al POS (${fmt(ordenTotalBs(o))} Bs.)`);
+  renderCarrito();
+  closeWindow("taller-window");
+}
+
+// Entrega a crédito: abre el modal de días y crea la cuenta por cobrar automáticamente
+function entregarCreditoOrdenTaller() {
+  const o = ordenTallerSel();
+  if (!o) return;
+  if (o.estado === "Entregado" || o.estado === "Anulada") { alert("La orden ya fue entregada o anulada."); return; }
+  if (!o.lineas || !o.lineas.length) { alert("La orden no tiene líneas para facturar."); return; }
+  const cli = DB.clientes.find(c => c.nombre === o.cliente);
+  if (!cli) { alert("El cliente no está registrado. Regístrelo en el módulo Clientes antes de entregar a crédito."); return; }
+  const sub = ordenTotalBs(o);
+  const total = r2(sub + sub * (getIva() / 100));
+  const info = _t$("tal-cred-info");
+  if (info) info.innerHTML = `Orden <b>${_escHtml(o.nro)}</b> — ${_escHtml(o.cliente)}<br>TOTAL: <b>${fmt(total)} Bs.</b> <span class="usd-sub">($${fmt(usdDeBs(total))})</span>`;
+  const dias = _t$("tal-cred-dias");
+  if (dias) dias.value = num(cli.dias) || 30;
+  abrirModalVentana("taller-credito-window");
+}
+
+function confirmarCreditoOrdenTaller() {
+  const o = ordenTallerSel();
+  if (!o) return;
+  if (o.estado === "Entregado" || o.estado === "Anulada") return;
+  const dias = Math.max(0, num(_t$("tal-cred-dias").value));
+  const sub = ordenTotalBs(o);
+  const total = r2(sub + sub * (getIva() / 100));
+  const cuenta = crearCuentaCxC(o.cliente, "OS " + o.nro, total, o.lineas, dias);
+  o.estado = "Entregado";
+  o.fechaEntrega = hoy();
+  o.horaEntrega = hora12();
+  o.credito = true;
+  o.cobrado = false;
+  o.cxcId = cuenta.id;
+  o.vencimiento = cuenta.vencimiento;
+  if (!o.fechaCulminacion) { o.fechaCulminacion = hoy(); o.horaCulminacion = hora12(); }
+  auditar("Taller", `Orden ${o.nro} entregada a crédito — CxC ${cuenta.id} — ${fmt(total)} Bs. (${dias} días)`);
+  saveDB();
+  closeWindow("taller-credito-window");
+  renderOrdenesTaller();
+  alert(`Orden ${o.nro} entregada a crédito.\nCuenta por cobrar creada: ${cuenta.id}\nVence: ${cuenta.vencimiento} (${dias} días).`);
+}
+
+function cancelarCreditoOrdenTaller() { closeWindow("taller-credito-window"); }
+
+function finalizarCobroTaller(venta) {
+  const nro = window._tallerPendiente;
+  window._tallerPendiente = null;
+  if (!nro) return;
+  const o = DB.ordenesTaller.find(x => x.nro === nro);
+  if (!o) return;
+  if (!o.fechaCulminacion) { o.fechaCulminacion = hoy(); o.horaCulminacion = hora12(); }
+  o.estado = "Entregado";
+  o.fechaEntrega = hoy();
+  o.horaEntrega = hora12();
+  o.cobrado = true;
+  o.ventaNro = venta.nro;
+  o.ventaRef = `${DB.parametros.serie} ${venta.nro}`;
+  o.cliente = venta.cliente || o.cliente;
+  auditar("Taller", `Orden ${o.nro} cobrada y entregada — Factura ${o.ventaRef}`);
+}
+
+// ===== IMPRIMIR =====
+function imprimirOrdenTaller() {
+  const o = ordenTallerSel();
+  if (!o) { alert("Seleccione una orden"); return; }
+  const t = getTasa() || 1;
+  const sub = ordenTotalBs(o);
+  const iva = sub * (getIva() / 100);
+  const total = r2(sub + iva);
+  const vehiculo = [o.placa, o.marca, o.modelo, o.anio, o.color].filter(Boolean).join(" ");
+  const filas = (o.lineas || []).map((l, i) =>
+    `<tr><td class="num">${i + 1}</td><td>${_escHtml(l.codigo)}</td><td>${_escHtml(l.descripcion)}</td>` +
+    `<td class="num">${fmt(l.cantidad)}</td><td class="num">${fmt(l.precio)}</td><td class="num">${fmt(l.total)}</td></tr>`
+  ).join("") || '<tr><td colspan="6" style="text-align:center;color:#888">Sin líneas</td></tr>';
+
+  const ficha =
+    `<div class="ficha"><table>` +
+    `<tr><td class="etq">Cliente:</td><td><b>${_escHtml(o.cliente)}</b></td><td class="etq">Fecha:</td><td>${_escHtml(o.fecha || "")} ${o.hora || ""}</td></tr>` +
+    `<tr><td class="etq">Vehículo:</td><td colspan="3"><b>${_escHtml(vehiculo || "—")}</b></td></tr>` +
+    `<tr><td class="etq">Trabajo:</td><td colspan="3">${_escHtml(o.trabajo || "")}</td></tr>`;
+  const inicio = o.fechaInicio
+    ? `<tr><td class="etq">Inicio:</td><td>${_escHtml(o.fechaInicio + " " + (o.horaInicio || ""))}</td>` +
+      (o.fechaCulminacion ? `<td class="etq">Culminación:</td><td>${_escHtml(o.fechaCulminacion + " " + (o.horaCulminacion || ""))}</td>` : "<td></td><td></td>") + "</tr>"
+    : "";
+  const factura = o.ventaRef ? `<tr><td class="etq">Factura:</td><td colspan="3">${_escHtml(o.ventaRef)}</td></tr>` : "";
+
+  const body =
+    _metaPrintHtml(`ORDEN DE SERVICIO ${o.nro}`, `Estado: ${o.estado}`) +
+    ficha + inicio + factura + `</table></div>` +
+    `<table>` +
+      `<thead><tr><th class="num">N°</th><th>Código</th><th>Descripción</th><th class="num">Cant.</th><th class="num">Precio Bs.</th><th class="num">Total Bs.</th></tr></thead>` +
+      `<tbody>${filas}</tbody>` +
+    `</table>` +
+    `<table class="totales">` +
+      `<tr><td class="lbl">Sub-Total</td><td class="num">${fmt(sub)}</td></tr>` +
+      `<tr><td class="lbl">I.V.A. (${getIva()}%)</td><td class="num">${fmt(iva)}</td></tr>` +
+      `<tr><td class="gr">TOTAL</td><td class="num">${fmt(total)} Bs.</td></tr>` +
+      `<tr><td class="lbl">Total (USD)</td><td class="num">$ ${fmt(total / t)}</td></tr>` +
+    `</table>` +
+    (o.notas ? `<div class="obs"><b>Notas:</b><br>${_escHtml(o.notas)}</div>` : "") +
+    `<div class="firmas">` +
+      `<div>______________________<br>Elaborado por</div>` +
+      `<div>______________________<br>Entregado por</div>` +
+      `<div>______________________<br>Recibido por el Cliente</div>` +
+    `</div>`;
+
+  imprimirDocumentoHTML("Orden de Servicio " + o.nro, body);
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  renderOrdenesTaller();
+  const prod = _t$("tal-n-prod");
+  if (prod) prod.addEventListener("blur", () => {
+    if (!talSelectedCod && prod.value.trim()) {
+      const p = DB.productos.find(x => x.codigo === prod.value.trim());
+      if (p && !num(_t$("tal-n-precio").value)) _t$("tal-n-precio").value = p.precio.toFixed(2).replace(".", ",");
+    }
+    ocultarProductoOrdenResults();
+  });
+});

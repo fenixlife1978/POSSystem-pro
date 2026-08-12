@@ -39,6 +39,7 @@ const DB = {
   ],
   productos: [],
   cotizaciones: [],
+  ordenesTaller: [],
   compras: [],
   devoluciones: [],
   proveedores: [],
@@ -274,8 +275,7 @@ function _abrirImpresion(titulo, bodyHtml) {
   w.document.close();
 }
 
-function imprimirHTML(titulo, headers, rows, total, opts) {
-  const subtitulo = (opts && opts.subtitulo) || "";
+function _tablaReporteHtml(headers, rows, total) {
   const numClass = headers.map(h => _colNumero(h) ? " num" : "");
   const totalRow = (total !== null && total !== undefined)
     ? `<tfoot><tr class="fila-total"><td class="num" colspan="${headers.length}">TOTAL: ${fmt(total)} Bs.</td></tr></tfoot>`
@@ -283,15 +283,109 @@ function imprimirHTML(titulo, headers, rows, total, opts) {
   const tbody = rows.map(r =>
     `<tr>${r.map((c, i) => `<td class="${numClass[i].trim()}">${c == null ? "" : _escHtml(c)}</td>`).join("")}</tr>`
   ).join("");
-  const body = _metaPrintHtml(titulo, subtitulo) +
-    `<table><thead><tr>${headers.map((h, i) => `<th class="${numClass[i].trim()}">${_escHtml(h)}</th>`).join("")}</tr></thead>` +
+  return `<table><thead><tr>${headers.map((h, i) => `<th class="${numClass[i].trim()}">${_escHtml(h)}</th>`).join("")}</tr></thead>` +
     `<tbody>${tbody}</tbody>${totalRow}</table>`;
+}
+
+function imprimirHTML(titulo, headers, rows, total, opts) {
+  const subtitulo = (opts && opts.subtitulo) || "";
+  const body = _metaPrintHtml(titulo, subtitulo) + _tablaReporteHtml(headers, rows, total);
   _abrirImpresion(titulo, body);
 }
 
 // Documento profesional personalizado (cotizaciones, facturas, etc.)
 function imprimirDocumentoHTML(titulo, bodyHtml) {
   _abrirImpresion(titulo, bodyHtml);
+}
+
+// ===== EXPORTAR A PDF / COMPARTIR REPORTES =====
+function _bodyReporte(titulo, headers, rows, total, opts) {
+  const subtitulo = (opts && opts.subtitulo) || "";
+  return _metaPrintHtml(titulo, subtitulo) + _tablaReporteHtml(headers, rows, total);
+}
+
+function _documentoPdfHtml(titulo, bodyHtml) {
+  return `<html><head><meta charset="utf-8"><title>${_escHtml(titulo)}</title>` +
+    `<style>${_basePrintCSS()}</style></head><body>` +
+    `${_cabeceraPrintHtml()}${bodyHtml}${_piePrintHtml()}</body></html>`;
+}
+
+function _textoReportePlano(titulo, headers, rows, total) {
+  const emp = (DB.parametros && DB.parametros.nombreEmpresa) || "MI EMPRESA";
+  let t = `${emp} — ${titulo}\nFecha: ${hoy()} ${hora12()}`;
+  t += ` | Usuario: ${(DB.parametros && DB.parametros.cajero) || "ADMIN"}\n\n`;
+  t += headers.join(" | ") + "\n" + rows.map(r => r.join(" | ")).join("\n");
+  if (total !== null && total !== undefined) t += `\n\nTOTAL: ${fmt(total)} Bs.`;
+  return t;
+}
+
+// Botón Exportar PDF: genera un PDF real (Electron vía printToPDF) o, en navegador, la vista de impresión.
+function exportarPDF(titulo, headers, rows, total, opts) {
+  const body = _bodyReporte(titulo, headers, rows, total, opts);
+  exportarDocumentoPDF(titulo, body);
+}
+
+// Exporta un documento con cuerpo HTML propio (cotizaciones, facturas, órdenes de servicio, etc.)
+function exportarDocumentoPDF(titulo, bodyHtml) {
+  if (window.desktop && typeof window.desktop.exportarPDF === "function") {
+    window.desktop.exportarPDF(titulo, _documentoPdfHtml(titulo, bodyHtml)).then(r => {
+      if (r && r.ok) alert("PDF exportado: " + r.filePath);
+      else if (r && r.msg) alert(r.msg);
+    }).catch(() => alert("No se pudo exportar el PDF."));
+  } else {
+    _abrirImpresion(titulo, bodyHtml);
+  }
+}
+
+// Botón Compartir: abre la ventana con el texto del reporte para WhatsApp / Correo.
+function compartirPDF(titulo, headers, rows, total, opts) {
+  const texto = _textoReportePlano(titulo, headers, rows, total);
+  window._compartirTexto = texto;
+  const t = document.getElementById("compartir-titulo");
+  if (t) t.textContent = titulo;
+  const a = document.getElementById("compartir-area");
+  if (a) a.value = texto;
+  abrirModalVentana("compartir-window");
+}
+
+function compartirWhatsApp() {
+  const texto = window._compartirTexto || "";
+  if (!texto) return;
+  _abrirExterno("https://wa.me/?text=" + encodeURIComponent(texto));
+}
+
+function compartirCorreo() {
+  const texto = window._compartirTexto || "";
+  if (!texto) return;
+  const [linea, ...resto] = texto.split("\n");
+  _abrirExterno("mailto:?subject=" + encodeURIComponent(linea) + "&body=" + encodeURIComponent(texto));
+}
+
+function compartirCopiar() {
+  const a = document.getElementById("compartir-area");
+  if (!a) return;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(a.value).then(() => alert("Texto copiado al portapapeles."));
+  } else {
+    a.select();
+    document.execCommand("copy");
+    alert("Texto copiado al portapapeles.");
+  }
+}
+
+function _abrirExterno(url) {
+  const prev = window.open(url, "_blank");
+  if (!prev) alert("Permita ventanas emergentes para compartir.");
+}
+
+// Muestra una ventana modal centrada sin pasar por el gateo de permisos de módulos.
+function abrirModalVentana(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.remove("hidden");
+  el.style.left = Math.max(12, Math.round((window.innerWidth - el.offsetWidth) / 2)) + "px";
+  el.style.top = Math.max(12, Math.round((window.innerHeight - el.offsetHeight) / 2)) + "px";
+  el.style.zIndex = 9000 + Math.floor(Math.random() * 900);
 }
 
 // ============== PERSISTENCIA (IndexedDB + espejo localStorage) ==============
@@ -327,6 +421,7 @@ function normalizeDB() {
   if (!DB.respaldos) DB.respaldos = [];
   if (!DB.devoluciones) DB.devoluciones = [];
   if (!DB.ventas) DB.ventas = [];
+  if (!DB.ordenesTaller) DB.ordenesTaller = [];
   if (!DB.libroDiario) DB.libroDiario = [];
   if (!DB.abonos) DB.abonos = [];
   if (!DB.cuentasCobrar) DB.cuentasCobrar = [];
@@ -356,7 +451,7 @@ function normalizeDB() {
       if (p.precios[k].margen === undefined) p.precios[k].margen = defMargen;
     });
   });
-  (DB.clientes || []).forEach(c => { if (c.email === undefined) c.email = ""; if (c.saldo === undefined) c.saldo = 0; });
+  (DB.clientes || []).forEach(c => { if (c.email === undefined) c.email = ""; if (c.saldo === undefined) c.saldo = 0; if (!c.vehiculos || !Array.isArray(c.vehiculos)) c.vehiculos = []; });
   (DB.movimientosCaja || []).forEach(m => { if (m.ingUsd === undefined) m.ingUsd = 0; if (m.egrUsd === undefined) m.egrUsd = 0; if (!m.caja) m.caja = cajaActual().nombre; });
   migrarCuentasUSD();
   DB.carrito = [];

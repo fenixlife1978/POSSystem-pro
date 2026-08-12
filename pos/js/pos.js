@@ -280,6 +280,7 @@ function clearProductInput() {
 function newSale() {
   if (DB.carrito.length && !confirm("¿Desea iniciar una nueva venta? Se perderá el contenido actual.")) return;
   DB.carrito = [];
+  window._tallerPendiente = null;
   carritoSel = -1;
   renderCarrito();
   clearProductInput();
@@ -303,6 +304,7 @@ function cancelSale() {
   if (!DB.carrito.length) { alert("No hay venta activa para anular"); return; }
   if (confirm("¿Está seguro de anular la venta actual?")) {
     DB.carrito = [];
+    window._tallerPendiente = null;
     carritoSel = -1;
     renderCarrito();
   }
@@ -649,6 +651,7 @@ function confirmPago() {
   };
   DB.ventas.push(venta);
   if (typeof asentVenta === "function") asentVenta(venta);
+  if (typeof finalizarCobroTaller === "function") finalizarCobroTaller(venta);
 
   // Acreditar saldo al cliente cuando la venta se registró a crédito (la deuda se guarda en USD)
   if (credito > 0) {
@@ -1230,9 +1233,8 @@ document.addEventListener("keydown", function(e) {
     if (K === "F2")  { if (posOk("pos")) { e.preventDefault(); newSale(); } }
     if (K === "F3")  { if (posOk("buscar")) { e.preventDefault(); openProductSearch(); } }
     if (K === "F4")  { if (posOk("buscar")) { e.preventDefault(); openClientSearch(); } }
-    if (K === "F5")  { if (posOk("cotizaciones")) { e.preventDefault(); openModule("cotizaciones"); } }
+    if (K === "F5")  { if (posOk("taller")) { e.preventDefault(); openModule("taller"); } }
     if (K === "F6")  { if (posOk("devoluciones")) { e.preventDefault(); nuevaDevolucion(); } }
-    if (K === "F7")  { if (posOk("pos")) { e.preventDefault(); cancelSale(); } }
     if (K === "F8")  { if (posOk("pos")) { e.preventDefault(); applyDiscount(); } }
     if (K === "F9")  { if (posOk("pago")) { e.preventDefault(); pay("mixto"); } }
     if (K === "F10") { if (posOk("pago")) { e.preventDefault(); pay("tarjeta_punto"); } }

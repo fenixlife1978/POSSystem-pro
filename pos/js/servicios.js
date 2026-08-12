@@ -277,6 +277,15 @@ function exportarServicios() {
   ));
 }
 
+function _datosServicios() {
+  return {
+    headers: ["Código", "Descripción", "Tipo", "Costo $", "PVP $", "PVP Bs."],
+    rows: DB.productos.filter(esServicio).map(s => [s.codigo, s.descripcion, s.tipoServicio || "Regular", "$ " + fmt(s.costoUSD || 0), "$ " + fmt(s.precioUSD || 0), fmt(s.precio || 0)])
+  };
+}
+function exportarPDFServicios() { const d = _datosServicios(); exportarPDF("Listado de Servicios", d.headers, d.rows); }
+function compartirServicios() { const d = _datosServicios(); compartirPDF("Listado de Servicios", d.headers, d.rows); }
+
 // ===== Inicialización =====
 document.addEventListener("DOMContentLoaded", () => {
   const compCod = _sv("sv-comp-cod");
