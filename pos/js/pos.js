@@ -1262,6 +1262,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const pagoSel = document.getElementById("pago-metodo");
   if (pagoSel) pagoSel.addEventListener("change", actualizarEquivMonto);
   updateDateTime();
+  actualizarBadgeTasaBCV();
   setInterval(updateDateTime, 60000);
   toggleCredito();
   mostrarSaldoCliente();
@@ -1279,3 +1280,40 @@ function updateDateTime() {
   const el = document.getElementById("pos-datetime");
   if (el) el.innerHTML = `${dd}/${mm}/${yyyy}&nbsp;&nbsp;${h}:${m} ${ampm}`;
 }
+
+// ===== Control de Tasa BCV interactiva en la barra de título =====
+function actualizarBadgeTasaBCV() {
+  const el = document.getElementById("pos-bcv-val");
+  if (el) el.textContent = `${fmt(getTasa())} Bs/$`;
+}
+
+function modificarTasaBCVRapida() {
+  const tasaActual = getTasa();
+  const usuario = (DB.parametros && DB.parametros.cajero) || "Usuario";
+  const resp = prompt(`MODIFICAR TASA BCV DEL SISTEMA\n\nUsuario actual: ${usuario}\nTasa actual: ${fmt(tasaActual)} Bs/$\n\nIngrese la nueva Tasa BCV (Bs/$):`, fmt(tasaActual));
+  if (resp === null) return;
+  const nuevaTasa = num(resp);
+  if (nuevaTasa <= 0) {
+    alert("Error: Debe ingresar una tasa válida mayor a cero (0).");
+    return;
+  }
+  if (Math.abs(nuevaTasa - tasaActual) < 0.0001) {
+    return;
+  }
+
+  DB.parametros.tasaBCV = nuevaTasa;
+  auditar("Cambio Tasa BCV", `Tasa anterior: ${fmt(tasaActual)} Bs/$ -> Nueva tasa: ${fmt(nuevaTasa)} Bs/$ (por ${usuario})`);
+  saveDB();
+  actualizarBadgeTasaBCV();
+  recalcTotales();
+  if (typeof renderInventario === "function") renderInventario();
+  if (typeof actualizarResultadoPrecio === "function") actualizarResultadoPrecio();
+  if (typeof renderDashboard === "function") renderDashboard();
+  const pt = document.getElementById("par-tasa");
+  if (pt) pt.value = fmt(nuevaTasa);
+  alert(`Tasa BCV actualizada exitosamente a ${fmtVE(nuevaTasa, 2)} Bs/$.`);
+}
+
+window.actualizarBadgeTasaBCV = actualizarBadgeTasaBCV;
+window.modificarTasaBCVRapida = modificarTasaBCVRapida;
+

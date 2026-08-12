@@ -76,6 +76,8 @@ function renderDashboard() {
   const carteraCxC = (DB.cuentasCobrar || []).reduce((s, c) => s + (c.saldo || 0), 0);
   const carteraCxP = (DB.cuentasPagar || []).reduce((s, c) => s + (c.saldo || 0), 0);
   const stockBajo = DB.productos.filter(p => p.existencia <= p.minimo && p.categoria !== "SERVICIOS");
+  const mesEgresos = (DB.libroDiario || []).filter(e => e.tipo === "egreso" && (e.fecha || "").slice(3) === mesKey);
+  const totalEgMes = mesEgresos.reduce((s, e) => s + (e.montoUSD || 0), 0);
 
   const deudasClientes = {};
   (DB.cuentasCobrar || []).forEach(c => { if ((c.saldo || 0) > 0) deudasClientes[c.nombre] = (deudasClientes[c.nombre] || 0) + (c.saldo || 0); });
@@ -122,7 +124,7 @@ function renderDashboard() {
       ${card("Cartera por Cobrar", fmtUS(carteraCxC), `${Object.keys(deudasClientes).length} cliente(s) deudor(es) · ${fmtBsEq(carteraCxC)}`, carteraCxC ? "dash-amber" : "dash-green")}
       ${card("Cartera por Pagar", fmtUS(carteraCxP), `Vencidas: ${fmtUS(cxpVenc.reduce((s, c) => s + (c.saldo || 0), 0))}`, carteraCxP ? "dash-amber" : "dash-green")}
       ${card("Stock Bajo", stockBajo.length, `${DB.productos.length} productos en catálogo`, stockBajo.length ? "dash-red" : "dash-green")}
-      ${card("Compras Pendientes", DB.compras.filter(c => c.estatus === "Pendiente").length, `${DB.compras.length} compras`)}
+      ${card("Egresos del Mes", fmtUS(totalEgMes), `${mesEgresos.length} egreso(s) · ${fmtBsEq(totalEgMes)}`)}
       ${card("Clientes", DB.clientes.length, `${DB.clientes.filter(c => c.tipo === "Crédito").length} de crédito`)}
     </div>
     <div class="dash-kpis dash-kpis-2">

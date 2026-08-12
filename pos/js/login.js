@@ -75,7 +75,10 @@ function requestAccess() {
 
 document.addEventListener("DOMContentLoaded", () => {
   // Cuando la carga asíncrona de IndexedDB completa los datos (datos distintos al espejo)
-  window.__onDBLoaded = () => { try { fillRolSelect(); } catch (e) {} };
+  window.__onDBLoaded = () => {
+    try { fillRolSelect(); } catch (e) {}
+    try { if (typeof actualizarBadgeTasaBCV === "function") actualizarBadgeTasaBCV(); } catch (e) {}
+  };
   fillRolSelect();
   ["login-usuario", "login-rol", "login-clave"].forEach(id => {
     const el = _lg(id);

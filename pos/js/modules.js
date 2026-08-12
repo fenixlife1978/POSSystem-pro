@@ -110,9 +110,10 @@ function cambiarTipoPersona() {
   const ji = $("cli-juridica-info"); if (ji) ji.classList.toggle("hidden-panel", !esJ);
   const extra = $("cli-fisc-extra-label"); if (extra) extra.style.display = esJ ? "" : "none";
   const extraIn = $("cli-fisc-extra-input"); if (extraIn) extraIn.style.display = esJ ? "" : "none";
-  // Persona natural: el campo R.I.F. queda oculto (solo se usa la cédula)
+  // Persona natural: mantiene solo la cédula (V-/E-). Jurídica: solo el R.I.F.
   const rifLabel = $("cli-rif-label"); if (rifLabel) rifLabel.style.display = esJ ? "" : "none";
   const rifInput = $("cli-rif-input"); if (rifInput) rifInput.style.display = esJ ? "" : "none";
+  const docCell = $("cli-doc-cell"); if (docCell) docCell.style.display = esJ ? "none" : "";
 }
 
 function cambiarTipoCliente() {

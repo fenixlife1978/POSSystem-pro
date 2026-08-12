@@ -411,6 +411,7 @@ function normalizeDB() {
   if (!DB.parametros.marcas) DB.parametros.marcas = ["GENERICO", "FRAM", "WEGA", "MOBIL", "SHELL", "MAC", "NGK", "BREMBO", "FIRESTONE", "MICHELIN", "ACDELCO", "BOSCH", "NAKATA", "FERODO"];
   if (!DB.parametros.presentaciones) DB.parametros.presentaciones = ["UNIDAD", "CAJA", "LITRO", "KILO", "PIEZA", "PAQUETE", "GALON"];
   if (!DB.parametros.unidades) DB.parametros.unidades = ["UND", "KG", "LT", "GR", "ML", "CAJ"];
+  if (!DB.parametros.categoriasGasto || !DB.parametros.categoriasGasto.length) DB.parametros.categoriasGasto = ["NOMINA", "SERVICIOS", "IMPUESTOS", "OTROS_GASTOS"];
   if (!DB.usuarios || !DB.usuarios.length) DB.usuarios = [{ usuario: "ADMIN", nombre: "Administrador", clave: "admin", rol: "Administrador", activo: true }];
   if (!DB.caja) DB.caja = { estado: "cerrada", cajero: "ADMIN", apertura: null, cierre: null, fondoBs: 0, fondoUSD: 0 };
   if (!DB.cajas || !DB.cajas.length) {

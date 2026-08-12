@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -100,15 +100,20 @@
   <div class="title-bar">
     <div class="title-left">
       <span class="app-icon">🗔</span>
-      <span class="title-text">Mi Empresa, C.A.</span>
+      <span class="title-text">POSsystem pro</span>
     </div>
     <div class="title-center"><span id="app-title-center">Punto de Venta</span></div>
     <div class="title-mid-right"><span id="pos-caja-label">CAJA 01</span></div>
     <div class="title-right">
+      <div class="bcv-widget" id="bcv-widget" title="Haga clic para cambiar la Tasa BCV del sistema" onclick="modificarTasaBCVRapida()">
+        <span class="bcv-title">Tasa BCV:</span>
+        <span class="bcv-val" id="pos-bcv-val">--</span>
+        <span class="bcv-btn">✏️</span>
+      </div>
       <span id="pos-datetime">23/05/2025&nbsp;&nbsp;10:42 a.m.</span>
       <button class="win-btn" title="Minimize">─</button>
       <button class="win-btn" title="Maximize">▢</button>
-      <button class="win-btn" title="Close" onclick="closeWindow('pos-window')">✕</button>
+      <button class="win-btn" title="Cerrar sesión y salir al login" onclick="logout()">✕</button>
     </div>
   </div>
 
@@ -361,7 +366,7 @@
               </select>
             </td></tr>
             <tr><td><label>Código:</label></td><td><input type="text" id="cli-cod" class="input-small"></td>
-                <td><label>Doc. Identidad / R.I.F.:</label></td><td>
+                <td><label>Doc. Identidad / R.I.F.:</label></td><td id="cli-doc-cell">
                 <select id="cli-doc-tipo" class="input-mini">
                   <option value="V-" selected>V-</option>
                   <option value="E-">E-</option>
@@ -573,7 +578,6 @@
       <div class="servicio-tabs" data-tabs>
         <div class="tab-row">
           <span class="tab-title tab-active" data-tab-target="sv-panel-datos">Datos Generales</span>
-          <span class="tab" data-tab-target="sv-panel-comp">Componentes</span>
           <span class="tab" data-tab-target="sv-panel-precios">Precios</span>
         </div>
         <div id="sv-panel-datos" data-panel>
@@ -588,26 +592,8 @@
             <tr><td colspan="4"><label><input type="checkbox" id="sv-inactivo"> Servicio Inactivo</label></td></tr>
           </table>
         </div>
-        <div id="sv-panel-comp" data-panel class="hidden-panel">
-          <div class="pricing-hint">Componentes del servicio (Kit/Combo). Cada componente consume su stock al venderse. Si no hay componentes, el servicio es solo mano de obra.</div>
-          <table class="form-table">
-            <tr><td><label>Componente:</label></td><td><div class="prov-search"><input type="text" id="sv-comp-cod" class="input-medium" placeholder="Código, nombre o palabra clave..." autocomplete="off" oninput="buscarServicioComponente()" onkeydown="onServicioCompKey(event)"><div class="prov-results" id="sv-comp-results"></div></div></td>
-                <td><label>Cant.:</label></td><td><input type="text" inputmode="decimal" id="sv-comp-cant" class="input-small" value="1"></td>
-                <td><button class="mod-btn" onclick="cargarServicioComponente()">➕ Agregar</button></td></tr>
-          </table>
-          <table class="grid" id="sv-comp-table">
-            <thead><tr><th>Código</th><th>Descripción</th><th style="text-align:right">Cant.</th><th style="text-align:right">Costo $</th><th style="text-align:right">Subtotal $</th><th></th></tr></thead>
-            <tbody id="sv-comp-body"></tbody>
-          </table>
-          <div class="sv-resumen" id="sv-resumen">
-            <span>Costo componentes: <b id="sv-costo-comp">$ 0,00</b></span>
-            <span>Mano de obra: <b id="sv-costo-manoobra">$ 0,00</b></span>
-            <span>Costo total: <b id="sv-costo-total">$ 0,00</b></span>
-            <span>Stock virtual: <b id="sv-stock-virtual">9999</b></span>
-          </div>
-        </div>
         <div id="sv-panel-precios" data-panel class="hidden-panel">
-          <div class="pricing-hint">Tasa BCV: <b id="sv-tasa-hint"></b> Bs/USD — El costo se calcula como componentes + mano de obra. Los campos de precio se recalculan entre sí.</div>
+          <div class="pricing-hint">Tasa BCV: <b id="sv-tasa-hint"></b> Bs/USD — El costo se calcula como mano de obra. Los campos de precio se recalculan entre sí.</div>
           <table class="form-table">
             <tr><td><label>Margen de Ganancia (%):</label></td><td><input type="text" inputmode="decimal" id="sv-margen" class="input-medium" oninput="recalcularServicioPrecio('margen')"></td>
                 <td><label>Precio de Venta (USD):</label></td><td><input type="text" inputmode="decimal" id="sv-precio-usd" class="input-medium" oninput="recalcularServicioPrecio('usd')"></td></tr>
@@ -2062,7 +2048,9 @@
     <fieldset class="panel">
       <legend>Registro de Egreso Manual (Contabilidad)</legend>
       <table class="form-table">
-        <tr><td><label>Categoría del Gasto:</label></td><td><select id="cont-gasto-categoria" class="input-large"></select></td></tr>
+        <tr><td><label>Categoría del Gasto:</label></td><td><select id="cont-gasto-categoria" class="input-large" style="vertical-align:middle"></select>
+            <button class="mod-btn" onclick="contAgregarCategoria()" title="Agregar categoría">➕</button>
+            <button class="mod-btn" onclick="contEliminarCategoria()" title="Eliminar categoría">🗑</button></td></tr>
         <tr><td><label>Concepto Detallado:</label></td><td><input type="text" id="cont-gasto-concepto" class="input-large" placeholder="EJ: PAGO SEMANA JUNIO - JUAN PEREZ"></td></tr>
         <tr>
           <td><label>Monto:</label></td>

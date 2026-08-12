@@ -9,6 +9,56 @@ const CONT_CATEG_GASTO = ["NOMINA", "SERVICIOS", "IMPUESTOS", "OTROS_GASTOS"];
 const CONT_FORMAS = ["Efectivo Bs.", "Efectivo USD (físico)", "Pagomóvil", "Biopago", "Transferencia", "Zelle", "Tarjeta / Punto"];
 const CONT_PAGE_SIZE = 20;
 
+function categoriasGastoPersistidas() {
+  const cats = (DB.parametros.categoriasGasto || CONT_CATEG_GASTO).filter(Boolean);
+  if (!cats.length) return CONT_CATEG_GASTO;
+  return cats;
+}
+
+function etiquetaCategoriaGasto(c) {
+  if (c === "NOMINA") return "Nómina (Sueldos y Salarios)";
+  if (c === "SERVICIOS") return "Servicios Básicos (Luz, Agua, Internet)";
+  if (c === "IMPUESTOS") return "Impuestos / Tasas";
+  if (c === "OTROS_GASTOS") return "Gastos Administrativos / Otros";
+  return c.replace(/_/g, " ");
+}
+
+function rellenarCategoriasGasto() {
+  const cat = _ct("cont-gasto-categoria");
+  if (!cat) return;
+  const actual = cat.value || "NOMINA";
+  cat.innerHTML = categoriasGastoPersistidas().map(c =>
+    `<option value="${c}">${etiquetaCategoriaGasto(c)}</option>`).join("");
+  cat.value = categoriasGastoPersistidas().includes(actual) ? actual : categoriasGastoPersistidas()[0];
+}
+
+function contAgregarCategoria() {
+  const nombre = prompt("Indique el nombre de la nueva categoría del gasto (ej: COMBUSTIBLE, COMPRA DE EQUIPOS):");
+  if (!nombre) return;
+  const limpio = nombre.trim().toUpperCase().replace(/\s+/g, "_");
+  if (!limpio) return;
+  const cats = categoriasGastoPersistidas();
+  if (cats.includes(limpio)) { alert("Esa categoría ya existe."); return; }
+  cats.push(limpio);
+  DB.parametros.categoriasGasto = cats;
+  saveDB();
+  rellenarCategoriasGasto();
+  _ct("cont-gasto-categoria").value = limpio;
+}
+
+function contEliminarCategoria() {
+  const sel = _ct("cont-gasto-categoria");
+  const cat = sel.value;
+  if (!cat) return;
+  const usada = (DB.libroDiario || []).some(e => e.categoria === cat);
+  if (usada && !confirm(`La categoría "${etiquetaCategoriaGasto(cat)}" ya tiene asientos registrados. ¿Desea eliminarla de todos modos?`)) return;
+  const cats = categoriasGastoPersistidas().filter(c => c !== cat);
+  DB.parametros.categoriasGasto = cats.length ? cats : CONT_CATEG_GASTO.slice();
+  saveDB();
+  rellenarCategoriasGasto();
+  if (typeof renderContabilidad === "function") renderContabilidad();
+}
+
 // Estado de filtros y paginación
 let contFiltro = "hoy"; // hoy | ayer | mes | rango
 let contDesde = hoy();
@@ -181,7 +231,7 @@ function cargarVentanaContabilidad() {
   }
   const cat = _ct("cont-gasto-categoria");
   if (cat && !cat.dataset.ready) {
-    cat.innerHTML = CONT_CATEG_GASTO.map(c => `<option value="${c}">${c === "NOMINA" ? "Nómina (Sueldos y Salarios)" : c === "SERVICIOS" ? "Servicios Básicos (Luz, Agua, Internet)" : c === "IMPUESTOS" ? "Impuestos / Tasas" : "Gastos Administrativos / Otros"}</option>`).join("");
+    rellenarCategoriasGasto();
     cat.dataset.ready = "1";
   }
   contSetPeriodo();
@@ -212,7 +262,7 @@ function contNextPage() { contPage++; renderContabilidad(); }
 // ---- Gasto manual (egreso) ----
 function contNuevoGasto() {
   if (typeof cargarVentanaContabilidad === "function") cargarVentanaContabilidad();
-  _ct("cont-gasto-categoria").value = "NOMINA";
+  _ct("cont-gasto-categoria").value = categoriasGastoPersistidas()[0];
   _ct("cont-gasto-concepto").value = "";
   _ct("cont-gasto-monto").value = "";
   _ct("cont-gasto-forma").value = "Efectivo Bs.";

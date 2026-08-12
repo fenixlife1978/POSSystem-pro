@@ -1,8 +1,6 @@
-// ============== SERVICIOS: kits/combos con componentes y mano de obra ==============
+// ============== SERVICIOS: mano de obra y precios tridireccionales ==============
 const _sv = id => document.getElementById(id);
 const TIPOS_SERVICIO = ["Regular", "Promoción", "Combo", "Oferta"];
-
-let svTemp = [];
 
 function esServicio(p) { return p && (p.categoria === "SERVICIOS" || p.tipoServicio); }
 
@@ -56,11 +54,6 @@ function selectServicioForm(s) {
   _sv("sv-manoobra").value = ((s.manoObraUSD != null ? s.manoObraUSD : 0) || 0).toFixed(2).replace(".", ",");
   _sv("sv-min").value = (s.minimo || 0).toFixed(2).replace(".", ",");
   _sv("sv-inactivo").checked = !!s.inactivo;
-  svTemp = ((s.componentes || []).map(c => {
-    const prod = DB.productos.find(x => x.codigo === c.codigo);
-    return { codigo: c.codigo, descripcion: prod ? prod.descripcion : "(No encontrado)", cantidad: num(c.cantidad) || 1, costoUSD: prod ? prod.costoUSD || 0 : 0 };
-  }));
-  renderServicioComponentes();
   setVal("sv-margen", s.margenPct || 0);
   setVal("sv-precio-usd", s.precioUSD || 0);
   setVal("sv-precio-bs", s.precio || 0);
@@ -68,7 +61,6 @@ function selectServicioForm(s) {
 }
 
 function leerServicioForm() {
-  const costoTotal = svCostoTotal();
   const usd = num(_sv("sv-precio-usd").value);
   const bs = num(_sv("sv-precio-bs").value);
   const margen = num(_sv("sv-margen").value);
@@ -82,8 +74,8 @@ function leerServicioForm() {
     manoObraUSD: num(_sv("sv-manoobra").value),
     minimo: num(_sv("sv-min").value),
     inactivo: _sv("sv-inactivo").checked,
-    componentes: svTemp.filter(c => c.codigo).map(c => ({ codigo: c.codigo, cantidad: num(c.cantidad) || 1 })),
-    costoUSD: r2(costoTotal),
+    componentes: [],
+    costoUSD: r2(num(_sv("sv-manoobra").value)),
     margenPct: r2(margen),
     precioUSD: r2(usd),
     precio: r2(bs)
@@ -91,7 +83,6 @@ function leerServicioForm() {
 }
 
 function nuevoServicio() {
-  svTemp = [];
   _sv("sv-cod").value = genNro(DB.productos.filter(esServicio), "codigo", "SV-", 5);
   _sv("sv-desc").value = "";
   _sv("sv-tipo").value = "Regular";
@@ -100,7 +91,6 @@ function nuevoServicio() {
   _sv("sv-manoobra").value = "0,00";
   _sv("sv-min").value = "0,00";
   _sv("sv-inactivo").checked = false;
-  renderServicioComponentes();
   setVal("sv-margen", 0);
   setVal("sv-precio-usd", 0);
   setVal("sv-precio-bs", 0);
@@ -112,7 +102,6 @@ function nuevoServicio() {
 function guardarServicio() {
   const s = leerServicioForm();
   if (!s.codigo || !s.descripcion) { alert("Ingrese al menos el código y el nombre del servicio"); return; }
-  if (s.tipoServicio !== "Regular" && !s.componentes.length) { alert("Un servicio Promoción/Combo/Oferta requiere al menos un producto componente"); return; }
   const idx = DB.productos.findIndex(x => x.codigo === s.codigo);
   const prev = idx >= 0 ? DB.productos[idx] : null;
   if (idx >= 0) DB.productos[idx] = { ...prev, ...s };
@@ -138,110 +127,10 @@ function eliminarServicio() {
   else nuevoServicio();
 }
 
-// ===== Componentes =====
-let svCompMatches = [];
-
-function svCompMatchesQuery(p, q) {
-  const s = [p.codigo, p.barra, p.descripcion, p.categoria, p.marca].map(x => String(x || "").toLowerCase());
-  const filtro = q.toLowerCase();
-  if (s.some(x => x === filtro) || s.some(x => x.includes(filtro))) return true;
-  const palabras = filtro.split(/\s+/).filter(Boolean);
-  return palabras.length > 1 && palabras.every(pal => s.some(x => x.includes(pal)));
-}
-
-function buscarServicioComponente() {
-  const box = _sv("sv-comp-results");
-  if (!box) return;
-  const q = (_sv("sv-comp-cod").value || "").trim();
-  if (!q) { ocultarServicioCompResults(); return; }
-  const matches = DB.productos.filter(p => !esServicio(p) && svCompMatchesQuery(p, q)).slice(0, 12);
-  svCompMatches = matches;
-  if (!matches.length) { ocultarServicioCompResults(); return; }
-  box.innerHTML = matches.map((p, i) =>
-    `<div class="prov-result" onmousedown="event.preventDefault()" onclick="seleccionarServicioComponente(${i})"><b>${p.codigo}</b> — ${p.descripcion} <span class="usd-sub">$ ${fmt(p.costoUSD || 0)}</span></div>`
-  ).join("");
-  box.classList.add("show");
-}
-
-function seleccionarServicioComponente(i) {
-  const p = svCompMatches[i];
-  if (!p) return;
-  _sv("sv-comp-cod").value = p.codigo;
-  ocultarServicioCompResults();
-  _sv("sv-comp-cant").focus();
-  _sv("sv-comp-cant").select();
-}
-
-function ocultarServicioCompResults() {
-  const box = _sv("sv-comp-results");
-  if (box) { box.classList.remove("show"); box.innerHTML = ""; }
-  svCompMatches = [];
-}
-
-function onServicioCompKey(ev) {
-  if (ev.key === "Enter") {
-    ev.preventDefault();
-    if (svCompMatches.length) seleccionarServicioComponente(0);
-    else cargarServicioComponente();
-  } else if (ev.key === "Escape") {
-    ocultarServicioCompResults();
-  }
-}
-
-function cargarServicioComponente() {
-  const cod = _sv("sv-comp-cod").value.trim();
-  const prod = DB.productos.find(x => x.codigo === cod && !esServicio(x));
-  if (!prod) { alert("Producto no encontrado (los servicios no pueden ser componentes)"); _sv("sv-comp-cod").focus(); return; }
-  const cant = num(_sv("sv-comp-cant").value) || 1;
-  const exist = svTemp.find(c => c.codigo === cod);
-  if (exist) exist.cantidad += cant;
-  else svTemp.push({ codigo: cod, descripcion: prod.descripcion, cantidad: cant, costoUSD: prod.costoUSD || 0 });
-  renderServicioComponentes();
-  ocultarServicioCompResults();
-  _sv("sv-comp-cod").value = "";
-  _sv("sv-comp-cant").value = "1";
-  _sv("sv-comp-cod").focus();
-}
-
-function quitarComponenteServicio(i) { svTemp.splice(i, 1); renderServicioComponentes(); }
-
-function renderServicioComponentes() {
-  _sv("sv-comp-body").innerHTML = svTemp.map((c, i) =>
-    `<tr><td>${c.codigo}</td><td>${c.descripcion}</td><td style="text-align:right">${fmt(c.cantidad)}</td><td style="text-align:right">$ ${fmt(c.costoUSD)}</td><td style="text-align:right">$ ${fmt(c.cantidad * c.costoUSD)}</td><td><button class="btn-mini" onclick="quitarComponenteServicio(${i})">✕</button></td></tr>`
-  ).join("") || `<tr><td colspan="6" style="text-align:center;color:#888">Sin componentes — el servicio es solo mano de obra</td></tr>`;
-  const costoComp = svCostoComponentes();
-  _sv("sv-costo-comp").textContent = "$ " + fmt(costoComp);
-  _sv("sv-costo-manoobra").textContent = "$ " + fmt(num(_sv("sv-manoobra").value));
-  _sv("sv-costo-total").textContent = "$ " + fmt(svCostoTotal());
-  _sv("sv-stock-virtual").textContent = String(svStockVirtual());
-  _sv("sv-stock-virtual").style.color = svStockVirtual() <= 0 ? "#cc0000" : "#008000";
-  if (_sv("sv-costo-total").closest) recalcularServicioPrecio("costo");
-}
-
-function svCostoComponentes() {
-  return svTemp.reduce((s, c) => s + (c.cantidad * (c.costoUSD || 0)), 0);
-}
-
-function svCostoTotal() {
-  return svCostoComponentes() + num(_sv("sv-manoobra").value);
-}
-
-function svStockVirtual() {
-  const comps = svTemp.filter(c => c.codigo);
-  if (!comps.length) return 9999;
-  let min = Infinity;
-  comps.forEach(c => {
-    const prod = DB.productos.find(x => x.codigo === c.codigo);
-    const avail = prod ? Math.floor((prod.existencia || 0) / Math.max(1, c.cantidad || 1)) : 0;
-    if (avail < min) min = avail;
-  });
-  return min === Infinity ? 0 : min;
-}
-
 // ===== Precios tridireccionales =====
 function recalcularServicioPrecio(from) {
   const tasa = getTasa();
-  const costo = svCostoTotal();
+  const costo = num(_sv("sv-manoobra").value);
   let margen = num(_sv("sv-margen").value);
   let usd = num(_sv("sv-precio-usd").value);
   let bs = num(_sv("sv-precio-bs").value);
@@ -256,11 +145,11 @@ function recalcularServicioPrecio(from) {
 }
 
 function actualizarResultadoServicio() {
-  const costo = svCostoTotal();
+  const costo = num(_sv("sv-manoobra").value);
   const usd = num(_sv("sv-precio-usd").value);
   const gan = (usd - costo) * (usd > 0 ? 1 : 0);
   _sv("sv-precio-result").innerHTML =
-    `Costo: <b>$ ${fmt(costo)}</b> &nbsp;|&nbsp; PVP: <b>$${fmt(usd)} / ${fmt(num(_sv("sv-precio-bs").value))} Bs.</b> &nbsp;|&nbsp; Ganancia: <b>$${fmt(gan)}</b> &nbsp;|&nbsp; Stock virtual: <b>${svStockVirtual()}</b>`;
+    `Costo: <b>$ ${fmt(costo)}</b> &nbsp;|&nbsp; PVP: <b>$${fmt(usd)} / ${fmt(num(_sv("sv-precio-bs").value))} Bs.</b> &nbsp;|&nbsp; Ganancia: <b>$${fmt(gan)}</b>`;
 }
 
 // ===== Imprimir / Exportar =====
@@ -288,15 +177,8 @@ function compartirServicios() { const d = _datosServicios(); compartirPDF("Lista
 
 // ===== Inicialización =====
 document.addEventListener("DOMContentLoaded", () => {
-  const compCod = _sv("sv-comp-cod");
-  if (compCod) compCod.addEventListener("blur", () => {
-    const cod = compCod.value.trim();
-    const p = DB.productos.find(x => x.codigo === cod && !esServicio(x));
-    if (p) _sv("sv-comp-cant").focus();
-    ocultarServicioCompResults();
-  });
   const man = _sv("sv-manoobra");
-  if (man) man.addEventListener("input", renderServicioComponentes);
+  if (man) man.addEventListener("input", () => recalcularServicioPrecio("costo"));
   const th = _sv("sv-tasa-hint");
   if (th) th.textContent = fmt(getTasa());
   renderServicios();

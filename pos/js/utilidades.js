@@ -15,6 +15,7 @@ function guardarParametros() {
   auditar("Parámetros actualizados", `Tasa BCV ${fmt(getTasa())} — IVA ${getIva()}%`);
   saveDB();
   recalcTotales();
+  if (typeof actualizarBadgeTasaBCV === "function") actualizarBadgeTasaBCV();
   renderInventario();
   actualizarResultadoPrecio();
   _g("pos-caja-label").textContent = DB.parametros.caja;

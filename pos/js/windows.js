@@ -142,7 +142,11 @@
       });
       if (btns.min) btns.min.onclick = e => { e.preventDefault(); e.stopPropagation(); toggleMinimize(name); };
       if (btns.max) btns.max.onclick = e => { e.preventDefault(); e.stopPropagation(); toggleMaximize(name); };
-      if (btns.close) btns.close.onclick = e => { e.preventDefault(); e.stopPropagation(); closeWindow(el.id); };
+      if (btns.close) btns.close.onclick = e => {
+        e.preventDefault(); e.stopPropagation();
+        if (el.id === "dashboard-window" && typeof logout === "function") { logout(); return; }
+        closeWindow(el.id);
+      };
       reg[name] = { el, title, ...btns };
       makeDraggable(el);
     });

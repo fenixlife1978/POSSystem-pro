@@ -40,6 +40,40 @@ html, body {
 .app-icon { font-size: 14px; }
 .title-text { font-size: 12px; }
 
+/* Widget interactivo Tasa BCV en la barra de título */
+.bcv-widget {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 3px;
+  padding: 1px 6px;
+  margin-right: 6px;
+  font-size: 11px;
+  color: #ffffff;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.bcv-widget:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: #ffffff;
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.4);
+}
+.bcv-title {
+  font-weight: normal;
+  opacity: 0.9;
+}
+.bcv-val {
+  font-weight: bold;
+  color: #ffeb3b;
+}
+.bcv-btn {
+  font-size: 10px;
+  margin-left: 2px;
+}
+
 .win-btn {
   width: 22px; height: 20px;
   background: linear-gradient(to bottom, #4a7bd6 0%, #2a5ab5 100%);

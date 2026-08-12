@@ -6,39 +6,3 @@
 }
 
 #servicios-list { max-height: 480px; overflow: auto; }
-
-#sv-comp-table { margin-top: 6px; max-height: 220px; overflow: auto; }
-
-.sv-resumen {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 8px;
-  padding: 8px 10px;
-  background: #fffbe6;
-  border: 1px solid #e8d88a;
-  font-size: 12px;
-  color: #6b5b00;
-}
-
-.sv-resumen b { color: #003399; }
-
-/* Búsqueda inteligente de componentes (por código, palabras clave o nombre) */
-#servicios-window .prov-results,
-#servicios-window .prov-result {
-  position: static;
-  display: block;
-  width: 100%;
-  padding: 4px 6px;
-  margin: 0;
-  cursor: pointer;
-  font-size: 12px;
-  background: #fff;
-  border: 1px solid #ddd;
-  border-top: none;
-  text-align: left;
-}
-#servicios-window .prov-result:hover { background: #dfe8ff; }
-#servicios-window .prov-results { display: none; border: 1px solid #888; max-height: 180px; overflow-y: auto; }
-#servicios-window .prov-results.show { display: block; }
-#servicios-window .prov-result .usd-sub { float: right; color: #555; font-size: 11px; }

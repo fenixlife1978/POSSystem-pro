@@ -192,4 +192,4 @@ body.role-admin .toolbar { display: none; }
 body.role-admin.admin-pos-view #admin-main { display: none; }
 body.role-admin.admin-pos-view .pos-content { display: grid; }
 body.role-admin.admin-pos-view .toolbar { display: grid; }
-body.role-admin.admin-pos-view #pos-window { height: auto; }
+body.role-admin.admin-pos-view #pos-window { height: calc(100vh - 24px); }
