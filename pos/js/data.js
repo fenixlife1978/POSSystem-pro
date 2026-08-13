@@ -406,6 +406,7 @@ function flushSaveDB() {
 }
 
 function normalizeDB() {
+  validarIntegridadDB();
   if (!DB.parametros) DB.parametros = { nombreEmpresa: "Mi Empresa, C.A.", rif: "", tasaBCV: 36.50, iva: 16, serie: "FACT", caja: "CAJA 01", cajero: "ADMIN", turno: 1 };
   if (!DB.parametros.categorias) DB.parametros.categorias = ["REPUESTOS", "LUBRICANTES", "BATERIAS", "FRENOS", "LLANTAS", "SERVICIOS", "GENERAL"];
   if (!DB.parametros.subcategorias) DB.parametros.subcategorias = ["FILTROS", "ACEITES", "BATERIAS", "FRENOS", "LLANTAS", "BUJIAS", "CORREAS", "SENSORES", "GENERAL"];
@@ -431,6 +432,17 @@ function normalizeDB() {
   if (!DB.cuentasPagar) DB.cuentasPagar = [];
   if (!DB.pagosPagar) DB.pagosPagar = [];
   if (!DB.cierresCaja) DB.cierresCaja = [];
+  // Colecciones que deben existir siempre (un archivo parcial no debe dejarlas undefined).
+  if (!DB.clientes) DB.clientes = [{ codigo: "000001", nombre: "CONSUMIDOR FINAL", rif: "V-00000000-0", direccion: "", telefono: "", email: "", tipo: "Contado", limite: 0, dias: 0, vendedor: "--- NINGUNO ---", saldo: 0, tipoPersona: "natural", representante: "" }];
+  if (!DB.productos) DB.productos = [];
+  if (!DB.cotizaciones) DB.cotizaciones = [];
+  if (!DB.compras) DB.compras = [];
+  if (!DB.proveedores) DB.proveedores = [];
+  if (!DB.movimientosCaja) DB.movimientosCaja = [];
+  if (!DB.servicios) DB.servicios = [];
+  if (!DB.categoriasReporte) DB.categoriasReporte = ["Ventas", "Compras", "Inventario", "Clientes", "Proveedores", "Caja y Bancos", "Productos", "Servicios"];
+  if (!DB.reportes) DB.reportes = ["Ventas del Día", "Ventas por Fecha", "Ventas por Cliente", "Ventas por Vendedor", "Ventas por Forma de Pago", "Ventas por Producto", "Ventas por Categoría", "Resumen de Ventas"];
+  if (!DB.carrito) DB.carrito = [];
   (DB.productos || []).forEach(p => {
     if (p.costoUSD === undefined || p.margenPct === undefined || p.precioUSD === undefined) {
       const tasa = getTasa();
@@ -459,6 +471,124 @@ function normalizeDB() {
   migrarCuentasUSD();
   DB.carrito = [];
   sincronizarCajaActiva();
+}
+
+// ---------------------------------------------------------------------------
+// VERIFICACIÓN DE INTEGRIDAD
+// Recorre el objeto DB y repara cualquier corrupción estructural (colecciones
+// que no son arreglos, claves faltantes, tipos inválidos). Devoluciones limpia
+// el snapshot de claves basura/extrañas, previniendo que un archivo parcial o
+// dañado rompa los módulos. Es idempotente y rápida.
+// ---------------------------------------------------------------------------
+function validarIntegridadDB() {
+  const reparados = [];
+
+  // Colecciones que deben ser siempre arreglos.
+  const arrays = [
+    "usuarios", "cajas", "clientes", "productos", "cotizaciones", "ordenesTaller",
+    "compras", "devoluciones", "proveedores", "maestroProveedores", "categoriasReporte",
+    "reportes", "movimientosCaja", "movimientosInv", "auditoria", "respaldos",
+    "carrito", "ventas", "libroDiario", "abonos", "cuentasCobrar", "cuentasPagar",
+    "pagosPagar", "cierresCaja", "servicios"
+  ];
+  arrays.forEach(k => {
+    if (DB[k] === undefined || DB[k] === null || typeof DB[k] !== "object" || !Array.isArray(DB[k])) {
+      DB[k] = [];
+      reparados.push(k);
+    }
+  });
+
+  // Objetos que deben existir siempre.
+  if (!DB.parametros || typeof DB.parametros !== "object" || Array.isArray(DB.parametros)) {
+    DB.parametros = { nombreEmpresa: "Mi Empresa, C.A.", rif: "", tasaBCV: 36.50, iva: 16, serie: "FACT", caja: "CAJA 01", cajero: "ADMIN", turno: 1 };
+    reparados.push("parametros");
+  }
+  if (!DB.caja || typeof DB.caja !== "object" || Array.isArray(DB.caja)) {
+    DB.caja = { estado: "cerrada", cajero: "ADMIN", apertura: null, cierre: null, fondoBs: 0, fondoUSD: 0 };
+    reparados.push("caja");
+  }
+
+  // clientes: si quedó vacío tras la reparación, sembrar el cliente genérico.
+  if (DB.clientes && DB.clientes.length === 0) {
+    DB.clientes.push({ codigo: "000001", nombre: "CONSUMIDOR FINAL", rif: "V-00000000-0", direccion: "", telefono: "", email: "", tipo: "Contado", limite: 0, dias: 0, vendedor: "--- NINGUNO ---", saldo: 0, tipoPersona: "natural", representante: "" });
+    reparados.push("clientes:sembrado");
+  }
+
+  // Limpieza de claves extrañas que puedan haberse colado (p.ej. "app", "ok" del traspaso de datos).
+  const validas = new Set(["parametros", "usuarios", "caja", "cajas", "clientes", "productos",
+    "cotizaciones", "ordenesTaller", "compras", "devoluciones", "proveedores", "maestroProveedores",
+    "categoriasReporte", "reportes", "movimientosCaja", "movimientosInv", "auditoria", "respaldos",
+    "carrito", "ventas", "libroDiario", "abonos", "cuentasCobrar", "cuentasPagar", "pagosPagar",
+    "cierresCaja", "servicios", "carrito"]);
+  Object.keys(DB).forEach(k => {
+    if (!validas.has(k)) { delete DB[k]; reparados.push("clave-extra:" + k); }
+  });
+
+  if (reparados.length) {
+    console.warn("[integridad] Reparado: " + reparados.join(", "));
+    return { reparados };
+  }
+  return { reparados };
+}
+
+// ---------------------------------------------------------------------------
+// PODA / LIMPIEZA DE DATOS
+// Controla el crecimiento de las colecciones de alta frecuencia. Configurable
+// por el usuario vía DB.parametros.poda (días de retención). Se ejecuta al
+// cargar la base. Devuelve las cantidades recortadas por colección.
+// ---------------------------------------------------------------------------
+function podaDatos(force) {
+  const cfg = DB.parametros.poda || {};
+  const dias = {
+    movimientosInv: Math.max(0, parseInt(cfg.movimientosInv, 10) || 0), // 0 = retener todo
+    movimientosCaja: Math.max(0, parseInt(cfg.movimientosCaja, 10) || 0),
+    ventas: Math.max(0, parseInt(cfg.ventas, 10) || 0),
+    abonos: Math.max(0, parseInt(cfg.abonos, 10) || 0),
+    pagosPagar: Math.max(0, parseInt(cfg.pagosPagar, 10) || 0),
+    libroDiario: Math.max(0, parseInt(cfg.libroDiario, 10) || 0)
+  };
+  let changed = false;
+  const cortados = {};
+
+  function cortar(array, campo, key, reteDias) {
+    if (!reteDias) return 0;
+    const corte = fechaKeyPoda(sumarDias(hoy(), -reteDias));
+    let n = 0;
+    for (let i = array.length - 1; i >= 0; i--) {
+      const f = fechaKey(array[i][campo]);
+      if (f && f < corte) { array.splice(i, 1); n++; changed = true; }
+    }
+    if (n) cortados[key] = n;
+    return n;
+  }
+
+  if (dias.movimientosInv) cortar(DB.movimientosInv, "fecha", "movimientosInv", dias.movimientosInv);
+  if (dias.movimientosCaja) cortar(DB.movimientosCaja, "fecha", "movimientosCaja", dias.movimientosCaja);
+  if (dias.ventas) cortar(DB.ventas, "fecha", "ventas", dias.ventas);
+  if (dias.abonos) cortar(DB.abonos, "fecha", "abonos", dias.abonos);
+  if (dias.pagosPagar) cortar(DB.pagosPagar, "fecha", "pagosPagar", dias.pagosPagar);
+  if (dias.libroDiario) cortar(DB.libroDiario, "fecha", "libroDiario", dias.libroDiario);
+
+  // Auditoría: tope duro (predeterminado 2000), evitando crecimiento infinito.
+  if (obtenerRetencionAuditoria() > 0 && DB.auditoria && DB.auditoria.length > obtenerRetencionAuditoria()) {
+    DB.auditoria.length = obtenerRetencionAuditoria();
+    changed = true;
+    cortados.auditoria = DB.auditoria.length;
+  }
+
+  if (changed) saveDB();
+  return cortados;
+}
+
+function obtenerRetencionAuditoria() {
+  const cfg = DB.parametros.poda || {};
+  return Math.max(0, parseInt(cfg.auditoria, 10) || 2000);
+}
+
+// Convierte DD/MM/AAAA a una clave comparable YYYYMMDD.
+function fechaKeyPoda(f) {
+  const p = String(f || "").split("/");
+  return p.length === 3 ? `${p[2] || ""}${p[1] || ""}${p[0] || ""}` : "";
 }
 
 // Migración única: convierte CxC/CxP, abonos y saldos de clientes guardados en Bs. a USD
@@ -513,17 +643,35 @@ function loadDB() {
     }
   } catch (e) { console.error("Error cargando espejo local:", e); }
   normalizeDB();
+  if (DB.parametros && DB.parametros.servidorRed) Storage.setServer(DB.parametros.servidorRed);
+  if (DB.parametros && DB.parametros.modoHibrido) Storage.setHybrid(true);
   const arranque = JSON.stringify(DB);
 
   // Fuente principal: IndexedDB. Si está vacía (primera vez) se siembra.
   Storage.load("db").then(saved => {
-    if (!saved || typeof saved !== "object") { flushSaveDB(); return; }
+    if (!saved || typeof saved !== "object") {
+      podaDatos();
+      flushSaveDB();
+      return;
+    }
     if (document.body.classList.contains("logged-in")) return; // no interrumpir sesión activa
     Object.keys(DB).forEach(k => delete DB[k]);
     Object.assign(DB, saved);
     normalizeDB();
+    podaDatos();
     if (JSON.stringify(DB) !== arranque && typeof window.__onDBLoaded === "function") {
       setTimeout(() => window.__onDBLoaded(), 0);
+    }
+    // En modo híbrido, pedir una sincronización con el servidor al arrancar.
+    if (typeof Storage.sync === "function" && Storage.hybridEnabled()) {
+      Storage.sync().then(r => {
+        if (r && r.merged && !document.body.classList.contains("logged-in")) {
+          Object.assign(DB, r.merged);
+          normalizeDB();
+          saveDB();
+          if (typeof window.__onDBLoaded === "function") window.__onDBLoaded();
+        }
+      });
     }
   }).catch(e => console.error("Error cargando IndexedDB:", e));
 

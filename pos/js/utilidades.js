@@ -32,6 +32,121 @@ function cargarConfig() {
   _g("cfg-cajero").value = DB.parametros.cajero || "";
   _g("cfg-turno").value = DB.parametros.turno || 1;
   cargarCajas();
+  cargarPanelDatos();
+}
+
+// ===== Datos y Almacenamiento: motor, poda, respaldo y servidor de red =====
+function cargarPanelDatos() {
+  if (_g("cfg-motor")) {
+    Storage.status().then(st => {
+      _g("cfg-motor").textContent = st.engine === "sqlite" ? `SQLite (${st.path || "local"})` : `IndexedDB (${st.engine})`;
+    }).catch(() => { _g("cfg-motor").textContent = "—"; });
+  }
+  const cfg = DB.parametros.poda || {};
+  if (_g("cfg-poda-inv")) _g("cfg-poda-inv").value = cfg.movimientosInv || 0;
+  if (_g("cfg-poda-caja")) _g("cfg-poda-caja").value = cfg.movimientosCaja || 0;
+  if (_g("cfg-poda-ventas")) _g("cfg-poda-ventas").value = cfg.ventas || 0;
+  if (_g("cfg-poda-auditoria")) _g("cfg-poda-auditoria").value = cfg.auditoria || 2000;
+  if (_g("cfg-red-servidor")) _g("cfg-red-servidor").value = DB.parametros.servidorRed || "";
+  if (_g("cfg-red-hibrido")) {
+    const h = (typeof Storage.hybridEnabled === "function") ? Storage.hybridEnabled() : !!DB.parametros.modoHibrido;
+    _g("cfg-red-hibrido").checked = h;
+  }
+  actualizarEstadoRed();
+  if (typeof _g === "function" && _g("cfg-red-ip") && window.desktop && window.desktop.net) {
+    window.desktop.net.status().then(st => {
+      if (st && st.running) _g("cfg-red-ip").value = `${window.location.hostname}`;
+    }).catch(() => {});
+  }
+}
+
+function guardarPoda() {
+  const poda = DB.parametros.poda || (DB.parametros.poda = {});
+  poda.movimientosInv = parseInt(_g("cfg-poda-inv").value, 10) || 0;
+  poda.movimientosCaja = parseInt(_g("cfg-poda-caja").value, 10) || 0;
+  poda.ventas = parseInt(_g("cfg-poda-ventas").value, 10) || 0;
+  poda.auditoria = parseInt(_g("cfg-poda-auditoria").value, 10) || 2000;
+  saveDB();
+  const cortados = podaDatos(true);
+  const resumen = Object.keys(cortados).length
+    ? "Se recortaron: " + Object.keys(cortados).map(k => `${k}: ${cortados[k]}`).join(", ")
+    : "No hubo datos que recortar.";
+  auditar("Poda de datos aplicada", resumen);
+  alert(resumen);
+}
+
+function crearRespaldo() {
+  Storage.backup("manual").then(r => {
+    if (r && r.ok) {
+      auditar("Respaldo manual creado", r.path || "");
+      alert("Respaldo creado en:\n" + (r.path || ""));
+    } else {
+      auditar("Intento de respaldo fallido", "");
+      alert("No se pudo crear el respaldo. " + (r && r.msg || ""));
+    }
+  });
+}
+
+function actualizarEstadoRed() {
+  // Si esta caja apunta a un servidor remoto, es una terminal cliente.
+  const ip = _g("cfg-red-servidor") ? _g("cfg-red-servidor").value.trim() : DB.parametros.servidorRed || "";
+  const hib = _g("cfg-red-hibrido") ? _g("cfg-red-hibrido").checked : (Storage.hybridEnabled ? Storage.hybridEnabled() : !!DB.parametros.modoHibrido);
+  if (ip && _g("cfg-red-st")) {
+    _g("cfg-red-st").textContent = hib ? "Cliente híbrido → " + ip : "Cliente → " + ip;
+    _g("cfg-red-status").textContent = "Verifique con 'Probar Conexión'";
+    return;
+  }
+  if (!_g("cfg-red-st")) return;
+  if (window.desktop && window.desktop.net) {
+    window.desktop.net.status().then(st => {
+      const stText = st.running ? "ACTIVO en :" + st.port : "APAGADO";
+      _g("cfg-red-st").textContent = "Servidor " + stText + (st.ip ? " · " + st.ip.join(", ") : "");
+    }).catch(() => { _g("cfg-red-st").textContent = "—"; });
+  } else {
+    _g("cfg-red-st").textContent = "Servidor solo disponible en escritorio (Electron)";
+  }
+}
+
+function probarServidor() {
+  const target = (_g("cfg-red-servidor") ? _g("cfg-red-servidor").value.trim() : "") || Storage.serverAddress() || "";
+  if (!target) { alert("Ingrese la IP LAN del servidor principal en 'Conectar esta caja al servidor'."); return; }
+  Storage.setServer(target);
+  if ((_g("cfg-red-hibrido") && _g("cfg-red-hibrido").checked) || Storage.hybridEnabled()) Storage.setHybrid(true);
+  Storage.status().then(st => {
+    const hib = Storage.hybridEnabled();
+    const ok = hib ? st.online !== false : (st.reachable !== false && st.ok !== false);
+    _g("cfg-red-status").textContent = ok ? "Conectado al servidor ✔" : "Sin conexión ✖";
+    alert(ok
+      ? "Conexión exitosa con el servidor.\nIP: " + target + "\nMotor: " + (hib ? "híbrido" : st.engine)
+      : (hib
+        ? "El servidor no responde ahora. Está en modo híbrido: seguirá operando offline y sincronizará al reconectar."
+        : "No se pudo contactar el servidor en " + target + ". Revise que esté activo, la IP y el firewall."));
+  }).catch(() => {
+    _g("cfg-red-status").textContent = "Sin conexión ✖";
+    if (Storage.hybridEnabled()) {
+      _g("cfg-red-status").textContent = "Sin conexión ✖ (híbrido activo)";
+      alert("El servidor no responde. En modo híbrido la caja seguirá operando offline y sincronizará al reconectar.");
+    } else {
+      alert("No se pudo contactar el servidor en " + target);
+    }
+  });
+}
+
+function toggleServidorRed() {
+  if (!window.desktop || !window.desktop.net) { alert("Servidor de red solo disponible en la versión de escritorio."); return; }
+  window.desktop.net.status().then(st => {
+    const cmd = st.running ? "stop" : "start";
+    const target = !st.running;
+    return window.desktop.net[cmd]().then(r => {
+      if (r && r.running === target) {
+        actualizarEstadoRed();
+        auditar("Servidor de red " + (target ? "activado" : "apagado"), "");
+        alert(target ? "Servidor activo. Los equipos de la red pueden abrir:\nhttp://" + (r.ip ? r.ip[0] : "ip-del-pc") + ":" + r.port : "Servidor apagado.");
+      } else {
+        alert("No se pudo cambiar el estado del servidor.");
+      }
+    });
+  }).catch(() => alert("No se pudo consultar el servidor de red."));
 }
 
 function guardarConfig() {
@@ -41,6 +156,10 @@ function guardarConfig() {
   DB.parametros.telefono = _g("cfg-tel").value.trim();
   DB.parametros.cajero = _g("cfg-cajero").value.trim() || "ADMIN";
   DB.parametros.turno = num(_g("cfg-turno").value) || 1;
+  DB.parametros.servidorRed = (_g("cfg-red-servidor") ? _g("cfg-red-servidor").value.trim() : "") || "";
+  if (typeof Storage.setServer === "function") Storage.setServer(DB.parametros.servidorRed);
+  DB.parametros.modoHibrido = !!(_g("cfg-red-hibrido") && _g("cfg-red-hibrido").checked);
+  if (typeof Storage.setHybrid === "function") Storage.setHybrid(DB.parametros.modoHibrido);
   auditar("Configuración actualizada", DB.parametros.nombreEmpresa);
   saveDB();
   sincronizarCajaActiva();

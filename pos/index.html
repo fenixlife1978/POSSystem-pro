@@ -1890,6 +1890,30 @@
       </table>
     </fieldset>
     <fieldset class="panel">
+      <legend>Datos y Almacenamiento</legend>
+      <table class="form-table">
+        <tr><td><label>Motor:</label></td><td><span id="cfg-motor" class="input-medium">—</span></td></tr>
+        <tr><td><label>Retener movimientos de inventario (días, 0=todo):</label></td><td><input type="text" inputmode="decimal" id="cfg-poda-inv" class="input-small"></td></tr>
+        <tr><td><label>Retener movimientos de caja (días, 0=todo):</label></td><td><input type="text" inputmode="decimal" id="cfg-poda-caja" class="input-small"></td></tr>
+        <tr><td><label>Retener ventas (días, 0=todo):</label></td><td><input type="text" inputmode="decimal" id="cfg-poda-ventas" class="input-small"></td></tr>
+        <tr><td><label>Máx. de registros de auditoría:</label></td><td><input type="text" inputmode="decimal" id="cfg-poda-auditoria" class="input-small"></td></tr>
+        <tr><td><label>IP para equipos en la red (si el servidor está activo):</label></td>
+            <td><input type="text" id="cfg-red-ip" class="input-medium" readonly></td></tr>
+        <tr><td><label>Conectar esta caja al servidor (dejar vacío en la principal):</label></td>
+            <td><input type="text" id="cfg-red-servidor" class="input-medium" placeholder="192.168.1.10"></td></tr>
+        <tr><td><label>Modo híbrido (operar offline y fusionar al reconectar):</label></td>
+            <td><input type="checkbox" id="cfg-red-hibrido" onchange="guardarConfig()"></td></tr>
+        <tr><td><label>Servidor de red (multi-terminal):</label></td><td><span id="cfg-red-st" class="input-medium">—</span></td></tr>
+        <tr><td><label>Estado de conexión:</label></td><td><span id="cfg-red-status" class="input-medium">—</span></td></tr>
+      </table>
+      <div class="pago-actions">
+        <button class="mod-btn" onclick="guardarPoda()">🗑 Aplicar Poda</button>
+        <button class="mod-btn" onclick="crearRespaldo()">💾 Crear Respaldo</button>
+        <button class="mod-btn" onclick="toggleServidorRed()">🌐 Activar Servidor</button>
+        <button class="mod-btn" onclick="probarServidor()">🔌 Probar Conexión</button>
+      </div>
+    </fieldset>
+    <fieldset class="panel">
       <legend>Gestor de Cajas — crear cajas y asignarlas a los cajeros</legend>
       <table class="grid">
         <thead><tr><th>Caja</th><th>Asignada a (Cajero)</th><th>Estado</th><th>Acciones</th></tr></thead>
@@ -2159,7 +2183,7 @@
   </div>
   <table class="grid full-grid">
     <thead>
-      <tr><th>Fecha</th><th>Concepto / Referencia</th><th>Método</th><th>Ingreso $</th><th>Egreso $</th><th>Acciones</th></tr>
+      <tr><th>Fecha</th><th>Concepto / Referencia</th><th>Método</th><th>Ingreso $</th><th>Egreso $</th></tr>
     </thead>
     <tbody id="cont-body"></tbody>
   </table>

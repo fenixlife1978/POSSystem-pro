@@ -196,21 +196,16 @@ function renderContabilidad() {
     const monedaCelda = e.tipo === "ingreso"
       ? `<td class="num" style="color:#16a34a;font-weight:bold">${fmtUS(e.montoUSD)}</td><td class="num">—</td>`
       : `<td class="num">—</td><td class="num" style="color:#dc2626;font-weight:bold">-${fmtUS(e.montoUSD)}</td>`;
-    const acciones =
-      `<button class="btn-mini" title="Ver detalle / Auditoría" onclick="contVerAsiento('${e.id}')">👁</button>` +
-      (e.referencia === "MANUAL"
-        ? `<button class="btn-mini" title="Eliminar asiento manual" onclick="contEliminarAsiento('${e.id}')">✕</button>` : "");
     return `<tr>
         <td>${e.fecha}<br><span class="usd-sub">${e.hora}</span></td>
         <td><b>${e.concepto}</b><br><span class="usd-sub">${e.categoria.replace(/_/g, " ")}${e.referencia !== "MANUAL" ? " · " + e.referencia : ""}</span></td>
         <td><span class="est-badge cont-metodo">${_escHtml(e.metodo)}</span></td>
         ${monedaCelda}
-        <td class="center">${acciones}</td>
       </tr>`;
   };
 
   _ct("cont-body").innerHTML = visibles.map(fila).join("") ||
-    `<tr><td colspan="6" style="text-align:center;color:#888;padding:28px">Sin movimientos en este periodo</td></tr>`;
+    `<tr><td colspan="5" style="text-align:center;color:#888;padding:28px">Sin movimientos en este periodo</td></tr>`;
 
   const totPages = Math.ceil(datos.length / CONT_PAGE_SIZE);
   _ct("cont-pag-label").textContent = `Página ${contPage} de ${(totPages || 1)} | Total ${datos.length} movimientos`;
