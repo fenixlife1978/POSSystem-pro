@@ -41,6 +41,8 @@ function claseEstado(estado) {
   return cls[estado] || "";
 }
 
+function etiquetaDebida(c) { return c && c.origen === "inicial" ? "INICIAL" : "NORMAL"; }
+
 // ---------------------------------------------------------------------------
 // CUENTAS POR COBRAR
 // ---------------------------------------------------------------------------
@@ -130,6 +132,7 @@ function filtrarCxCData() {
   const q = (_cp("cxc-search").value || "").toLowerCase();
   const est = _cp("cxc-estado").value;
   const soloVenc = _cp("cxc-vencidas").checked;
+  const soloIni = _cp("cxc-iniciales").checked;
   return DB.cuentasCobrar.filter(c => {
     if (q && !(String(c.nro || "").toLowerCase().includes(q) ||
       String(c.nombre || "").toLowerCase().includes(q) ||
@@ -137,6 +140,7 @@ function filtrarCxCData() {
     const e = estadoCuentaCXC(c);
     if (est !== "Todos" && e !== est) return false;
     if (soloVenc && e !== "Vencida") return false;
+    if (soloIni && c.origen !== "inicial") return false;
     return true;
   });
 }
@@ -167,7 +171,7 @@ function renderCxC() {
     body.innerHTML = datos.map(c => {
       const e = estadoCuentaCXC(c);
       return `<tr class="${cxcSel && cxcSel.id === c.id ? "selected" : ""} cursor" onclick="selectCxC('${c.id}', this)">
-        <td>${c.nro}</td><td>${c.fecha}</td><td>${c.vencimiento}</td><td>${c.nombre}</td>
+        <td>${c.origen === "inicial" ? '<span class="est-badge est-ini">INICIAL</span> ' : ""}${c.nro}</td><td>${c.fecha}</td><td>${c.vencimiento || (c.tipo === "abierta" ? "Abierta" : "")}</td><td>${c.nombre}</td>
         <td style="text-align:right">${mon(c.total)}</td><td style="text-align:right">${mon(c.pagado || 0)}</td>
         <td style="text-align:right"><b>${mon(c.saldo)}</b></td>
         <td><span class="est-badge ${claseEstado(e)}">${e}</span></td>
@@ -203,12 +207,12 @@ function selectCxC(id, row) {
     _cp("cxc-body").querySelectorAll("tr").forEach(tr => tr.classList.remove("selected"));
     row.classList.add("selected");
   }
-  _cp("cxc-fact-info").textContent = `Factura ${c.nro} — ${c.fecha} (venc. ${c.vencimiento}) — ${c.nombre}`;
+  _cp("cxc-fact-info").textContent = `Factura ${c.nro} — ${c.fecha} (venc. ${c.vencimiento || (c.tipo === "abierta" ? "Abierta" : "—")}) — ${c.nombre}${c.origen === "inicial" ? ` — DEUDA INICIAL${c.motivo ? `: ${c.motivo}` : ""}` : ""}`;
   _cp("cxc-items-total").textContent = saldoDual(c.total);
-  _cp("cxc-items-body").innerHTML = (c.lineas || []).map(l =>
+  _cp("cxc-items-body").innerHTML = (c.lineas && c.lineas.length) ? (c.lineas.map(l =>
     `<tr><td>${l.codigo}</td><td>${l.descripcion}</td><td style="text-align:right">${fmt(l.cantidad)}</td>
-     <td style="text-align:right">${fmt(l.precio)}</td><td style="text-align:right">${fmt(l.total)}</td></tr>`).join("") ||
-    `<tr><td colspan="5" style="text-align:center;color:#888">Sin detalle de ítems</td></tr>`;
+     <td style="text-align:right">${fmt(l.precio)}</td><td style="text-align:right">${fmt(l.total)}</td></tr>`).join("")) :
+    `<tr><td colspan="5" style="text-align:center;color:#888">${c.origen === "inicial" ? "Deuda inicial / antigua — sin detalle de ítems" : "Sin detalle de ítems"}</td></tr>`;
 
   renderAbonosCliente(c.nombre);
 }
@@ -291,21 +295,21 @@ function imprimirCxC() {
   const resumen = _cp("cxc-vista").value === "resumen";
   const datos = resumen ? [] : filtrarCxCData();
   imprimirHTML("Cuentas por Cobrar", ["N° Factura", "Fecha", "Vencimiento", "Cliente", "Total $", "Pagado $", "Saldo $", "Estado"],
-    datos.map(c => [c.nro, c.fecha, c.vencimiento, c.nombre, fmtUS(c.total), fmtUS(c.pagado || 0), fmtUS(c.saldo), estadoCuentaCXC(c)]));
+    datos.map(c => [c.nro, c.fecha, c.vencimiento || (c.tipo === "abierta" ? "Abierta" : ""), (c.origen === "inicial" ? "[INICIAL] " : "") + c.nombre, fmtUS(c.total), fmtUS(c.pagado || 0), fmtUS(c.saldo), estadoCuentaCXC(c)]));
 }
 
 function exportarCxC() {
   const datos = filtrarCxCData();
-  exportarCSV("Cuentas por Cobrar", ["N° Factura", "Fecha", "Vencimiento", "Cliente", "RIF", "Total $", "Total Bs.", "Pagado $", "Saldo $", "Estado"],
-    datos.map(c => [c.nro, c.fecha, c.vencimiento, c.nombre, c.rif, fmt(c.total), fmt(c.totalBs !== undefined ? c.totalBs : bsDeUsd(c.total)), fmt(c.pagado || 0), fmt(c.saldo), estadoCuentaCXC(c)]));
+  exportarCSV("Cuentas por Cobrar", ["N° Factura", "Fecha", "Vencimiento", "Cliente", "RIF", "Tipo", "Total $", "Total Bs.", "Pagado $", "Saldo $", "Estado"],
+    datos.map(c => [c.nro, c.fecha, c.vencimiento || (c.tipo === "abierta" ? "Abierta" : ""), c.nombre, c.rif, etiquetaDebida(c), fmt(c.total), fmt(c.totalBs !== undefined ? c.totalBs : bsDeUsd(c.total)), fmt(c.pagado || 0), fmt(c.saldo), estadoCuentaCXC(c)]));
 }
 
 function _datosCxC() {
   const resumen = _cp("cxc-vista").value === "resumen";
   const datos = resumen ? [] : filtrarCxCData();
   return {
-    headers: ["N° Factura", "Fecha", "Vencimiento", "Cliente", "Total $", "Pagado $", "Saldo $", "Estado"],
-    rows: datos.map(c => [c.nro, c.fecha, c.vencimiento, c.nombre, fmtUS(c.total), fmtUS(c.pagado || 0), fmtUS(c.saldo), estadoCuentaCXC(c)])
+    headers: ["N° Factura", "Fecha", "Vencimiento", "Cliente", "Tipo", "Total $", "Pagado $", "Saldo $", "Estado"],
+    rows: datos.map(c => [c.nro, c.fecha, c.vencimiento || (c.tipo === "abierta" ? "Abierta" : ""), c.nombre, etiquetaDebida(c), fmtUS(c.total), fmtUS(c.pagado || 0), fmtUS(c.saldo), estadoCuentaCXC(c)])
   };
 }
 function exportarPDFCxC() { const d = _datosCxC(); exportarPDF("Cuentas por Cobrar", d.headers, d.rows); }
@@ -331,7 +335,7 @@ function sincronizarCxP() {
         const toUsd = b => (tasa > 0 ? num(b) / tasa : usdDeBs(b));
         DB.cuentasPagar.unshift({
           nro: c.nro, fecha: c.fecha, vencimiento: sumarDias(c.fecha, dias),
-          proveedor: c.proveedor, tasa: r2(tasa),
+          proveedor: c.proveedor, nroFactura: c.nroFactura || "", tasa: r2(tasa),
           total: num(c.totalUSDBcv) || r2(toUsd(totalBs)),
           totalBs: r2(totalBs),
           pagado: num(c.pagadoUSDBcv) || r2(toUsd(pagadoBs)),
@@ -350,11 +354,13 @@ function sincronizarCxP() {
 function filtrarCxPData() {
   const q = (_cp("cxp-search").value || "").toLowerCase();
   const est = _cp("cxp-estado").value;
+  const soloIni = _cp("cxp-iniciales").checked;
   return DB.cuentasPagar.filter(c => {
     if (q && !(String(c.nro || "").toLowerCase().includes(q) ||
       String(c.proveedor || "").toLowerCase().includes(q))) return false;
     const e = estadoCuentaCXP(c);
     if (est !== "Todos" && e !== est) return false;
+    if (soloIni && c.origen !== "inicial") return false;
     return true;
   });
 }
@@ -366,7 +372,7 @@ function renderCxP() {
   _cp("cxp-body").innerHTML = datos.map(c => {
     const e = estadoCuentaCXP(c);
     return `<tr class="${cxpSel && cxpSel.nro === c.nro ? "selected" : ""} cursor" onclick="selectCxP('${c.nro}', this)">
-      <td>${c.nro}</td><td>${c.fecha}</td><td>${c.proveedor}</td>
+      <td>${c.origen === "inicial" ? '<span class="est-badge est-ini">INICIAL</span> ' : ""}${c.nro}</td><td>${c.fecha}</td><td>${c.proveedor}</td>
       <td style="text-align:right">${mon(c.total)}</td><td style="text-align:right">${mon(c.pagado || 0)}</td>
       <td style="text-align:right"><b>${mon(c.saldo)}</b></td>
       <td><span class="est-badge ${claseEstado(e)}">${e}</span></td>
@@ -395,12 +401,12 @@ function selectCxP(nro, row) {
     _cp("cxp-body").querySelectorAll("tr").forEach(tr => tr.classList.remove("selected"));
     row.classList.add("selected");
   }
-  _cp("cxp-comp-info").textContent = `Compra ${c.nro} — ${c.fecha} (venc. ${c.vencimiento}) — ${c.proveedor}`;
+  _cp("cxp-comp-info").textContent = `Compra ${c.nro} — ${c.fecha} (venc. ${c.vencimiento || (c.tipo === "abierta" ? "Abierta" : "—")}) — ${c.proveedor}${c.origen === "inicial" ? ` — DEUDA INICIAL${c.motivo ? `: ${c.motivo}` : ""}` : ""}`;
   _cp("cxp-comp-total").textContent = saldoDual(c.total);
-  _cp("cxp-items-body").innerHTML = (c.lineas || []).map(l =>
+  _cp("cxp-items-body").innerHTML = (c.lineas && c.lineas.length) ? (c.lineas.map(l =>
     `<tr><td>${l.codigo}</td><td>${l.descripcion}</td><td style="text-align:right">${fmt(l.cantidad)}</td>
-     <td style="text-align:right">${fmt(l.costo)}</td><td style="text-align:right">${fmt(l.total)}</td></tr>`).join("") ||
-    `<tr><td colspan="5" style="text-align:center;color:#888">Sin detalle de ítems</td></tr>`;
+     <td style="text-align:right">${fmt(l.costo)}</td><td style="text-align:right">${fmt(l.total)}</td></tr>`).join("")) :
+    `<tr><td colspan="5" style="text-align:center;color:#888">${c.origen === "inicial" ? "Deuda inicial / antigua — sin detalle de ítems" : "Sin detalle de ítems"}</td></tr>`;
   renderPagosProveedor(c.proveedor);
 }
 
@@ -515,24 +521,142 @@ function cerrarPagoCxP() { closeWindow("cxp-pago-window"); }
 function imprimirCxP() {
   const datos = filtrarCxPData();
   imprimirHTML("Cuentas por Pagar", ["N° Compra", "Fecha", "Proveedor", "Total $", "Pagado $", "Saldo $", "Estado"],
-    datos.map(c => [c.nro, c.fecha, c.proveedor, fmtUS(c.total), fmtUS(c.pagado || 0), fmtUS(c.saldo), estadoCuentaCXP(c)]));
+    datos.map(c => [c.nro, c.fecha, (c.origen === "inicial" ? "[INICIAL] " : "") + c.proveedor, fmtUS(c.total), fmtUS(c.pagado || 0), fmtUS(c.saldo), estadoCuentaCXP(c)]));
 }
 
 function exportarCxP() {
   const datos = filtrarCxPData();
-  exportarCSV("Cuentas por Pagar", ["N° Compra", "Fecha", "Vencimiento", "Proveedor", "Total $", "Total Bs.", "Pagado $", "Saldo $", "Estado"],
-    datos.map(c => [c.nro, c.fecha, c.vencimiento, c.proveedor, fmt(c.total), fmt(c.totalBs !== undefined ? c.totalBs : bsDeUsd(c.total)), fmt(c.pagado || 0), fmt(c.saldo), estadoCuentaCXP(c)]));
+  exportarCSV("Cuentas por Pagar", ["N° Compra", "Fecha", "Vencimiento", "Proveedor", "Tipo", "Total $", "Total Bs.", "Pagado $", "Saldo $", "Estado"],
+    datos.map(c => [c.nro, c.fecha, c.vencimiento || (c.tipo === "abierta" ? "Abierta" : ""), c.proveedor, etiquetaDebida(c), fmt(c.total), fmt(c.totalBs !== undefined ? c.totalBs : bsDeUsd(c.total)), fmt(c.pagado || 0), fmt(c.saldo), estadoCuentaCXP(c)]));
 }
 
 function _datosCxP() {
   const datos = filtrarCxPData();
   return {
-    headers: ["N° Compra", "Fecha", "Proveedor", "Total $", "Pagado $", "Saldo $", "Estado"],
-    rows: datos.map(c => [c.nro, c.fecha, c.proveedor, fmtUS(c.total), fmtUS(c.pagado || 0), fmtUS(c.saldo), estadoCuentaCXP(c)])
+    headers: ["N° Compra", "Fecha", "Proveedor", "Tipo", "Total $", "Pagado $", "Saldo $", "Estado"],
+    rows: datos.map(c => [c.nro, c.fecha, c.proveedor, etiquetaDebida(c), fmtUS(c.total), fmtUS(c.pagado || 0), fmtUS(c.saldo), estadoCuentaCXP(c)])
   };
 }
 function exportarPDFCxP() { const d = _datosCxP(); exportarPDF("Cuentas por Pagar", d.headers, d.rows); }
 function compartirCxP() { const d = _datosCxP(); compartirPDF("Cuentas por Pagar", d.headers, d.rows); }
+
+// ---------------------------------------------------------------------------
+// DEUDA INICIAL POR PAGAR (PROVEEDOR) Y POR COBRAR (CLIENTE)
+// ---------------------------------------------------------------------------
+function _dinSeq() { return Date.now().toString().slice(-6); }
+function genNroDin() { return _dinSeq(); }
+function genNroDinPagar() { return _dinSeq(); }
+
+function toggleTipoDeudaInicialProv() {
+  const abierta = document.getElementById("prov-ded-tipo").value === "abierta";
+  const fila = document.getElementById("prov-ded-fila-venc");
+  if (fila) fila.style.display = abierta ? "none" : "";
+  if (abierta) { const v = document.getElementById("prov-ded-vencimiento"); if (v) v.value = ""; }
+}
+function equivDeudaInicialProv() {
+  const el = document.getElementById("prov-ded-monto-usd");
+  const v = el ? num(document.getElementById("prov-ded-monto").value) : 0;
+  if (el) el.textContent = v > 0 ? `Bs. ${fmtVE(num(v) * getTasa(), 2)}` : "";
+}
+function abrirDeudaInicialProveedor() {
+  const prov = proveedoresMaestros().find(x => x.codigo === document.getElementById("prov-cod").value.trim());
+  if (!prov) { alert("Seleccione o guarde primero un proveedor."); return; }
+  document.getElementById("prov-ded-proveedor").value = prov.nombre;
+  document.getElementById("prov-ded-fecha").value = hoy();
+  document.getElementById("prov-ded-monto").value = "";
+  document.getElementById("prov-ded-tipo").value = "vencimiento";
+  document.getElementById("prov-ded-vencimiento").value = "";
+  document.getElementById("prov-ded-motivo").value = "";
+  toggleTipoDeudaInicialProv();
+  equivDeudaInicialProv();
+  openModuleWindow("prov-deuda");
+}
+function cerrarDeudaInicialProveedor() { closeWindow("prov-deuda-window"); }
+function guardarDeudaInicialProveedor() {
+  const nombre = document.getElementById("prov-ded-proveedor").value.trim();
+  const proveedor = DB.maestroProveedores.find(p => p.nombre === nombre);
+  if (!proveedor) { alert("Seleccione un proveedor válido."); return; }
+  const fecha = document.getElementById("prov-ded-fecha").value.trim() || hoy();
+  const monto = num(document.getElementById("prov-ded-monto").value);
+  if (monto <= 0) { alert("Ingrese el monto (en USD) de la deuda."); return; }
+  const tipo = document.getElementById("prov-ded-tipo").value;
+  const vencimiento = tipo === "vencimiento" ? document.getElementById("prov-ded-vencimiento").value.trim() : "";
+  const motivo = document.getElementById("prov-ded-motivo").value.trim() || "Deuda inicial";
+  if (tipo === "vencimiento" && !vencimiento) { alert("Indique la fecha de vencimiento o elija Deuda Abierta."); return; }
+
+  DB.cuentasPagar.unshift({
+    origen: "inicial",
+    nro: genNroDinPagar(),
+    fecha, vencimiento, tipo, motivo,
+    proveedor: nombre, rif: proveedor.rif || "",
+    tasa: r2(getTasa()), total: r2(monto), totalBs: r2(bsDeUsd(monto)),
+    pagado: 0, saldo: r2(monto), estado: "Pendiente", lineas: []
+  });
+  auditar("Deuda inicial por pagar", `${nombre} — ${fmtUS(monto)} (${motivo})`);
+  saveDB();
+  renderCxP();
+  renderDeudasProveedor(nombre);
+  closeWindow("prov-deuda-window");
+  alert(`DEUDA INICIAL REGISTRADA\nProveedor: ${nombre}\nMonto: ${fmtUS(monto)} (${fmtBsEq(monto)})\nTipo: ${tipo === "abierta" ? "Deuda Abierta" : "Vencimiento " + vencimiento}`);
+}
+
+// ---------------------------------------------------------------------------
+// DEUDA INICIAL POR COBRAR (CLIENTE)
+// ---------------------------------------------------------------------------
+function toggleTipoDeudaInicialCli() {
+  const abierta = document.getElementById("cli-ded-tipo").value === "abierta";
+  const fila = document.getElementById("cli-ded-fila-venc");
+  if (fila) fila.style.display = abierta ? "none" : "";
+  if (abierta) { const v = document.getElementById("cli-ded-vencimiento"); if (v) v.value = ""; }
+}
+function equivDeudaInicialCli() {
+  const el = document.getElementById("cli-ded-monto-usd");
+  const v = el ? num(document.getElementById("cli-ded-monto").value) : 0;
+  if (el) el.textContent = v > 0 ? `Bs. ${fmtVE(num(v) * getTasa(), 2)}` : "";
+}
+function abrirDeudaInicialCliente() {
+  const cli = DB.clientes.find(x => x.codigo === document.getElementById("cli-cod").value.trim());
+  if (!cli) { alert("Seleccione o guarde primero un cliente."); return; }
+  document.getElementById("cli-ded-cliente").value = cli.nombre;
+  document.getElementById("cli-ded-fecha").value = hoy();
+  document.getElementById("cli-ded-monto").value = "";
+  document.getElementById("cli-ded-tipo").value = "vencimiento";
+  document.getElementById("cli-ded-vencimiento").value = "";
+  document.getElementById("cli-ded-motivo").value = "";
+  toggleTipoDeudaInicialCli();
+  equivDeudaInicialCli();
+  openModuleWindow("cli-deuda");
+}
+function cerrarDeudaInicialCliente() { closeWindow("cli-deuda-window"); }
+function guardarDeudaInicialCliente() {
+  const nombre = document.getElementById("cli-ded-cliente").value.trim();
+  const cli = DB.clientes.find(c => c.nombre === nombre);
+  if (!cli) { alert("Seleccione un cliente válido."); return; }
+  const fecha = document.getElementById("cli-ded-fecha").value.trim() || hoy();
+  const monto = num(document.getElementById("cli-ded-monto").value);
+  if (monto <= 0) { alert("Ingrese el monto (en USD) de la deuda."); return; }
+  const tipo = document.getElementById("cli-ded-tipo").value;
+  const vencimiento = tipo === "vencimiento" ? document.getElementById("cli-ded-vencimiento").value.trim() : "";
+  const motivo = document.getElementById("cli-ded-motivo").value.trim() || "Deuda inicial";
+  if (tipo === "vencimiento" && !vencimiento) { alert("Indique la fecha de vencimiento o elija Deuda Abierta."); return; }
+
+  DB.cuentasCobrar.unshift({
+    origen: "inicial",
+    id: "DIN" + genNroDin(),
+    nro: "DIN" + genNroDin(),
+    fecha, vencimiento, tipo, motivo,
+    codigo: cli.codigo, nombre, rif: cli.rif || "",
+    tasa: r2(getTasa()), total: r2(monto), totalBs: r2(bsDeUsd(monto)),
+    pagado: 0, saldo: r2(monto), estado: "Pendiente", lineas: []
+  });
+  cli.saldo = r2((cli.saldo || 0) + monto);
+  auditar("Deuda inicial por cobrar", `${nombre} — ${fmtUS(monto)} (${motivo})`);
+  saveDB();
+  if (typeof renderClientes === "function") renderClientes();
+  renderCxC();
+  closeWindow("cli-deuda-window");
+  alert(`DEUDA INICIAL REGISTRADA\nCliente: ${nombre}\nMonto: ${fmtUS(monto)} (${fmtBsEq(monto)})\nTipo: ${tipo === "abierta" ? "Deuda Abierta" : "Vencimiento " + vencimiento}`);
+}
 
 // ---------------------------------------------------------------------------
 document.addEventListener("DOMContentLoaded", () => {

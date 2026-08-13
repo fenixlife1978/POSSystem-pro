@@ -230,6 +230,131 @@ function _datosClientes() {
 function exportarPDFClientes() { const d = _datosClientes(); exportarPDF("Listado de Clientes", d.headers, d.rows); }
 function compartirClientes() { const d = _datosClientes(); compartirPDF("Listado de Clientes", d.headers, d.rows); }
 
+// ===== PROVEEDORES =====
+function proveedoresMaestros() { if (!DB.maestroProveedores) DB.maestroProveedores = []; return DB.maestroProveedores; }
+
+function renderProveedores() {
+  const body = $("proveedores-body");
+  if (!body) return;
+  body.innerHTML = proveedoresMaestros().map(p =>
+    `<tr onclick="selectProveedorMaestro('${p.codigo}')"><td>${p.codigo}</td><td>${p.nombre}</td><td>${p.rif || ""}</td></tr>`
+  ).join("");
+  if (proveedoresMaestros().length) selectProveedorMaestro(proveedoresMaestros()[0].codigo);
+}
+
+function selectProveedorMaestro(cod) {
+  const p = proveedoresMaestros().find(x => x.codigo === cod);
+  if (!p) return;
+  $("prov-cod").value = p.codigo || "";
+  $("prov-rif").value = p.rif || "";
+  $("prov-nombre").value = p.nombre || "";
+  $("prov-dir").value = p.direccion || "";
+  $("prov-tel").value = p.telefono || "";
+  $("prov-email").value = p.email || "";
+  $("prov-contacto").value = p.contacto || "";
+  $("prov-obs").value = p.observaciones || "";
+  document.querySelectorAll("#proveedores-body tr").forEach(tr => tr.classList.remove("selected"));
+  document.querySelectorAll("#proveedores-body tr").forEach(tr => { if (tr.cells[0].textContent === cod) tr.classList.add("selected"); });
+  renderDeudasProveedor(p.nombre);
+}
+
+function renderDeudasProveedor(nombre) {
+  const body = $("prov-deudas-body");
+  if (!body) return;
+  const deudas = (DB.cuentasPagar || []).filter(c => c.proveedor === nombre && c.origen === "inicial");
+  body.innerHTML = deudas.map(c =>
+    `<tr><td>${c.nro}</td><td>${c.fecha}</td><td>${c.vencimiento || "Abierta"}</td>
+     <td style="text-align:right">${fmtUS(c.saldo)}<br><span class="usd-sub">${fmtBsEq(c.saldo)}</span></td>
+     <td><span class="est-badge ${claseEstado(estadoCuentaCXP(c))}">${estadoCuentaCXP(c)}</span></td></tr>`
+  ).join("") || `<tr><td colspan="5" style="text-align:center;color:#888">Sin deudas iniciales</td></tr>`;
+}
+
+function nuevoProveedor() {
+  selectProveedorMaestroNoRender({ codigo: genNro(proveedoresMaestros(), "codigo", "", 6), nombre: "", rif: "", direccion: "", telefono: "", email: "", contacto: "", observaciones: "" });
+  document.querySelectorAll("#proveedores-body tr").forEach(tr => tr.classList.remove("selected"));
+  $("prov-nombre").focus();
+}
+
+function selectProveedorMaestroNoRender(p) {
+  $("prov-cod").value = p.codigo || "";
+  $("prov-rif").value = p.rif || "";
+  $("prov-nombre").value = p.nombre || "";
+  $("prov-dir").value = p.direccion || "";
+  $("prov-tel").value = p.telefono || "";
+  $("prov-email").value = p.email || "";
+  $("prov-contacto").value = p.contacto || "";
+  $("prov-obs").value = p.observaciones || "";
+}
+
+function leerProveedorMaestroForm() {
+  const nombre = $("prov-nombre").value.trim();
+  return {
+    codigo: $("prov-cod").value.trim(),
+    rif: $("prov-rif").value.trim(),
+    nombre,
+    direccion: $("prov-dir").value.trim(),
+    telefono: $("prov-tel").value.trim(),
+    email: $("prov-email").value.trim(),
+    contacto: $("prov-contacto").value.trim(),
+    observaciones: $("prov-obs").value.trim()
+  };
+}
+
+function guardarProveedorMaestro() {
+  const p = leerProveedorMaestroForm();
+  if (!p.codigo || !p.nombre) { alert("Ingrese al menos el código y el nombre/razón social del proveedor"); return; }
+  const arr = proveedoresMaestros();
+  const idx = arr.findIndex(x => x.codigo === p.codigo);
+  if (idx >= 0) arr[idx] = p; else arr.push(p);
+  // Mantiene sincronizado el listado plano (usado por Compras) con el nombre del proveedor
+  if (!DB.proveedores) DB.proveedores = [];
+  if (!DB.proveedores.some(n => String(n).toLowerCase() === p.nombre.toLowerCase())) DB.proveedores.push(p.nombre);
+  renderProveedores();
+  auditar(idx >= 0 ? "Proveedor actualizado" : "Proveedor creado", `${p.codigo} — ${p.nombre} (${p.rif})`);
+  saveDB();
+  selectProveedorMaestro(p.codigo);
+  alert(idx >= 0 ? "Cambios guardados con éxito." : "Proveedor guardado con éxito.");
+}
+
+function eliminarProveedorMaestro() {
+  if (typeof rolPuedeModulo === "function" && !rolPuedeModulo("proveedores-eliminar")) { alert("No tiene permisos para eliminar proveedores."); return; }
+  const cod = $("prov-cod").value.trim();
+  if (!cod) return;
+  if (!confirm(`¿Eliminar el proveedor ${cod}?`)) return;
+  DB.maestroProveedores = DB.maestroProveedores.filter(x => x.codigo !== cod);
+  renderProveedores();
+  auditar("Proveedor eliminado", cod);
+  saveDB();
+  if (DB.maestroProveedores.length) selectProveedorMaestro(DB.maestroProveedores[0].codigo);
+  else nuevoProveedor();
+}
+
+function buscarProveedorMaestro() {
+  const q = $("proveedores-search").value.trim().toLowerCase();
+  const rows = proveedoresMaestros().filter(p =>
+    !q || String(p.nombre || "").toLowerCase().includes(q) ||
+    String(p.rif || "").toLowerCase().includes(q) ||
+    String(p.telefono || "").toLowerCase().includes(q)
+  );
+  $("proveedores-body").innerHTML = rows.map(p =>
+    `<tr onclick="selectProveedorMaestro('${p.codigo}')"><td>${p.codigo}</td><td>${p.nombre}</td><td>${p.rif || ""}</td></tr>`
+  ).join("") || `<tr><td colspan="3" style="text-align:center;color:#888">Sin resultados</td></tr>`;
+}
+
+function imprimirProveedores() {
+  if (typeof rolPuedeModulo === "function" && !rolPuedeModulo("proveedores-imprimir")) { alert("No tiene permisos para imprimir el listado de proveedores."); return; }
+  imprimirHTML("Listado de Proveedores", ["Código", "Nombre", "RIF", "Teléfono", "Correo"], DB.maestroProveedores.map(p => [p.codigo, p.nombre, p.rif, p.telefono, p.email]));
+}
+function exportarProveedores() {
+  if (typeof rolPuedeModulo === "function" && !rolPuedeModulo("proveedores-exportar")) { alert("No tiene permisos para exportar proveedores."); return; }
+  exportarCSV("proveedores", ["Codigo", "Nombre", "RIF", "Telefono", "Correo"], DB.maestroProveedores.map(p => [p.codigo, p.nombre, p.rif, p.telefono, p.email]));
+}
+function _datosProveedores() {
+  return { headers: ["Código", "Nombre", "RIF", "Teléfono", "Correo"], rows: DB.maestroProveedores.map(p => [p.codigo, p.nombre, p.rif, p.telefono, p.email]) };
+}
+function exportarPDFProveedores() { const d = _datosProveedores(); exportarPDF("Listado de Proveedores", d.headers, d.rows); }
+function compartirProveedores() { const d = _datosProveedores(); compartirPDF("Listado de Proveedores", d.headers, d.rows); }
+
 // ===== PRODUCTOS =====
 function renderProductos() {
   const body = $("productos-body");
@@ -1153,7 +1278,7 @@ function renderCompras() {
     const cls = c.estatus === "Pendiente" ? "selected" : "";
     const tipo = c.tipo || "Contado";
     return `<tr class="${cls}" onclick="selectCompra('${c.nro}', this)">
-      <td>${c.nro}</td><td>${c.fecha}</td><td>${c.proveedor}</td>
+      <td>${c.nro}</td><td>${c.nroFactura || "—"}</td><td>${c.fecha}</td><td>${c.proveedor}</td>
       <td style="text-align:right">${fmt(c.total)}</td><td>${tipo}</td>
       <td style="text-align:right">${fmt(c.pagado || 0)}</td>
       <td style="text-align:right">${fmt(c.pendiente !== undefined ? c.pendiente : c.total - (c.pagado || 0))}</td>
@@ -1167,7 +1292,7 @@ function filtrarComprasData() {
   const q = ($("compra-search").value || "").trim().toLowerCase();
   const est = $("compra-estado").value;
   return DB.compras.filter(c =>
-    (!q || c.nro.includes(q) || c.proveedor.toLowerCase().includes(q)) &&
+    (!q || c.nro.includes(q) || c.proveedor.toLowerCase().includes(q) || (c.nroFactura || "").toLowerCase().includes(q)) &&
     (est === "Todos" || c.estatus === est)
   );
 }
@@ -1203,7 +1328,7 @@ function selectCompra(nro, row) {
   const totalBcv = num(c.totalUSDBcv) || (bcv > 0 ? totalBs / bcv : 0);
   const pendUSD = num(c.pendienteUSD) || (bcv > 0 ? pendiente / bcv : 0);
   $("compra-detail-info").innerHTML =
-    `<div><b>${c.nro}</b> — ${c.fecha} — <b>${c.proveedor}</b></div>` +
+    `<div><b>${c.nro}</b> — ${c.fecha} — <b>${c.proveedor}</b>${c.nroFactura ? ` · Factura Prov.: <b>${c.nroFactura}</b>` : ""}</div>` +
     `<div>Tipo: ${tipo}${(tipo === "Credito" || tipo === "Mixto") && c.diasCredito ? ` · Días de crédito: ${c.diasCredito}` : ""}${pagos ? ` · Pagos: ${pagos}` : ""}${c.observaciones ? ` · Obs.: ${c.observaciones}` : ""}</div>` +
     `<div>Factura: USD Prov. <b>${fmtComp(totalProv)} $</b> · USD BCV <b>${fmtComp(totalBcv)} $</b> · Bs. <b>${fmtComp(totalBs)}</b></div>` +
     `<div>Crédito pendiente: USD <b>${fmtComp(pendUSD)} $</b> (Bs. ${fmtComp(pendiente)})</div>`;
@@ -1222,6 +1347,7 @@ function nuevaCompra() {
   $("comp-n-nro").value = genNro(DB.compras, "nro", "", 7);
   $("comp-n-fecha").value = hoy();
   $("comp-n-proveedor").value = "";
+  $("comp-n-factura").value = "";
   ocultarSugerenciasProveedor();
   $("comp-n-obs").value = "";
   $("comp-n-tasa-bcv").value = getTasa().toFixed(2).replace(".", ",");
@@ -1539,6 +1665,7 @@ function guardarCompra() {
     nro: $("comp-n-nro").value,
     fecha: $("comp-n-fecha").value,
     proveedor,
+    nroFactura: $("comp-n-factura").value.trim(),
     observaciones: $("comp-n-obs").value,
     cost_supplier_currency: monedaCompraActual(),
     purchase_rate_type: monedaCompraActual(),
@@ -2087,6 +2214,7 @@ function compartirReporte() {
 // ===== Inicialización =====
 document.addEventListener("DOMContentLoaded", () => {
   renderClientes();
+  renderProveedores();
   renderProductos();
   renderCotizaciones();
   renderCompras();

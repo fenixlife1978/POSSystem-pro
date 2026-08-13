@@ -140,6 +140,7 @@
         <button class="menu-command" data-perm="cotizaciones" onclick="openModule('cotizaciones')">Cotizaciones</button>
         <button class="menu-command" data-perm="devoluciones" onclick="nuevaDevolucion()">Devoluciones</button>
         <button class="menu-command" data-perm="compras" onclick="openModule('compras')">Compras</button>
+        <button class="menu-command" data-perm="proveedores" onclick="openModule('proveedores')">Proveedores</button>
         <button class="menu-command" data-perm="inventario" onclick="openModule('inventario')">Inventario</button>
         <div class="menu-sep"></div>
         <button class="menu-command" data-perm="cxc" onclick="openModule('cxc')">Cuentas por Cobrar</button>
@@ -332,6 +333,7 @@
     <button class="mod-btn" data-perm="clientes-imprimir" onclick="imprimirClientes()"><span class="mod-icon">🖨️</span> Imprimir (F7)</button>
     <button class="mod-btn" onclick="seleccionarClienteEnPOS()"><span class="mod-icon">✅</span> Usar en POS</button>
     <button class="mod-btn" data-perm="clientes-exportar" onclick="exportarClientes()"><span class="mod-icon">📤</span> Exportar</button>
+    <button class="mod-btn" onclick="abrirDeudaInicialCliente()"><span class="mod-icon">💰</span> Deuda Inicial por Cobrar</button>
     <button class="mod-btn" onclick="exportarPDFClientes()"><span class="mod-icon">📄</span> Exportar PDF</button>
     <button class="mod-btn" onclick="compartirClientes()"><span class="mod-icon">🤝</span> Compartir</button>
     <button class="mod-btn" onclick="closeWindow('clientes-window')"><span class="mod-icon">🚪</span> Salir (F12)</button>
@@ -418,6 +420,138 @@
   </div>
 </div>
 
+<!-- ============== MÓDULO PROVEEDORES ============== -->
+<div class="window hidden" id="proveedores-window">
+  <div class="title-bar">
+    <div class="title-left"><span class="app-icon">🏭</span><span class="title-text">Proveedores</span></div>
+    <div class="title-right">
+      <button class="win-btn">─</button><button class="win-btn">▢</button>
+      <button class="win-btn" onclick="closeWindow('proveedores-window')">✕</button>
+    </div>
+  </div>
+  <div class="module-toolbar">
+    <button class="mod-btn" onclick="nuevoProveedor()"><span class="mod-icon">📄</span> Nuevo (F2)</button>
+    <button class="mod-btn" onclick="guardarProveedorMaestro()"><span class="mod-icon">💾</span> Guardar (F4)</button>
+    <button class="mod-btn" onclick="eliminarProveedorMaestro()"><span class="mod-icon">❌</span> Eliminar (F6)</button>
+    <button class="mod-btn" onclick="document.getElementById('proveedores-search').focus()"><span class="mod-icon">🔍</span> Buscar (F3)</button>
+    <button class="mod-btn" onclick="abrirDeudaInicialProveedor()"><span class="mod-icon">💰</span> Deuda Inicial por Pagar</button>
+    <button class="mod-btn" data-perm="proveedores-imprimir" onclick="imprimirProveedores()"><span class="mod-icon">🖨️</span> Imprimir (F7)</button>
+    <button class="mod-btn" data-perm="proveedores-exportar" onclick="exportarProveedores()"><span class="mod-icon">📤</span> Exportar</button>
+    <button class="mod-btn" onclick="exportarPDFProveedores()"><span class="mod-icon">📄</span> Exportar PDF</button>
+    <button class="mod-btn" onclick="compartirProveedores()"><span class="mod-icon">🤝</span> Compartir</button>
+    <button class="mod-btn" onclick="closeWindow('proveedores-window')"><span class="mod-icon">🚪</span> Salir (F12)</button>
+  </div>
+  <div class="module-search">
+    <span>Buscar:</span>
+    <input type="text" id="proveedores-search" class="input-medium" oninput="buscarProveedorMaestro()" placeholder="Nombre, RIF o teléfono...">
+    <button class="btn-mini" onclick="document.getElementById('proveedores-search').value='';buscarProveedorMaestro()">✕</button>
+  </div>
+  <div class="module-content">
+    <div class="clientes-grid">
+      <table class="grid" id="proveedores-list">
+        <thead><tr><th>Código</th><th>Nombre / Razón Social</th><th>RIF</th></tr></thead>
+        <tbody id="proveedores-body"></tbody>
+      </table>
+      <div class="cliente-tabs" data-tabs>
+        <div class="tab-row">
+          <span class="tab-title tab-active" data-tab-target="prov-panel-datos">Datos Generales</span>
+          <span class="tab" data-tab-target="prov-panel-contactos">Contacto</span>
+          <span class="tab" data-tab-target="prov-panel-deudas">Deudas</span>
+        </div>
+        <div id="prov-panel-datos" data-panel>
+          <table class="form-table">
+            <tr><td><label>Código:</label></td><td><input type="text" id="prov-cod" class="input-small"></td>
+                <td><label>RIF:</label></td><td><input type="text" id="prov-rif" class="input-medium" placeholder="J-123456789-0"></td></tr>
+            <tr><td><label>Nombre / Razón Social:</label></td><td colspan="3"><input type="text" id="prov-nombre" class="input-wide"></td></tr>
+            <tr><td><label>Dirección:</label></td><td colspan="3"><input type="text" id="prov-dir" class="input-wide"></td></tr>
+          </table>
+        </div>
+        <div id="prov-panel-contactos" data-panel class="hidden-panel">
+          <table class="form-table">
+            <tr><td><label>Teléfono:</label></td><td><input type="text" id="prov-tel" class="input-medium"></td>
+                <td><label>Correo:</label></td><td><input type="text" id="prov-email" class="input-medium"></td></tr>
+            <tr><td><label>Contacto:</label></td><td><input type="text" id="prov-contacto" class="input-medium"></td>
+                <td><label>Observaciones:</label></td><td><input type="text" id="prov-obs" class="input-medium"></td></tr>
+          </table>
+        </div>
+        <div id="prov-panel-deudas" data-panel class="hidden-panel">
+          <fieldset class="mini-panel">
+            <legend>Deudas Iniciales por Pagar</legend>
+            <table class="grid">
+              <thead><tr><th>Nº</th><th>Fecha</th><th>Vencimiento</th><th style="text-align:right">Monto $</th><th>Estado</th></tr></thead>
+              <tbody id="prov-deudas-body"></tbody>
+            </table>
+          </fieldset>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============== DEUDA INICIAL POR PAGAR (PROVEEDOR) ============== -->
+<div class="window hidden" id="prov-deuda-window">
+  <div class="title-bar">
+    <div class="title-left"><span class="app-icon">💰</span><span class="title-text">Deuda Inicial por Pagar</span></div>
+    <div class="title-right">
+      <button class="win-btn">─</button><button class="win-btn">▢</button>
+      <button class="win-btn" onclick="cerrarDeudaInicialProveedor()">✕</button>
+    </div>
+  </div>
+  <div class="module-content">
+    <fieldset class="panel">
+      <legend>Registro de Deuda Inicial</legend>
+      <table class="form-table">
+        <tr><td><label>Proveedor:</label></td><td><input type="text" id="prov-ded-proveedor" class="input-large" readonly></td></tr>
+        <tr><td><label>Fecha de la Deuda:</label></td><td><input type="text" id="prov-ded-fecha" class="input-medium"></td></tr>
+        <tr><td><label>Monto (USD):</label></td><td><input type="text" inputmode="decimal" id="prov-ded-monto" class="input-medium" oninput="equivDeudaInicialProv()"><div class="pago-usd" id="prov-ded-monto-usd"></div></td></tr>
+        <tr><td><label>Tipo:</label></td><td>
+          <select id="prov-ded-tipo" onchange="toggleTipoDeudaInicialProv()">
+            <option value="vencimiento">Con Vencimiento</option>
+            <option value="abierta">Deuda Abierta</option>
+          </select>
+        </td></tr>
+        <tr id="prov-ded-fila-venc"><td><label>Vencimiento:</label></td><td><input type="text" id="prov-ded-vencimiento" class="input-medium"></td></tr>
+        <tr><td><label>Motivo:</label></td><td><input type="text" id="prov-ded-motivo" class="input-large" placeholder="Ej.: Mercancía inicial, saldo de apertura..."></td></tr>
+      </table>
+    </fieldset>
+    <div class="pago-actions">
+      <button class="mod-btn" onclick="guardarDeudaInicialProveedor()">✅ Guardar Deuda</button>
+      <button class="mod-btn" onclick="cerrarDeudaInicialProveedor()">✖ Cancelar</button>
+    </div>
+  </div>
+</div>
+<!-- ============== DEUDA INICIAL POR COBRAR (CLIENTE) ============== -->
+<div class="window hidden" id="cli-deuda-window">
+  <div class="title-bar">
+    <div class="title-left"><span class="app-icon">💰</span><span class="title-text">Deuda Inicial por Cobrar</span></div>
+    <div class="title-right">
+      <button class="win-btn">─</button><button class="win-btn">▢</button>
+      <button class="win-btn" onclick="cerrarDeudaInicialCliente()">✕</button>
+    </div>
+  </div>
+  <div class="module-content">
+    <fieldset class="panel">
+      <legend>Registro de Deuda Inicial</legend>
+      <table class="form-table">
+        <tr><td><label>Cliente:</label></td><td><input type="text" id="cli-ded-cliente" class="input-large" readonly></td></tr>
+        <tr><td><label>Fecha de la Deuda:</label></td><td><input type="text" id="cli-ded-fecha" class="input-medium"></td></tr>
+        <tr><td><label>Monto (USD):</label></td><td><input type="text" inputmode="decimal" id="cli-ded-monto" class="input-medium" oninput="equivDeudaInicialCli()"><div class="pago-usd" id="cli-ded-monto-usd"></div></td></tr>
+        <tr><td><label>Tipo:</label></td><td>
+          <select id="cli-ded-tipo" onchange="toggleTipoDeudaInicialCli()">
+            <option value="vencimiento">Con Vencimiento</option>
+            <option value="abierta">Deuda Abierta</option>
+          </select>
+        </td></tr>
+        <tr id="cli-ded-fila-venc"><td><label>Vencimiento:</label></td><td><input type="text" id="cli-ded-vencimiento" class="input-medium"></td></tr>
+        <tr><td><label>Motivo:</label></td><td><input type="text" id="cli-ded-motivo" class="input-large" placeholder="Ej.: Saldo de apertura, venta a crédito previa..."></td></tr>
+      </table>
+    </fieldset>
+    <div class="pago-actions">
+      <button class="mod-btn" onclick="guardarDeudaInicialCliente()">✅ Guardar Deuda</button>
+      <button class="mod-btn" onclick="cerrarDeudaInicialCliente()">✖ Cancelar</button>
+    </div>
+  </div>
+</div>
 <!-- ============== MÓDULO PRODUCTOS ============== -->
 <div class="window hidden" id="productos-window">
   <div class="title-bar">
@@ -808,7 +942,7 @@
   </div>
   <table class="grid full-grid">
     <thead>
-      <tr><th>N° Compra</th><th>Fecha</th><th>Proveedor</th><th>Total</th><th>Tipo</th><th>Pagado</th><th>Pendiente</th><th>Estatus</th></tr>
+      <tr><th>N° Compra</th><th>Nro. Factura</th><th>Fecha</th><th>Proveedor</th><th>Total</th><th>Tipo</th><th>Pagado</th><th>Pendiente</th><th>Estatus</th></tr>
     </thead>
     <tbody id="compras-body"></tbody>
   </table>
@@ -937,6 +1071,7 @@
     <span>Buscar:</span><input type="text" id="cxc-search" class="input-medium" oninput="filtrarCxC()" placeholder="Factura, cliente o RIF...">
     <span>Estado:</span><select id="cxc-estado" onchange="filtrarCxC()"><option>Todos</option><option>Pendiente</option><option>Parcial</option><option>Pagada</option><option>Vencida</option></select>
     <label><input type="checkbox" id="cxc-vencidas" onchange="filtrarCxC()"> Solo vencidas</label>
+    <label class="filtro-check"><input type="checkbox" id="cxc-iniciales" onchange="filtrarCxC()"> Solo Iniciales</label>
     <span>Vista:</span><select id="cxc-vista" onchange="renderCxC()"><option value="detalle">Detalle por Cuenta</option><option value="resumen">Resumen por Cliente</option></select>
   </div>
   <div class="credit-sum">
@@ -1019,6 +1154,7 @@
   <div class="cotiz-filters">
     <span>Buscar:</span><input type="text" id="cxp-search" class="input-medium" oninput="filtrarCxP()" placeholder="Compra o proveedor...">
     <span>Estado:</span><select id="cxp-estado" onchange="filtrarCxP()"><option>Todos</option><option>Pendiente</option><option>Parcial</option><option>Pagada</option><option>Vencida</option></select>
+    <label class="filtro-check"><input type="checkbox" id="cxp-iniciales" onchange="filtrarCxP()"> Solo Iniciales</label>
   </div>
   <div class="credit-sum">
     <span>Total por Pagar: <b id="cxp-sum-total">$ 0,00</b></span>
@@ -1611,6 +1747,7 @@
         <table class="form-table">
           <tr><td><label>N°:</label></td><td><input type="text" id="comp-n-nro" class="input-small" disabled></td>
               <td><label>Fecha:</label></td><td><input type="text" id="comp-n-fecha" class="input-small"></td></tr>
+          <tr><td><label>Nro. de Factura:</label></td><td colspan="3"><input type="text" id="comp-n-factura" class="input-wide" placeholder="N° de factura del proveedor..."></td></tr>
           <tr>
             <td><label>Proveedor:</label></td>
             <td colspan="3">

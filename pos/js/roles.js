@@ -12,13 +12,17 @@ const PERMISOS = {
     modulos: new Set([
       "pos", "buscar", "pago",
       "clientes",
+      "cli-deuda",
+      "proveedores",
+      "prov-deuda",
       "taller", "taller-nueva",
       "devoluciones",
       "ultima-factura",
       "caja", "apertura", "cierre", "arqueo", "cierre-resumen"
     ]),
     excluidos: new Set([
-      "clientes-eliminar", "clientes-imprimir", "clientes-exportar"
+      "clientes-eliminar", "clientes-imprimir", "clientes-exportar",
+      "proveedores-eliminar", "proveedores-imprimir", "proveedores-exportar"
     ])
   }
 };

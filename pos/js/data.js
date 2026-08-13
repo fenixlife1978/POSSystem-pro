@@ -43,6 +43,7 @@ const DB = {
   compras: [],
   devoluciones: [],
   proveedores: [],
+  maestroProveedores: [],
   categoriasReporte: ["Ventas", "Compras", "Inventario", "Clientes", "Proveedores", "Caja y Bancos", "Productos", "Servicios"],
   reportes: ["Ventas del Día", "Ventas por Fecha", "Ventas por Cliente", "Ventas por Vendedor", "Ventas por Forma de Pago", "Ventas por Producto", "Ventas por Categoría", "Resumen de Ventas"],
   movimientosCaja: [],
@@ -423,6 +424,7 @@ function normalizeDB() {
   if (!DB.devoluciones) DB.devoluciones = [];
   if (!DB.ventas) DB.ventas = [];
   if (!DB.ordenesTaller) DB.ordenesTaller = [];
+  if (!DB.maestroProveedores) DB.maestroProveedores = [];
   if (!DB.libroDiario) DB.libroDiario = [];
   if (!DB.abonos) DB.abonos = [];
   if (!DB.cuentasCobrar) DB.cuentasCobrar = [];
