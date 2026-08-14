@@ -18,12 +18,21 @@ const PERMISOS = {
       "taller", "taller-nueva",
       "devoluciones",
       "ultima-factura",
-      "caja", "apertura", "cierre", "arqueo", "cierre-resumen"
+      "caja", "apertura", "cierre", "arqueo", "movcaja", "cierre-resumen"
     ]),
     excluidos: new Set([
       "clientes-eliminar", "clientes-imprimir", "clientes-exportar",
       "proveedores-eliminar", "proveedores-imprimir", "proveedores-exportar"
     ])
+  },
+  "Consulta": {
+    modulos: new Set([
+      "pos", "buscar", "ultima-factura",
+      "clientes", "productos", "servicios", "taller", "cotizaciones",
+      "devoluciones", "inventario", "reportes", "proveedores",
+      "caja", "arqueo", "contabilidad"
+    ]),
+    excluidos: null
   }
 };
 

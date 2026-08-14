@@ -466,6 +466,11 @@ function normalizeDB() {
       if (p.precios[k].margen === undefined) p.precios[k].margen = defMargen;
     });
   });
+  // Sincronizar precios en Bs. con la tasa BCV actual (referencia USD fija).
+  // Corrige catálogos congelados a una tasa anterior: precio = precioUSD * tasa.
+  if (typeof recalcularPreciosPorTasa === "function") {
+    try { recalcularPreciosPorTasa(getTasa()); } catch (e) { console.error("Error sincronizando precios sobre tasa:", e); }
+  }
   (DB.clientes || []).forEach(c => { if (c.email === undefined) c.email = ""; if (c.saldo === undefined) c.saldo = 0; if (!c.vehiculos || !Array.isArray(c.vehiculos)) c.vehiculos = []; });
   (DB.movimientosCaja || []).forEach(m => { if (m.ingUsd === undefined) m.ingUsd = 0; if (m.egrUsd === undefined) m.egrUsd = 0; if (!m.caja) m.caja = cajaActual().nombre; });
   migrarCuentasUSD();

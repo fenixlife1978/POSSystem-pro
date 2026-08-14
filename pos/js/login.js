@@ -10,6 +10,9 @@ function fillRolSelect() {
 }
 
 function doLogin() {
+  if (doLogin.locked) return;
+  doLogin.locked = true;
+  setTimeout(() => { doLogin.locked = false; }, 400);
   const user = _lg("login-usuario").value.trim();
   const rol = _lg("login-rol").value.trim();
   const clave = _lg("login-clave").value;

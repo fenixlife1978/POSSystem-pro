@@ -127,6 +127,7 @@
         <div class="menu-sep"></div>
         <button class="menu-command" data-perm="pos" onclick="applyDiscount()">Aplicar Descuento (F8)</button>
         <button class="menu-command" data-perm="pos" onclick="cancelSale()">Anular Venta (F7)</button>
+        <button class="menu-command" data-perm="caja" onclick="openModule('caja')">Caja (Movimiento de Caja)</button>
         <div class="menu-sep"></div>
         <button class="menu-command" data-perm="pos" onclick="exitApp()">Salir (F12)</button>
       </span>
@@ -150,7 +151,7 @@
     <span class="menu-item">Reportes
       <span class="dropdown">
         <button class="menu-command" data-perm="reportes" onclick="openModule('reportes')">Reportes</button>
-        <button class="menu-command" data-perm="reportes" onclick="openModule('reportes')">Movimientos de Caja (Reporte)</button>
+        <button class="menu-command" data-perm="caja" onclick="openModule('caja')">Movimientos de Caja</button>
       </span>
     </span>
     <span class="menu-item">Contabilidad
@@ -1560,7 +1561,7 @@
     </fieldset>
     <div class="cotiz-totals">
       <div>Sub-Total: <b id="coti-n-sub">0,00</b> <span class="usd-sub">(<b id="coti-n-sub-usd">0,00</b> $)</span></div>
-      <div>Descuento: <b id="coti-n-desc">0,00</b> <span class="usd-sub">(<b id="coti-n-desc-usd">0,00</b> $)</span></div>
+      <div>Descuento (Bs.): <input type="text" inputmode="decimal" id="coti-n-desc-input" class="input-small" value="0" oninput="renderCotizacionNueva()"> <span class="usd-sub">(<b id="coti-n-desc-usd">0,00</b> $)</span></div>
       <div id="coti-n-iva-label">I.V.A.: <b id="coti-n-iva">0,00</b> <span class="usd-sub">(<b id="coti-n-iva-usd">0,00</b> $)</span></div>
       <div class="cotiz-total-row">TOTAL: <b id="coti-n-total">0,00</b> <span class="usd-sub">(<b id="coti-n-total-usd">0,00</b> $)</span></div>
     </div>
@@ -2108,7 +2109,7 @@
       <legend>Detalle de la Factura</legend>
       <div class="uf-info" id="uf-info"></div>
       <table class="grid" id="uf-detail-grid">
-        <thead><tr><th>Código</th><th>Descripción</th><th>Cant.</th><th>Precio</th><th>Total</th></tr></thead>
+        <thead><tr><th>Código</th><th>Descripción</th><th>Cant.</th><th>Precio Bs.</th><th>Precio USD</th><th>Total Bs.</th></tr></thead>
         <tbody id="uf-detail-body"></tbody>
       </table>
       <div class="cotiz-totals" id="uf-totals"></div>

@@ -73,6 +73,7 @@ function confirmarApertura() {
   if (!confirm(`¿Abrir caja con Fondo Inicial de Bs. ${fmt(fondoBs)} y $ ${fmt(fondoUsd)} físicos?`)) return;
   if (Math.abs(tasa - getTasa()) > 0.0001) {
     DB.parametros.tasaBCV = tasa;
+    if (typeof recalcularPreciosPorTasa === "function") recalcularPreciosPorTasa(tasa);
     auditar("Tasa BCV actualizada", `Tasa ${fmt(tasa)} al abrir caja`);
   }
   const caja = cajaActual();

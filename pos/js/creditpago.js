@@ -2,6 +2,7 @@
 const _cp = id => document.getElementById(id);
 let cxcSel = null;   // cuenta por cobrar seleccionada
 let cxpSel = null;   // cuenta por pagar seleccionada
+let cxcResumenList = []; // resumen agrupado por cliente para navegación por índice
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -103,22 +104,35 @@ function registrarAbonoCliente(cli, pagos, origen) {
   const saldoRestante = r2(totalDeuda - montoCobrado);
   const vuelto = asignado > totalDeuda ? r2(asignado - totalDeuda) : 0;
 
+  // Prorratear los pagos al monto efectivamente cobrado, para que el egreso de
+  // caja y el asiento contable coincidan (el vuelto se devuelve sin registrarse
+  // como movimiento, evitando descuadres en sobrepagos).
+  let pagosAplicados = pagos;
+  if (asignado > totalDeuda && totalDeuda > 0) {
+    const factor = totalDeuda / asignado;
+    pagosAplicados = pagos.map(p => {
+      const montoAplicado = r2(num(p.monto) * factor);
+      if (montoAplicado <= 0) return null;
+      return { ...p, monto: montoAplicado, vuelto: r2(num(p.monto) - montoAplicado) };
+    }).filter(Boolean);
+  }
+
   DB.abonos.unshift({
     nro, fecha: hoy(), hora: hora12(), tasa: r2(tasa),
     cliente: cli.nombre, rif: cli.rif, codigo: cli.codigo,
-    totalDeuda, montoCobrado, saldoRestante,
-    forma: pagos.map(p => p.metodo).join(" + "),
-    pagos
+    totalDeuda, montoCobrado, saldoRestante, vuelto,
+    forma: pagosAplicados.map(p => p.metodo).join(" + "),
+    pagos: pagosAplicados
   });
 
-  if (typeof asentAbono === "function") asentAbono(cli.nombre, ref, pagos);
+  if (typeof asentAbono === "function") asentAbono(cli.nombre, ref, pagosAplicados);
 
   aplicarPagoCuentasCobrar(cli.nombre, montoCobrado);
 
   const pendientes = DB.cuentasCobrar.filter(c => c.nombre === cli.nombre).reduce((s, c) => s + (c.saldo || 0), 0);
   cli.saldo = r2(pendientes);
 
-  pagos.forEach(p => {
+  pagosAplicados.forEach(p => {
     if (p.metodo === "Efectivo Bs.") movimientoCaja(origen + " (Efectivo Bs.)", ref, p.monto, 0, true);
     else if (p.metodo === "Efectivo USD (físico)") movimientoCaja(origen + " (Efectivo USD)", ref, 0, p.monto, true);
     else if (p.metodo !== "Crédito (CxC)") movimientoCaja(origen + " (" + p.metodo + ")", ref, p.moneda === "USD" ? 0 : p.monto, p.moneda === "USD" ? p.monto : 0, true);
@@ -159,9 +173,10 @@ function renderCxC() {
       g.cuentas++; g.total = r2(g.total + c.total); g.pagado = r2(g.pagado + (c.pagado || 0)); g.saldo = r2(g.saldo + (c.saldo || 0));
       if (estadoCuentaCXC(c) === "Vencida") g.vencidas++;
     });
-    body.innerHTML = Object.values(porCliente).map(g =>
-      `<tr class="cursor" onclick="verClienteCxC('${g.nombre.replace(/'/g, "\\'")}')">
-        <td>${g.nombre}</td><td>${g.rif}</td><td style="text-align:right">${g.cuentas}</td>
+    cxcResumenList = Object.values(porCliente);
+    body.innerHTML = cxcResumenList.map((g, i) =>
+      `<tr class="cursor" onclick="verClienteCxcIdx(${i})">
+        <td>${_escHtml(g.nombre)}</td><td>${_escHtml(g.rif)}</td><td style="text-align:right">${g.cuentas}</td>
         <td style="text-align:right">${mon(g.total)}</td><td style="text-align:right">${mon(g.pagado)}</td>
         <td style="text-align:right"><b>${mon(g.saldo)}</b></td>
         <td style="text-align:right">${g.vencidas}</td>
@@ -197,6 +212,11 @@ function verClienteCxC(nombre) {
   _cp("cxc-search").value = nombre;
   _cp("cxc-vista").value = "detalle";
   renderCxC();
+}
+
+function verClienteCxcIdx(i) {
+  const g = cxcResumenList[i];
+  if (g) verClienteCxC(g.nombre);
 }
 
 function selectCxC(id, row) {
@@ -293,9 +313,13 @@ function cerrarAbonoCxC() { closeWindow("cxc-abono-window"); }
 
 function imprimirCxC() {
   const resumen = _cp("cxc-vista").value === "resumen";
-  const datos = resumen ? [] : filtrarCxCData();
-  imprimirHTML("Cuentas por Cobrar", ["N° Factura", "Fecha", "Vencimiento", "Cliente", "Total $", "Pagado $", "Saldo $", "Estado"],
-    datos.map(c => [c.nro, c.fecha, c.vencimiento || (c.tipo === "abierta" ? "Abierta" : ""), (c.origen === "inicial" ? "[INICIAL] " : "") + c.nombre, fmtUS(c.total), fmtUS(c.pagado || 0), fmtUS(c.saldo), estadoCuentaCXC(c)]));
+  const datos = resumen ? cxcResumenList : filtrarCxCData();
+  imprimirHTML("Cuentas por Cobrar", resumen
+    ? ["Cliente", "RIF", "Cuentas", "Total $", "Pagado $", "Saldo $", "Vencidas"]
+    : ["N° Factura", "Fecha", "Vencimiento", "Cliente", "Total $", "Pagado $", "Saldo $", "Estado"],
+    resumen
+      ? datos.map(g => [g.nombre, g.rif, g.cuentas, fmtUS(g.total), fmtUS(g.pagado), fmtUS(g.saldo), g.vencidas])
+      : datos.map(c => [c.nro, c.fecha, c.vencimiento || (c.tipo === "abierta" ? "Abierta" : ""), (c.origen === "inicial" ? "[INICIAL] " : "") + c.nombre, fmtUS(c.total), fmtUS(c.pagado || 0), fmtUS(c.saldo), estadoCuentaCXC(c)]));
 }
 
 function exportarCxC() {
@@ -306,10 +330,14 @@ function exportarCxC() {
 
 function _datosCxC() {
   const resumen = _cp("cxc-vista").value === "resumen";
-  const datos = resumen ? [] : filtrarCxCData();
+  const datos = resumen ? cxcResumenList : filtrarCxCData();
   return {
-    headers: ["N° Factura", "Fecha", "Vencimiento", "Cliente", "Tipo", "Total $", "Pagado $", "Saldo $", "Estado"],
-    rows: datos.map(c => [c.nro, c.fecha, c.vencimiento || (c.tipo === "abierta" ? "Abierta" : ""), c.nombre, etiquetaDebida(c), fmtUS(c.total), fmtUS(c.pagado || 0), fmtUS(c.saldo), estadoCuentaCXC(c)])
+    headers: resumen
+      ? ["Cliente", "RIF", "Cuentas", "Total $", "Pagado $", "Saldo $", "Vencidas"]
+      : ["N° Factura", "Fecha", "Vencimiento", "Cliente", "Tipo", "Total $", "Pagado $", "Saldo $", "Estado"],
+    rows: resumen
+      ? datos.map(g => [g.nombre, g.rif, g.cuentas, fmtUS(g.total), fmtUS(g.pagado), fmtUS(g.saldo), g.vencidas])
+      : datos.map(c => [c.nro, c.fecha, c.vencimiento || (c.tipo === "abierta" ? "Abierta" : ""), c.nombre, etiquetaDebida(c), fmtUS(c.total), fmtUS(c.pagado || 0), fmtUS(c.saldo), estadoCuentaCXC(c)])
   };
 }
 function exportarPDFCxC() { const d = _datosCxC(); exportarPDF("Cuentas por Cobrar", d.headers, d.rows); }
@@ -508,6 +536,12 @@ function guardarPagoCxP() {
   const bsMov = r2(esUsd ? bsDeUsd(montoEntrada) : montoEntrada);
   const usdMov = r2(esUsd ? montoEntrada : usdDeBs(montoEntrada));
   movimientoCaja("Pago a Proveedor", ref, bsMov, usdMov, false);
+  // Registrar el vuelto devuelto al proveedor como ingreso, para que la caja cuadre.
+  if (vuelto > 0) {
+    const vBs = r2(esUsd ? bsDeUsd(vuelto) : vuelto);
+    const vUsd = r2(esUsd ? vuelto : usdDeBs(vuelto));
+    movimientoCaja("Pago a Proveedor (Vuelto)", ref, vBs, vUsd, true);
+  }
   auditar("Pago a proveedor", `Pago ${nro} — ${fmtUS(aplicar)} (${fmtBsEq(aplicar)}) — ${proveedor}`);
   saveDB();
   renderMovimientosCaja();

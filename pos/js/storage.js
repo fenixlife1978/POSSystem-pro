@@ -251,9 +251,17 @@ const Storage = (() => {
     }
     // Snapshot principal ("db") en modo cliente → servidor remoto.
     if (key === "db" && storeName === undefined && remoteBackend()) {
-      return remoteSave(value).catch(e => {
+      return remoteSave(value).then(ok => {
+        if (ok) { _online = true; writeCache(value); return true; }
+        _online = false;
+        writeCache(value);
+        console.warn("[cliente] Sin servidor, guardado local (pendiente de sincronizar)");
+        return true;
+      }).catch(e => {
         console.error("Error guardando en servidor:", e);
-        return false;
+        _online = false;
+        writeCache(value);
+        return true; // no perder el dato: se conserva en caché local
       });
     }
     // Snapshot principal ("db") en Electron → SQLite local.

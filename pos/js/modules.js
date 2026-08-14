@@ -587,6 +587,31 @@ function recalcPrecioTier(tier, from) {
   setVal("prod-" + tier + "-margen", margen);
 }
 
+// Recalcula el precio en Bs. de todos los productos (y sus precios especiales)
+// cuando cambia la tasa BCV, manteniendo fijo el precio de referencia en USD.
+// El precio USD es la referencia (costo + margen); el Bs. se deriva de él.
+function recalcularPreciosPorTasa(nuevaTasa) {
+  const tasa = num(nuevaTasa) || getTasa();
+  if (tasa <= 0) return;
+  (DB.productos || []).forEach(p => {
+    if (p.precioUSD !== undefined && num(p.precioUSD) > 0) {
+      p.precio = r2(num(p.precioUSD) * tasa);
+    }
+    const tiers = ["mayor", "oferta", "promo"];
+    tiers.forEach(k => {
+      const t = p.precios && p.precios[k];
+      if (t && t.usd !== undefined && num(t.usd) > 0) {
+        t.bs = r2(num(t.usd) * tasa);
+      }
+    });
+  });
+  (DB.productos || []).filter(p => typeof esServicio === "function" && esServicio(p)).forEach(s => {
+    if (s.precioUSD !== undefined && num(s.precioUSD) > 0) {
+      s.precio = r2(num(s.precioUSD) * tasa);
+    }
+  });
+}
+
 function imprimirProductos() { imprimirHTML("Listado de Productos", ["Código", "Descripción", "Categoría", "Costo $", "PVP $", "PVP Bs.", "Existencia"], DB.productos.map(p => [p.codigo, p.descripcion, p.categoria, fmt(p.costoUSD || 0), fmt(p.precioUSD || 0), fmt(p.precio || 0), fmt(p.existencia || 0)])); }
 function exportarProductos() { exportarCSV("productos", ["Codigo", "Descripcion", "Categoria", "CostoUSD", "PVPUSD", "PVPBs", "Existencia"], DB.productos.map(p => [p.codigo, p.descripcion, p.categoria, p.costoUSD || 0, p.precioUSD || 0, p.precio || 0, p.existencia || 0])); }
 
@@ -641,11 +666,13 @@ function selectCotizacion(nro, row) {
   body.innerHTML = (c.lineas || []).map(d =>
     `<tr><td>${d.codigo}</td><td>${d.descripcion}</td><td style="text-align:right">${fmt(d.cantidad)}</td><td style="text-align:right">${fmt(d.precio)}</td><td style="text-align:right">${fmt(d.total)}</td></tr>`
   ).join("");
-  const sub = (c.lineas || []).reduce((s, d) => s + d.total, 0);
+const sub = (c.lineas || []).reduce((s, d) => s + d.total, 0);
   const iva = sub * (getIva() / 100);
+  const desc = r2(c.desc || 0);
   $("cot-sub").textContent = fmt(sub);
   $("cot-iva").textContent = fmt(iva);
-  $("cot-total").textContent = fmt(sub + iva);
+  $("cot-desc").textContent = fmt(desc);
+  $("cot-total").textContent = fmt(sub + iva - desc);
 }
 
 function nuevaCotizacion() {
@@ -655,8 +682,10 @@ function nuevaCotizacion() {
   $("coti-n-fecha").value = hoy();
   fillClienteSelect("coti-n-cliente");
   $("coti-n-obs").value = "";
+  const descIn = document.getElementById("coti-n-desc-input"); if (descIn) descIn.value = "0";
   renderCotizacionNueva();
   openModuleWindow("cotizacion-nueva");
+  const fp = document.getElementById("coti-n-prod"); if (fp) fp.focus();
 }
 
 function editarCotizacion() {
@@ -669,9 +698,11 @@ function editarCotizacion() {
   $("coti-n-fecha").value = c.fecha;
   fillClienteSelect("coti-n-cliente", c.cliente);
   $("coti-n-obs").value = c.observaciones || "";
-  cotiTemp = (c.lineas || []).map(l => ({ ...l }));
+cotiTemp = (c.lineas || []).map(l => ({ ...l }));
+  const descIn = document.getElementById("coti-n-desc-input"); if (descIn) descIn.value = String(c.desc || 0).replace(".", ",");
   renderCotizacionNueva();
   openModuleWindow("cotizacion-nueva");
+  const fp = document.getElementById("coti-n-prod"); if (fp) fp.focus();
 }
 
 let cotiSelectedCod = null;
@@ -766,9 +797,8 @@ function renderCotizacionNueva() {
   const descEl = document.getElementById("coti-n-desc-input");
   const desc = descEl ? (num(descEl.value) || 0) : 0;
   const total = sub + iva - desc;
-  $("coti-n-sub").textContent = fmt(sub);
+$("coti-n-sub").textContent = fmt(sub);
   $("coti-n-sub-usd").textContent = fmt(sub / t);
-  $("coti-n-desc").textContent = fmt(desc);
   $("coti-n-desc-usd").textContent = fmt(desc / t);
   $("coti-n-iva").textContent = fmt(iva);
   $("coti-n-iva-usd").textContent = fmt(iva / t);
@@ -781,18 +811,19 @@ function quitarLineaCotizacion(i) { cotiTemp.splice(i, 1); renderCotizacionNueva
 function guardarCotizacion() {
   if (!cotiTemp.length) { alert("Agregue al menos un producto"); return; }
   const sub = cotiTemp.reduce((s, d) => s + d.total, 0);
-  const total = sub + sub * (getIva() / 100);
+  const desc = num(document.getElementById("coti-n-desc-input")?.value) || 0;
+  const total = sub + sub * (getIva() / 100) - desc;
   const cot = {
     nro: $("coti-n-nro").value,
     fecha: $("coti-n-fecha").value,
     cliente: $("coti-n-cliente").value,
     observaciones: $("coti-n-obs").value,
-    total, estado: "Pendiente",
+    desc, total, estado: "Pendiente",
     lineas: cotiTemp.map(l => ({ ...l }))
   };
   if (cotiEditNro) {
     const idx = DB.cotizaciones.findIndex(x => x.nro === cotiEditNro);
-    if (idx >= 0) DB.cotizaciones[idx] = cot;
+    if (idx >= 0) { cot.estado = DB.cotizaciones[idx].estado; DB.cotizaciones[idx] = cot; }
   } else {
     DB.cotizaciones.unshift(cot);
   }
@@ -1213,12 +1244,26 @@ function registrarDevolucion() {
     movimientoInv(p.codigo, "Devolución", d.cantidad, dev.nro, r2(saldo));
   });
 
-  // Egreso de caja por método de pago (para el arqueo)
+// Pago de la devolución: si es contra crédito se descuenta la deuda del cliente,
+// de lo contrario es egreso de caja + asiento contable (dinero devuelto).
   dev.pagos.forEach(p => {
-    if (p.metodo === "Efectivo Bs.") movimientoCaja("Devolución (Efectivo Bs.)", dev.nro, p.monto, 0, false);
+    if (p.metodo === "Crédito (CxC)") {
+      // Reducir la deuda CxC del cliente por el equivalente en USD de lo devuelto
+      const montoUsd = p.moneda === "USD" ? p.monto : (p.monto / (getTasa() || 1));
+      const cli = DB.clientes.find(c => c.nombre === dev.cliente);
+      if (cli && montoUsd > 0) {
+        if (typeof aplicarPagoCuentasCobrar === "function") aplicarPagoCuentasCobrar(cli.nombre, r2(montoUsd));
+        const pend = DB.cuentasCobrar.filter(c => c.nombre === cli.nombre).reduce((s, c) => s + (c.saldo || 0), 0);
+        cli.saldo = r2(pend);
+        auditar("Devolución a crédito", `${dev.nro} — ajustado saldo de ${dev.cliente} en ${fmtUS(montoUsd)}`);
+      }
+    } else if (p.metodo === "Efectivo Bs.") movimientoCaja("Devolución (Efectivo Bs.)", dev.nro, p.monto, 0, false);
     else if (p.metodo === "Efectivo USD (físico)") movimientoCaja("Devolución (Efectivo USD)", dev.nro, 0, p.monto, false);
-    else if (p.metodo !== "Crédito (CxC)") movimientoCaja("Devolución (" + p.metodo + ")", dev.nro, p.moneda === "USD" ? 0 : p.monto, p.moneda === "USD" ? p.monto : 0, false);
+    else movimientoCaja("Devolución (" + p.metodo + ")", dev.nro, p.moneda === "USD" ? 0 : p.monto, p.moneda === "USD" ? p.monto : 0, false);
   });
+
+  // Asiento en el libro diario: la devolución es un egreso (no para crédito)
+  if (dev.pagos.every(p => p.metodo !== "Crédito (CxC)") && typeof asentDevolucion === "function") asentDevolucion(dev);
 
   auditar("Devolución registrada", `${dev.nro} — Factura ${dev.factura} — ${dev.cliente} — ${fmt(total)} Bs.`);
   saveDB();
@@ -1228,10 +1273,18 @@ function registrarDevolucion() {
   renderFacturasDev();
   renderDevVentaInfo();
   renderDevVentaLines();
-  renderDevHistorial();
-  setDevFormLocked(true);
+renderDevHistorial();
+  // Tras registrar, dejar el formulario listo para una nueva devolución
+  // en lugar de dejarlo bloqueado permanentemente.
+  devVenta = null;
+  devTemp = [];
+  renderDevVentaInfo();
+  renderDevVentaLines();
+  renderDevProd();
+  setDevFormLocked(false);
   alert(`Devolución ${dev.nro} registrada sobre la factura ${dev.factura}.\nTotal devuelto: ${fmt(total)} Bs.`);
   $("dev-nro").value = genNro(DB.devoluciones, "nro", "DEV-", 6);
+  const sf = $("dev-fact-search"); if (sf) sf.focus();
 }
 
 function anularDevolucion() {
@@ -1820,8 +1873,9 @@ function abrirAjuste() {
   $("ajuste-codigo").value = ""; $("ajuste-nombre").textContent = "";
   $("ajuste-actual").textContent = "0,00"; $("ajuste-cantidad").value = "";
   $("ajuste-tipo").value = "Nuevo Stock"; $("ajuste-resultado").textContent = "0,00";
-  $("ajuste-motivo").value = "";
+$("ajuste-motivo").value = "";
   openModuleWindow("ajuste");
+  const ac = document.getElementById("ajuste-codigo"); if (ac) ac.focus();
 }
 
 function cargarAjusteProducto() {
@@ -2213,6 +2267,10 @@ function compartirReporte() {
 
 // ===== Inicialización =====
 document.addEventListener("DOMContentLoaded", () => {
+  // Sincronizar precios en Bs. con la tasa BCV actual (referencia USD fija).
+  if (typeof recalcularPreciosPorTasa === "function") {
+    try { recalcularPreciosPorTasa(getTasa()); } catch (e) { console.error("Error sincronizando precios:", e); }
+  }
   renderClientes();
   renderProveedores();
   renderProductos();

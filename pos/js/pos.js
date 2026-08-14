@@ -749,18 +749,22 @@ function selectUltimaFactura(nro, row) {
   if (row) row.classList.add("selected");
   const v = DB.ventas.find(x => x.nro === nro);
   if (!v) return;
-  document.getElementById("uf-detail-body").innerHTML = (v.lineas || []).map(l =>
-    `<tr><td>${l.codigo}</td><td>${l.descripcion}</td><td style="text-align:right">${fmt(l.cantidad)}</td><td style="text-align:right">${fmt(l.precio)}</td><td style="text-align:right">${fmt(l.total)}</td></tr>`
-  ).join("") || `<tr><td colspan="5" style="text-align:center;color:#888">Sin líneas</td></tr>`;
+  document.getElementById("uf-detail-body").innerHTML = (v.lineas || []).map(l => {
+    const tasaV = v.tasa || getTasa();
+    const pUsd = l.precioUSD !== undefined ? l.precioUSD : (l.precio / (tasaV || 1));
+    return `<tr><td>${l.codigo}</td><td>${l.descripcion}</td><td style="text-align:right">${fmt(l.cantidad)}</td><td style="text-align:right">${fmt(l.precio)}</td><td style="text-align:right">${fmtUS(pUsd)}</td><td style="text-align:right">${fmt(l.total)}</td></tr>`;
+  }).join("") || `<tr><td colspan="6" style="text-align:center;color:#888">Sin líneas</td></tr>`;
   const pagos = (v.pagos || []).map(p => `${p.moneda === "USD" ? "$ " : ""}${fmt(p.monto)} ${p.moneda}`).join(" · ") || "—";
   document.getElementById("uf-info").innerHTML =
     `<b>${DB.parametros.serie} ${v.nro}</b><br>` +
     `Fecha: ${v.fecha} ${v.hora}<br>Cliente: ${v.cliente}<br>Pagos: ${pagos}`;
+  const tasaV = v.tasa || getTasa();
+  const usd = b => fmtUS((b || 0) / (tasaV || 1));
   document.getElementById("uf-totals").innerHTML =
-    `<div>Sub-Total: <b>${fmt(v.subtotal)}</b></div>` +
-    `<div>Descuento: <b>${fmt(v.descuento)}</b></div>` +
-    `<div>I.V.A. (${getIva()}%): <b>${fmt(v.iva)}</b></div>` +
-    `<div class="cotiz-total-row">TOTAL: <b>${fmt(v.total)}</b></div>`;
+    `<div>Sub-Total: <b>${fmt(v.subtotal)}</b> <span class="usd-sub">(≈ ${usd(v.subtotal)} $)</span></div>` +
+    `<div>Descuento: <b>${fmt(v.descuento)}</b> <span class="usd-sub">(≈ ${usd(v.descuento)} $)</span></div>` +
+    `<div>I.V.A. (${getIva()}%): <b>${fmt(v.iva)}</b> <span class="usd-sub">(≈ ${usd(v.iva)} $)</span></div>` +
+    `<div class="cotiz-total-row">TOTAL: <b>${fmt(v.total)}</b> <span class="usd-sub">(≈ ${usd(v.total)} $)</span></div>`;
   window._ufSeleccionada = v;
 }
 
@@ -1135,10 +1139,6 @@ function openModule(name) {
   if (typeof openModuleWindow === "function") openModuleWindow(name);
 }
 
-function closeWindow(id) {
-  document.getElementById(id).classList.add("hidden");
-}
-
 // ===== Navegación por teclado =====
 function camposActivos() {
   const wins = document.querySelectorAll(".window");
@@ -1183,19 +1183,6 @@ document.addEventListener("keydown", function(e) {
   const tag = ae && (ae.tagName || "");
   const inInput = tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA";
 
-  // Delete actúa como retroceso (borra carácter anterior)
-  if (k === "Delete" && tag === "INPUT" && ae.type !== "number" && !e.altKey && !e.ctrlKey && !e.shiftKey) {
-    const s = ae.selectionStart, en = ae.selectionEnd;
-    if (s !== null && s === en) {
-      e.preventDefault();
-      if (s > 0) {
-        ae.value = ae.value.slice(0, s - 1) + ae.value.slice(s);
-        ae.setSelectionRange(s - 1, s - 1);
-        ae.dispatchEvent(new Event("input", { bubbles: true }));
-      }
-    }
-  }
-
   // Modal de cantidad: flechas ajustan, Enter acepta, Esc cierra
   if (qtyVisible()) {
     if (k === "Escape") { e.preventDefault(); cerrarQty(); return; }
@@ -1220,11 +1207,16 @@ document.addEventListener("keydown", function(e) {
     if (k === "Enter") { e.preventDefault(); seleccionarBuscar(); return; }
   }
 
-  // Flechas Arriba/Abajo navegan entre campos
+  // Flechas Arriba/Abajo navegan entre campos, pero sin robar el foco ni
+  // impedir mover el cursor dentro de un campo de texto que ya tiene contenido.
   if (!e.altKey && !e.ctrlKey && !e.shiftKey && (k === "ArrowUp" || k === "ArrowDown") && inInput) {
-    e.preventDefault();
-    navegarCampo(k === "ArrowDown" ? 1 : -1);
-    return;
+    const esTexto = tag === "INPUT" && (ae.type === "text" || ae.type === "password" || ae.type === "email" || ae.type === "search" || ae.type === "tel" || ae.type === "url");
+    const conContenido = esTexto && ae.value && String(ae.value).length > 0;
+    if (!conContenido) {
+      e.preventDefault();
+      navegarCampo(k === "ArrowDown" ? 1 : -1);
+      return;
+    }
   }
 
   if (!e.altKey && !e.ctrlKey && !e.shiftKey) {
@@ -1235,6 +1227,7 @@ document.addEventListener("keydown", function(e) {
     if (K === "F4")  { if (posOk("buscar")) { e.preventDefault(); openClientSearch(); } }
     if (K === "F5")  { if (posOk("taller")) { e.preventDefault(); openModule("taller"); } }
     if (K === "F6")  { if (posOk("devoluciones")) { e.preventDefault(); nuevaDevolucion(); } }
+    if (K === "F7")  { if (posOk("pos")) { e.preventDefault(); cancelSale(); } }
     if (K === "F8")  { if (posOk("pos")) { e.preventDefault(); applyDiscount(); } }
     if (K === "F9")  { if (posOk("pago")) { e.preventDefault(); pay("mixto"); } }
     if (K === "F10") { if (posOk("pago")) { e.preventDefault(); pay("tarjeta_punto"); } }
@@ -1303,6 +1296,8 @@ function modificarTasaBCVRapida() {
 
   DB.parametros.tasaBCV = nuevaTasa;
   auditar("Cambio Tasa BCV", `Tasa anterior: ${fmt(tasaActual)} Bs/$ -> Nueva tasa: ${fmt(nuevaTasa)} Bs/$ (por ${usuario})`);
+  saveDB();
+  if (typeof recalcularPreciosPorTasa === "function") recalcularPreciosPorTasa(nuevaTasa);
   saveDB();
   actualizarBadgeTasaBCV();
   recalcTotales();

@@ -130,6 +130,18 @@ function asentPagoProv(proveedor, ref, montoUSD, forma) {
     montoUSD, forma, ref);
 }
 
+// ---- Asiento automático por DEVOLUCIÓN (egreso: dinero devuelto al cliente) ----
+function asentDevolucion(dev) {
+  (dev.pagos || []).forEach(p => {
+    if (p.metodo === "Crédito (CxC)") return; // si se devuelve contra el crédito, se ajusta al cobrarlo
+    const montoUSD = p.moneda === "USD" ? num(p.monto) : usdDeBs(num(p.equivBs) || num(p.monto));
+    if (montoUSD <= 0) return;
+    asientoContable("egreso", "DEVOLUCION",
+      `DEVOLUCION ${dev.nro} - FACTURA: ${dev.factura} - CLIENTE: ${(dev.cliente || "CONSUMIDOR FINAL").toUpperCase()}`,
+      montoUSD, p.metodo, dev.nro, dev.fecha, dev.hora);
+  });
+}
+
 // ---- Filtrado del libro diario ----
 function _contFechaKey(f) {
   const p = String(f || "").split("/");
@@ -171,7 +183,7 @@ function contFiltrados() {
     if (kHasta && k > kHasta) return false;
     if (q && !(e.concepto || "").toLowerCase().includes(q) && !(e.categoria || "").toLowerCase().includes(q)) return false;
     return true;
-  }).sort((a, b) => (b.fecha + b.hora).localeCompare(a.fecha + a.hora));
+  }).sort((a, b) => (_contFechaKey(b.fecha) + (b.hora || "")).localeCompare(_contFechaKey(a.fecha) + (a.hora || "")));
 }
 
 // ---- Render ----

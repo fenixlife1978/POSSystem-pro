@@ -9,10 +9,12 @@ function cargarParametros() {
 }
 
 function guardarParametros() {
-  DB.parametros.tasaBCV = num(_g("par-tasa").value);
+  const nuevaTasa = num(_g("par-tasa").value);
+  DB.parametros.tasaBCV = nuevaTasa;
   DB.parametros.iva = num(_g("par-iva").value);
   DB.parametros.serie = _g("par-serie").value.trim() || "FACT";
   auditar("Parámetros actualizados", `Tasa BCV ${fmt(getTasa())} — IVA ${getIva()}%`);
+  if (typeof recalcularPreciosPorTasa === "function") recalcularPreciosPorTasa(nuevaTasa);
   saveDB();
   recalcTotales();
   if (typeof actualizarBadgeTasaBCV === "function") actualizarBadgeTasaBCV();
@@ -138,14 +140,20 @@ function toggleServidorRed() {
     const cmd = st.running ? "stop" : "start";
     const target = !st.running;
     return window.desktop.net[cmd]().then(r => {
-      if (r && r.running === target) {
-        actualizarEstadoRed();
+      // Confirmar el estado real volviendo a consultar, ya que el resultado
+      // del comando puede demorar o no traer el campo `running` de inmediato.
+      let ip = r && r.ip, port = r && r.port;
+      const confirma = (st2) => {
+        const ok = st2 && st2.running === target;
+        if (ok) actualizarEstadoRed();
         auditar("Servidor de red " + (target ? "activado" : "apagado"), "");
-        alert(target ? "Servidor activo. Los equipos de la red pueden abrir:\nhttp://" + (r.ip ? r.ip[0] : "ip-del-pc") + ":" + r.port : "Servidor apagado.");
-      } else {
-        alert("No se pudo cambiar el estado del servidor.");
-      }
-    });
+        alert(ok
+          ? (target ? "Servidor activo. Los equipos de la red pueden abrir:\nhttp://" + (ip ? ip[0] : "ip-del-pc") + ":" + (port || 8753) : "Servidor apagado.")
+          : "No se pudo cambiar el estado del servidor.");
+      };
+      if (r && r.running === target) { confirma(r); return; }
+      window.desktop.net.status().then(confirma).catch(() => confirma(null));
+    }).catch(() => alert("No se pudo cambiar el estado del servidor."));
   }).catch(() => alert("No se pudo consultar el servidor de red."));
 }
 
