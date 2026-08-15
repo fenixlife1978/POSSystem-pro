@@ -700,8 +700,67 @@ function saveDB() {
   }, 350);
 }
 
+function buildEmptyDB() {
+  return {
+    parametros: {
+      nombreEmpresa: "",
+      rif: "",
+      direccion: "",
+      telefono: "",
+      tasaBCV: 36.50,
+      iva: 16,
+      serie: "FACT",
+      caja: "CAJA 01",
+      cajero: "ADMIN",
+      turno: 1,
+      monedaCxC: "USD",
+      categorias: ["REPUESTOS", "LUBRICANTES", "BATERIAS", "FRENOS", "LLANTAS", "SERVICIOS", "GENERAL"],
+      subcategorias: ["FILTROS", "ACEITES", "BATERIAS", "FRENOS", "LLANTAS", "BUJIAS", "CORREAS", "SENSORES", "GENERAL"],
+      marcas: ["GENERICO", "FRAM", "WEGA", "MOBIL", "SHELL", "MAC", "NGK", "BREMBO", "FIRESTONE", "MICHELIN", "ACDELCO", "BOSCH", "NAKATA", "FERODO"],
+      presentaciones: ["UNIDAD", "CAJA", "LITRO", "KILO", "PIEZA", "PAQUETE", "GALON"],
+      unidades: ["UND", "KG", "LT", "GR", "ML", "CAJ"]
+    },
+    usuarios: [
+      { usuario: "ADMIN", nombre: "Administrador", clave: "admin", rol: "Administrador", activo: true },
+      { usuario: "CAJERO", nombre: "Cajero", clave: "cajero", rol: "Cajero", activo: true }
+    ],
+    caja: { estado: "cerrada", cajero: "ADMIN", apertura: null, cierre: null, fondoBs: 0, fondoUSD: 0 },
+    cajas: [
+      { id: "CAJA01", nombre: "CAJA 01", cajero: "ADMIN", estado: "cerrada", apertura: null, cierre: null, fondoBs: 0, fondoUSD: 0, cortesZ: 0 },
+      { id: "CAJA02", nombre: "CAJA 02", cajero: "CAJERO", estado: "cerrada", apertura: null, cierre: null, fondoBs: 0, fondoUSD: 0, cortesZ: 0 }
+    ],
+    clientes: [
+      { codigo: "000001", nombre: "CONSUMIDOR FINAL", rif: "V-00000000-0", direccion: "", telefono: "", email: "", tipo: "Contado", limite: 0, dias: 0, vendedor: "--- NINGUNO ---", saldo: 0, tipoPersona: "natural", representante: "" }
+    ],
+    productos: [],
+    cotizaciones: [],
+    ordenesTaller: [],
+    compras: [],
+    devoluciones: [],
+    proveedores: [],
+    maestroProveedores: [],
+    categoriasReporte: ["Ventas", "Compras", "Inventario", "Clientes", "Proveedores", "Caja y Bancos", "Productos", "Servicios"],
+    reportes: ["Ventas del Día", "Ventas por Fecha", "Ventas por Cliente", "Ventas por Vendedor", "Ventas por Forma de Pago", "Ventas por Producto", "Ventas por Categoría", "Resumen de Ventas"],
+    movimientosCaja: [],
+    movimientosInv: [],
+    auditoria: [],
+    respaldos: [],
+    carrito: [],
+    ventas: [],
+    libroDiario: [],
+    abonos: [],
+    cuentasCobrar: [],
+    cuentasPagar: [],
+    pagosPagar: []
+  };
+}
+
 async function resetDemoData() {
-  if (!await uiConfirm("¿Borrar TODOS los datos del sistema y comenzar de nuevo?\n\nSe eliminará toda la información (incluida la base local y la caché). Los respaldos guardados se conservarán y podrán borrarse uno a uno si lo desea.")) return;
+  // Fallback robusto: si el diálogo propio no está disponible, usar confirm nativo.
+  let ok = false;
+  try { ok = !!(await uiConfirm("¿Borrar TODOS los datos del sistema y comenzar de nuevo?\n\nSe eliminará toda la información (base local, caché, respaldos y auditoría), excepto el usuario y el cliente por defecto.")); }
+  catch (e) { ok = confirm("¿Borrar TODOS los datos del sistema y comenzar de nuevo?\n\nSe eliminará toda la información (base local, caché, respaldos y auditoría), excepto el usuario y el cliente por defecto."); }
+  if (!ok) return;
 
   const limpiar = async () => {
     // 1) SQLite local (.db en disco) si corre dentro de Electron.
@@ -718,7 +777,12 @@ async function resetDemoData() {
       const confKeys = ["pos_sistema_db_v1", "_pos_server_ip", "_pos_hybrid"];
       confKeys.forEach(k => window.localStorage.removeItem(k));
     } catch (e) {}
-    // 4) Recarga la app: loadDB() reconstruye el estado inicial (solo usuarios por defecto).
+    // 4) Resetear el DB en memoria a estado limpio (usuarios por defecto + Cliente Final).
+    try {
+      Object.keys(DB).forEach(k => delete DB[k]);
+      Object.assign(DB, buildEmptyDB());
+    } catch (e) { console.error("Error reseteando DB en memoria:", e); }
+    // 5) Recarga la app: loadDB() arranca desde el estado limpio.
     location.reload();
   };
   limpiar().catch(() => location.reload());

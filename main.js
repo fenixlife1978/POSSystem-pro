@@ -89,12 +89,14 @@ async function sqliteBackup(label) {
   }
 }
 
-// Reinicio total: elimina el archivo .db principal.
-// No toca la carpeta "backups" (los respaldos se borran uno a uno desde la UI).
+// Reinicio total: elimina el archivo .db principal y toda la carpeta de respaldos.
 async function sqliteClear() {
   try {
     const p = getDbPath();
     if (await dbExists()) await fs.unlink(p);
+    // Borrar también los respaldos .db en disco (la carpeta "backups").
+    const bkDir = path.join(app.getPath("userData"), "backups");
+    try { await fs.rm(bkDir, { recursive: true, force: true }); } catch (e) {}
     return { ok: true };
   } catch (e) {
     return { ok: false, msg: String(e && e.message || e) };

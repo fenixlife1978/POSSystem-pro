@@ -189,14 +189,24 @@ function guardarConfig() {
   if (typeof Storage.setServer === "function") Storage.setServer(DB.parametros.servidorRed);
   DB.parametros.modoHibrido = !!(_g("cfg-red-hibrido") && _g("cfg-red-hibrido").checked);
   if (typeof Storage.setHybrid === "function") Storage.setHybrid(DB.parametros.modoHibrido);
+  // Guardar también los valores de retención (poda) y máximo de auditoría.
+  const poda = DB.parametros.poda || (DB.parametros.poda = {});
+  poda.movimientosInv = parseInt(_g("cfg-poda-inv").value, 10) || 0;
+  poda.movimientosCaja = parseInt(_g("cfg-poda-caja").value, 10) || 0;
+  poda.ventas = parseInt(_g("cfg-poda-ventas").value, 10) || 0;
+  poda.auditoria = parseInt(_g("cfg-poda-auditoria").value, 10) || 2000;
   auditar("Configuración actualizada", DB.parametros.nombreEmpresa);
   saveDB();
   sincronizarCajaActiva();
   _g("status-usuario").textContent = DB.parametros.cajero;
   _g("status-turno").textContent = DB.parametros.turno;
   _g("pos-caja-label").textContent = DB.parametros.caja;
-  alert("Configuración guardada.");
-  closeWindow("config-window");
+  // Mostrar el aviso ANTES de cerrar (uiAlert es asíncrono y no bloquea).
+  const aviso = () => {
+    try { closeWindow("config-window"); } catch (e) {}
+  };
+  if (typeof uiAlert === "function") { uiAlert("Configuración guardada."); setTimeout(aviso, 350); }
+  else { alert("Configuración guardada."); aviso(); }
 }
 
 // ===== Gestor de Cajas =====
@@ -384,7 +394,10 @@ function crearRespaldo() {
 }
 
 async function restaurarRespaldo(id) {
-  if (!await uiConfirm(`¿Restaurar el respaldo ${id}? Se reemplazarán los datos actuales.`)) return;
+  let ok = false;
+  try { ok = !!(await uiConfirm(`¿Restaurar el respaldo ${id}? Se reemplazarán los datos actuales.`)); }
+  catch (e) { ok = confirm(`¿Restaurar el respaldo ${id}? Se reemplazarán los datos actuales.`); }
+  if (!ok) return;
   Storage.getBackup(id).then(saved => {
     if (!saved) { alert("No se encontró el respaldo"); return; }
     Object.keys(DB).forEach(k => delete DB[k]);
@@ -413,13 +426,64 @@ async function descargarRespaldo(id) {
 }
 
 async function eliminarRespaldo(id) {
-  if (!await uiConfirm(`¿Eliminar el respaldo ${id}?`)) return;
+  let ok = false;
+  try { ok = !!(await uiConfirm(`¿Eliminar el respaldo ${id}?`)); }
+  catch (e) { ok = confirm(`¿Eliminar el respaldo ${id}?`); }
+  if (!ok) return;
   Storage.removeBackup(id).then(() => {
     DB.respaldos = DB.respaldos.filter(x => x.id !== id);
     auditar("Respaldo eliminado", id);
     saveDB();
     renderRespaldos();
   });
+}
+
+// Carga un archivo JSON de respaldo exportado (botón "Cargar Archivo").
+// Guarda el respaldo en el almacenamiento y restaura el sistema con esos datos.
+async function cargarRespaldoArchivo() {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".json,application/json";
+  input.onchange = () => {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onerror = () => { alert("No se pudo leer el archivo."); };
+    reader.onload = async () => {
+      let snap = null;
+      try { snap = JSON.parse(reader.result); }
+      catch (e) { alert("El archivo no es un JSON válido."); return; }
+      if (!snap || typeof snap !== "object" || typeof snap.parametros !== "object" || !Array.isArray(snap.productos)) {
+        alert("El archivo no parece un respaldo válido del sistema.");
+        return;
+      }
+      // Confirmar antes de restaurar (se reemplazan los datos actuales).
+      let ok = false;
+      try { ok = !!(await uiConfirm(`¿Restaurar el respaldo del archivo "${file.name}"?\n\nSe reemplazarán los datos actuales del sistema.`)); }
+      catch (e) { ok = confirm(`¿Restaurar el respaldo del archivo "${file.name}"?\n\nSe reemplazarán los datos actuales del sistema.`); }
+      if (!ok) return;
+
+      const id = "B" + Date.now();
+      // Guardar como respaldo en el almacenamiento local.
+      let saved = false;
+      try { saved = await Storage.saveBackup(id, snap); } catch (e) { saved = false; }
+      // Reemplazar el DB en memoria con el contenido del archivo.
+      try {
+        Object.keys(DB).forEach(k => delete DB[k]);
+        Object.assign(DB, snap);
+        if (!Array.isArray(DB.respaldos)) DB.respaldos = [];
+      } catch (e) { console.error("Error restaurando desde archivo:", e); }
+      // Anotar el respaldo recién cargado en la lista.
+      const fechas = hoy();
+      DB.respaldos.unshift({ id, fecha: fechas, hora: hora12(), registros: ((DB.productos ? DB.productos.length : 0) + " productos / " + (DB.clientes ? DB.clientes.length : 0) + " clientes / " + (DB.ventas ? DB.ventas.length : 0) + " ventas"), origen: "archivo" });
+      auditar("Respaldo restaurado desde archivo", file.name);
+      const aviso = () => { try { closeWindow("respaldos-window"); } catch (e) {} };
+      if (typeof uiAlert === "function") { uiAlert("Respaldo restaurado. La pantalla se actualizará."); setTimeout(() => { aviso(); flushSaveDB().then(() => location.reload()); }, 350); }
+      else { alert("Respaldo restaurado. La pantalla se actualizará."); aviso(); flushSaveDB().then(() => location.reload()); }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
 }
 
 // ===== Auditoría =====

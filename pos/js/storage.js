@@ -326,8 +326,7 @@ const Storage = (() => {
   }
 
   // Limpieza total del almacenamiento local (SQLite vía main.js, caché híbrida,
-  // snapshot e IndexedDB). Conserva los respaldos (STORE_BK), que se gestionan
-  // uno a uno desde la UI.
+  // snapshot, IndexedDB y respaldos). Borra TODO: se usa en el reinicio total.
   function clearLocalPersist() {
     return Promise.all([
       // Snapshot principal + caché híbrida
@@ -336,6 +335,10 @@ const Storage = (() => {
           reqToPromise(store.delete("db")),
           reqToPromise(store.delete(CACHE_KEY))
         ]).then(() => true)
+      ).catch(() => false),
+      // Respaldos en IndexedDB (STORE_BK) — se limpian en el reinicio total.
+      idb(STORE_BK, "readwrite", store =>
+        reqToPromise(store.clear()).then(() => true)
       ).catch(() => false)
     ]);
   }
