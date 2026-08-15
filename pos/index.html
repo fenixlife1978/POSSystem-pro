@@ -1903,7 +1903,7 @@
         <tr><td><label>Conectar esta caja al servidor (dejar vacío en la principal):</label></td>
             <td><input type="text" id="cfg-red-servidor" class="input-medium" placeholder="192.168.1.10"></td></tr>
         <tr><td><label>Modo híbrido (operar offline y fusionar al reconectar):</label></td>
-            <td><input type="checkbox" id="cfg-red-hibrido" onchange="guardarConfig()"></td></tr>
+            <td><input type="checkbox" id="cfg-red-hibrido" onchange="toggleModoHibrido()"></td></tr>
         <tr><td><label>Servidor de red (multi-terminal):</label></td><td><span id="cfg-red-st" class="input-medium">—</span></td></tr>
         <tr><td><label>Estado de conexión:</label></td><td><span id="cfg-red-status" class="input-medium">—</span></td></tr>
       </table>

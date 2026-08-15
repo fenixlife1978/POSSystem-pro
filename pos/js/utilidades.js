@@ -157,6 +157,27 @@ function toggleServidorRed() {
   }).catch(() => alert("No se pudo consultar el servidor de red."));
 }
 
+// Marcar/desmarcar el modo híbrido. Solo se puede activar si hay una IP de
+// servidor configurada; si no, se informa al usuario y se revierte el checkbox.
+function toggleModoHibrido() {
+  const cb = _g("cfg-red-hibrido");
+  if (!cb) return;
+  const ip = (_g("cfg-red-servidor") ? _g("cfg-red-servidor").value.trim() : "") || DB.parametros.servidorRed || "";
+  if (cb.checked && !ip) {
+    cb.checked = false;
+    if (typeof uiAlert === "function") {
+      uiAlert("El modo híbrido solo puede activarse cuando esta caja está conectada a un servidor.\n\nConfigure la IP del servidor en el campo 'Conectar esta caja al servidor' y luego tilde el modo híbrido.");
+    } else {
+      alert("El modo híbrido solo puede activarse cuando esta caja está conectada a un servidor.\n\nConfigure la IP del servidor en el campo 'Conectar esta caja al servidor' y luego tilde el modo híbrido.");
+    }
+    return;
+  }
+  DB.parametros.modoHibrido = cb.checked;
+  if (typeof Storage.setHybrid === "function") Storage.setHybrid(cb.checked);
+  saveDB();
+  actualizarEstadoRed();
+}
+
 function guardarConfig() {
   DB.parametros.nombreEmpresa = _g("cfg-empresa").value.trim();
   DB.parametros.rif = _g("cfg-rif").value.trim();
