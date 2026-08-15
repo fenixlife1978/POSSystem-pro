@@ -422,11 +422,11 @@ function cambiarEstadoOrdenTaller(estado) {
   renderOrdenesTaller();
 }
 
-function anularOrdenTaller() {
+async function anularOrdenTaller() {
   const o = ordenTallerSel();
   if (!o) return;
   if (o.estado === "Anulada") return;
-  const motivo = prompt("Motivo de anulación:", "");
+  const motivo = await uiPrompt("Motivo de anulación:", "");
   if (motivo === null) return;
   o.estado = "Anulada";
   o.fechaAnulacion = hoy();

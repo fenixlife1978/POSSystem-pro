@@ -163,11 +163,11 @@ function guardarCliente() {
   alert(idx >= 0 ? "Cambios guardados con éxito." : "Cliente guardado con éxito.");
 }
 
-function eliminarCliente() {
+async function eliminarCliente() {
   if (typeof rolPuedeModulo === "function" && !rolPuedeModulo("clientes-eliminar")) { alert("No tiene permisos para eliminar clientes."); return; }
   const cod = $("cli-cod").value.trim();
   if (!cod) return;
-  if (!confirm(`¿Eliminar el cliente ${cod}?`)) return;
+  if (!await uiConfirm(`¿Eliminar el cliente ${cod}?`)) return;
   DB.clientes = DB.clientes.filter(x => x.codigo !== cod);
   renderClientes();
   auditar("Cliente eliminado", cod);
@@ -316,11 +316,11 @@ function guardarProveedorMaestro() {
   alert(idx >= 0 ? "Cambios guardados con éxito." : "Proveedor guardado con éxito.");
 }
 
-function eliminarProveedorMaestro() {
+async function eliminarProveedorMaestro() {
   if (typeof rolPuedeModulo === "function" && !rolPuedeModulo("proveedores-eliminar")) { alert("No tiene permisos para eliminar proveedores."); return; }
   const cod = $("prov-cod").value.trim();
   if (!cod) return;
-  if (!confirm(`¿Eliminar el proveedor ${cod}?`)) return;
+  if (!await uiConfirm(`¿Eliminar el proveedor ${cod}?`)) return;
   DB.maestroProveedores = DB.maestroProveedores.filter(x => x.codigo !== cod);
   renderProveedores();
   auditar("Proveedor eliminado", cod);
@@ -424,10 +424,10 @@ function rellenarCampoSelect(selId, listaKey, valorActual) {
   sel.dataset.lista = listaKey;
 }
 
-function agregarOpcionCampo(selId, listaKey) {
+async function agregarOpcionCampo(selId, listaKey) {
   const sel = $(selId);
   if (!sel) return;
-  const nuevo = prompt("Ingrese la nueva opción:", "").trim();
+  const nuevo = (await uiPrompt("Ingrese la nueva opción:", "") || "").trim();
   if (!nuevo) return;
   if (!DB.parametros[listaKey]) DB.parametros[listaKey] = [];
   if (DB.parametros[listaKey].indexOf(nuevo) === -1) DB.parametros[listaKey].push(nuevo);
@@ -435,10 +435,10 @@ function agregarOpcionCampo(selId, listaKey) {
   saveDB();
 }
 
-function eliminarOpcionCampo(selId, listaKey) {
+async function eliminarOpcionCampo(selId, listaKey) {
   const sel = $(selId);
   if (!sel || !sel.value) return;
-  if (!confirm(`¿Eliminar "${sel.value}" del catálogo de ${sel.dataset.lista || listaKey}?`)) return;
+  if (!await uiConfirm(`¿Eliminar "${sel.value}" del catálogo de ${sel.dataset.lista || listaKey}?`)) return;
   DB.parametros[listaKey] = (DB.parametros[listaKey] || []).filter(v => v !== sel.value);
   rellenarCampoSelect(selId, listaKey, sel.value);
   saveDB();
@@ -516,10 +516,10 @@ function guardarProducto() {
   alert(idx >= 0 ? "Cambios guardados con éxito." : "Producto guardado con éxito.");
 }
 
-function eliminarProducto() {
+async function eliminarProducto() {
   const cod = $("prod-cod").value.trim();
   if (!cod) return;
-  if (!confirm(`¿Eliminar el producto ${cod}?`)) return;
+  if (!await uiConfirm(`¿Eliminar el producto ${cod}?`)) return;
   DB.productos = DB.productos.filter(x => x.codigo !== cod);
   renderProductos();
   renderInventario();
@@ -834,11 +834,11 @@ function guardarCotizacion() {
   alert(cotiEditNro ? "Cambios guardados con éxito." : "Cotización guardada con éxito.");
 }
 
-function eliminarCotizacion() {
+async function eliminarCotizacion() {
   const row = document.querySelector("#cotizaciones-body tr.selected");
   if (!row) { alert("Seleccione una cotización"); return; }
   const nro = row.cells[0].textContent;
-  if (!confirm(`¿Eliminar la cotización ${nro}?`)) return;
+  if (!await uiConfirm(`¿Eliminar la cotización ${nro}?`)) return;
   DB.cotizaciones = DB.cotizaciones.filter(x => x.nro !== nro);
   auditar("Cotización eliminada", nro);
   saveDB();
@@ -1011,7 +1011,7 @@ function renderFacturasDev() {
   }).join("") || `<div class="dev-empty">No hay facturas que coincidan</div>`;
 }
 
-function selectFacturaDev(nro) {
+async function selectFacturaDev(nro) {
   const v = DB.ventas.find(x => x.nro === nro);
   if (!v) return;
   const est = devEstadoVenta(v);
@@ -1026,7 +1026,7 @@ function selectFacturaDev(nro) {
   renderDevHistorial();
   setDevFormLocked(bloqueada);
   if (bloqueada) {
-    if (!confirm("Esta factura ya tiene devoluciones registradas y queda bloqueada solo para consulta. ¿Ver información?")) { devVenta = null; renderDevVentaInfo(); renderDevHistorial(); return; }
+    if (!await uiConfirm("Esta factura ya tiene devoluciones registradas y queda bloqueada solo para consulta. ¿Ver información?")) { devVenta = null; renderDevVentaInfo(); renderDevHistorial(); return; }
     const sel = $("dev-prod");
     if (sel) sel.innerHTML = '<option value="">— Factura bloqueada —</option>';
     renderDevNueva();
@@ -1287,9 +1287,9 @@ renderDevHistorial();
   const sf = $("dev-fact-search"); if (sf) sf.focus();
 }
 
-function anularDevolucion() {
+async function anularDevolucion() {
   if (!devTemp.length) { alert("No hay devolución en proceso para anular."); return; }
-  if (!confirm("¿Anular la devolución en proceso?")) return;
+  if (!await uiConfirm("¿Anular la devolución en proceso?")) return;
   devTemp = [];
   renderDevNueva();
   auditar("Devolución anulada", "(en proceso)");

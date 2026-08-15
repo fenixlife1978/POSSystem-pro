@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld("desktop", {
     load: () => ipcRenderer.invoke("sqlite-load"),
     save: (data) => ipcRenderer.invoke("sqlite-save", data),
     backup: (label) => ipcRenderer.invoke("sqlite-backup", label),
+    clear: () => ipcRenderer.invoke("sqlite-clear"),
     status: () => ipcRenderer.invoke("sqlite-status")
   },
   // Red multi-terminal (LAN)

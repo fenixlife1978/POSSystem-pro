@@ -238,10 +238,10 @@ function guardarCaja() {
   alert("Caja guardada correctamente.");
 }
 
-function eliminarCaja() {
+async function eliminarCaja() {
   const nombre = _g("cfg-caja-nombre").value.trim();
   if (!nombre) return;
-  if (!confirm(`¿Eliminar la caja ${nombre}?`)) return;
+  if (!await uiConfirm(`¿Eliminar la caja ${nombre}?`)) return;
   DB.cajas = (DB.cajas || []).filter(x => x.nombre !== nombre);
   if (!DB.cajas.length) DB.cajas.push({ id: "CAJA01", nombre: "CAJA 01", cajero: "ADMIN", estado: "cerrada", apertura: null, cierre: null, fondoBs: 0, fondoUSD: 0, cortesZ: 0 });
   sincronizarCajaActiva();
@@ -322,11 +322,11 @@ function guardarUsuario() {
   renderUsuarios();
 }
 
-function eliminarUsuario() {
+async function eliminarUsuario() {
   const usuario = _g("usu-usuario").value.trim();
   if (!usuario) return;
   if (usuario === "ADMIN") { alert("No puede eliminar el usuario ADMIN"); return; }
-  if (!confirm(`¿Eliminar el usuario ${usuario}?`)) return;
+  if (!await uiConfirm(`¿Eliminar el usuario ${usuario}?`)) return;
   DB.usuarios = DB.usuarios.filter(x => x.usuario !== usuario);
   auditar("Usuario eliminado", usuario);
   saveDB();
@@ -362,8 +362,8 @@ function crearRespaldo() {
   });
 }
 
-function restaurarRespaldo(id) {
-  if (!confirm(`¿Restaurar el respaldo ${id}? Se reemplazarán los datos actuales.`)) return;
+async function restaurarRespaldo(id) {
+  if (!await uiConfirm(`¿Restaurar el respaldo ${id}? Se reemplazarán los datos actuales.`)) return;
   Storage.getBackup(id).then(saved => {
     if (!saved) { alert("No se encontró el respaldo"); return; }
     Object.keys(DB).forEach(k => delete DB[k]);
@@ -391,8 +391,8 @@ async function descargarRespaldo(id) {
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 200);
 }
 
-function eliminarRespaldo(id) {
-  if (!confirm(`¿Eliminar el respaldo ${id}?`)) return;
+async function eliminarRespaldo(id) {
+  if (!await uiConfirm(`¿Eliminar el respaldo ${id}?`)) return;
   Storage.removeBackup(id).then(() => {
     DB.respaldos = DB.respaldos.filter(x => x.id !== id);
     auditar("Respaldo eliminado", id);

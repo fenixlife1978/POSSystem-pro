@@ -700,14 +700,28 @@ function saveDB() {
   }, 350);
 }
 
-function resetDemoData() {
-  if (confirm("¿Borrar todos los datos y comenzar de nuevo? Se perderán los cambios actuales.")) {
-    flushSaveDB().then(() => {
-      Storage.remove("db");
-      localStorage.removeItem(DB_KEY);
-      location.reload();
-    });
-  }
+async function resetDemoData() {
+  if (!await uiConfirm("¿Borrar TODOS los datos del sistema y comenzar de nuevo?\n\nSe eliminará toda la información (incluida la base local y la caché). Los respaldos guardados se conservarán y podrán borrarse uno a uno si lo desea.")) return;
+
+  const limpiar = async () => {
+    // 1) SQLite local (.db en disco) si corre dentro de Electron.
+    if (window.desktop && window.desktop.sqlite && typeof window.desktop.sqlite.clear === "function") {
+      try {
+        const r = await window.desktop.sqlite.clear();
+        if (!r || r.ok === false) console.error("Error limpiando SQLite:", r && r.msg);
+      } catch (e) { console.error("Error limpiando SQLite:", e); }
+    }
+    // 2) Snapshot + caché híbrida en IndexedDB (conserva respaldos).
+    try { if (typeof Storage !== "undefined" && typeof Storage.clearLocalPersist === "function") await Storage.clearLocalPersist(); } catch (e) {}
+    // 3) Claves de configuración en localStorage (datos de sesión/preferencias).
+    try {
+      const confKeys = ["pos_sistema_db_v1", "_pos_server_ip", "_pos_hybrid"];
+      confKeys.forEach(k => window.localStorage.removeItem(k));
+    } catch (e) {}
+    // 4) Recarga la app: loadDB() reconstruye el estado inicial (solo usuarios por defecto).
+    location.reload();
+  };
+  limpiar().catch(() => location.reload());
 }
 
 loadDB();

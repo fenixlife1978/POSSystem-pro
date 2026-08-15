@@ -325,6 +325,21 @@ const Storage = (() => {
     ).catch(() => false);
   }
 
+  // Limpieza total del almacenamiento local (SQLite vía main.js, caché híbrida,
+  // snapshot e IndexedDB). Conserva los respaldos (STORE_BK), que se gestionan
+  // uno a uno desde la UI.
+  function clearLocalPersist() {
+    return Promise.all([
+      // Snapshot principal + caché híbrida
+      idb(STORE_DATA, "readwrite", store =>
+        Promise.all([
+          reqToPromise(store.delete("db")),
+          reqToPromise(store.delete(CACHE_KEY))
+        ]).then(() => true)
+      ).catch(() => false)
+    ]);
+  }
+
   // Migra respaldos guardados antes en localStorage hacia IndexedDB (una sola vez).
   function migrateLegacyBackups(prefix) {
     const keys = [];
@@ -392,6 +407,7 @@ const Storage = (() => {
     save,
     load,
     remove,
+    clearLocalPersist,
     saveBackup: (id, snap) => save(id, snap, STORE_BK),
     getBackup: id => load(id, STORE_BK),
     removeBackup: id => remove(id, STORE_BK),

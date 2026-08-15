@@ -32,8 +32,8 @@ function rellenarCategoriasGasto() {
   cat.value = categoriasGastoPersistidas().includes(actual) ? actual : categoriasGastoPersistidas()[0];
 }
 
-function contAgregarCategoria() {
-  const nombre = prompt("Indique el nombre de la nueva categoría del gasto (ej: COMBUSTIBLE, COMPRA DE EQUIPOS):");
+async function contAgregarCategoria() {
+  const nombre = await uiPrompt("Indique el nombre de la nueva categoría del gasto (ej: COMBUSTIBLE, COMPRA DE EQUIPOS):");
   if (!nombre) return;
   const limpio = nombre.trim().toUpperCase().replace(/\s+/g, "_");
   if (!limpio) return;
@@ -46,12 +46,12 @@ function contAgregarCategoria() {
   _ct("cont-gasto-categoria").value = limpio;
 }
 
-function contEliminarCategoria() {
+async function contEliminarCategoria() {
   const sel = _ct("cont-gasto-categoria");
   const cat = sel.value;
   if (!cat) return;
   const usada = (DB.libroDiario || []).some(e => e.categoria === cat);
-  if (usada && !confirm(`La categoría "${etiquetaCategoriaGasto(cat)}" ya tiene asientos registrados. ¿Desea eliminarla de todos modos?`)) return;
+  if (usada && !await uiConfirm(`La categoría "${etiquetaCategoriaGasto(cat)}" ya tiene asientos registrados. ¿Desea eliminarla de todos modos?`)) return;
   const cats = categoriasGastoPersistidas().filter(c => c !== cat);
   DB.parametros.categoriasGasto = cats.length ? cats : CONT_CATEG_GASTO.slice();
   saveDB();
@@ -346,10 +346,10 @@ function contVerAsiento(id) {
 
 function contCerrarDetalle() { closeWindow("cont-detalle-window"); }
 
-function contEliminarAsiento(id) {
+async function contEliminarAsiento(id) {
   const e = (DB.libroDiario || []).find(x => x.id === id);
   if (!e) return;
-  if (!confirm(`¿Eliminar el asiento manual ${id}?\n${e.concepto}`)) return;
+  if (!await uiConfirm(`¿Eliminar el asiento manual ${id}?\n${e.concepto}`)) return;
   DB.libroDiario = DB.libroDiario.filter(x => x.id !== id);
   if (typeof auditar === "function") auditar("Asiento manual eliminado", id);
   saveDB();

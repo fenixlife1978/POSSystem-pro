@@ -277,8 +277,8 @@ function clearProductInput() {
   });
 }
 
-function newSale() {
-  if (DB.carrito.length && !confirm("¿Desea iniciar una nueva venta? Se perderá el contenido actual.")) return;
+async function newSale() {
+  if (DB.carrito.length && !await uiConfirm("¿Desea iniciar una nueva venta? Se perderá el contenido actual.")) return;
   DB.carrito = [];
   window._tallerPendiente = null;
   carritoSel = -1;
@@ -300,9 +300,9 @@ function newSale() {
   mostrarSaldoCliente();
 }
 
-function cancelSale() {
+async function cancelSale() {
   if (!DB.carrito.length) { alert("No hay venta activa para anular"); return; }
-  if (confirm("¿Está seguro de anular la venta actual?")) {
+  if (await uiConfirm("¿Está seguro de anular la venta actual?")) {
     DB.carrito = [];
     window._tallerPendiente = null;
     carritoSel = -1;
@@ -310,7 +310,7 @@ function cancelSale() {
   }
 }
 
-function applyDiscount() {
+async function applyDiscount() {
   if (!DB.carrito.length) { alert("Agregue productos antes de aplicar descuento"); return; }
   if (carritoSel < 0 || carritoSel >= DB.carrito.length) {
     if (DB.carrito.length === 1) {
@@ -321,7 +321,7 @@ function applyDiscount() {
     }
   }
   const it = DB.carrito[carritoSel];
-  const entrada = prompt(`Porcentaje de descuento para ${it.codigo} — ${it.descripcion}:`, String(it.descuento || 0));
+  const entrada = await uiPrompt(`Porcentaje de descuento para ${it.codigo} — ${it.descripcion}:`, String(it.descuento || 0));
   if (entrada === null) return;
   const d = num(entrada);
   if (d < 0 || d > 100) { alert("El descuento debe estar entre 0 y 100."); return; }
@@ -1128,9 +1128,9 @@ function addSearchedProduct(cod) {
   abrirQtyAdd(p);
 }
 
-function exitApp() {
+async function exitApp() {
   if (typeof logout === "function") { logout(); return; }
-  if (confirm("¿Desea salir del sistema?")) {
+  if (await uiConfirm("¿Desea salir del sistema?")) {
     document.querySelectorAll(".window").forEach(w => w.classList.add("hidden"));
   }
 }
@@ -1177,6 +1177,9 @@ function cerrarVentanaActiva() {
 
 // ===== Atajos de teclado F2-F12 + navegación =====
 document.addEventListener("keydown", function(e) {
+  // No interferir con el diálogo propio (uiConfirm/uiPrompt/uiAlert).
+  const uiDlg = document.getElementById("ui-dialog-overlay");
+  if (uiDlg && uiDlg.style.display !== "none") return;
   if (!document.body.classList.contains("logged-in")) return;
   const k = e.key;
   const ae = document.activeElement;
@@ -1280,10 +1283,10 @@ function actualizarBadgeTasaBCV() {
   if (el) el.textContent = `${fmt(getTasa())} Bs/$`;
 }
 
-function modificarTasaBCVRapida() {
+async function modificarTasaBCVRapida() {
   const tasaActual = getTasa();
   const usuario = (DB.parametros && DB.parametros.cajero) || "Usuario";
-  const resp = prompt(`MODIFICAR TASA BCV DEL SISTEMA\n\nUsuario actual: ${usuario}\nTasa actual: ${fmt(tasaActual)} Bs/$\n\nIngrese la nueva Tasa BCV (Bs/$):`, fmt(tasaActual));
+  const resp = await uiPrompt(`MODIFICAR TASA BCV DEL SISTEMA\n\nUsuario actual: ${usuario}\nTasa actual: ${fmt(tasaActual)} Bs/$\n\nIngrese la nueva Tasa BCV (Bs/$):`, fmt(tasaActual));
   if (resp === null) return;
   const nuevaTasa = num(resp);
   if (nuevaTasa <= 0) {

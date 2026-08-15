@@ -52,8 +52,8 @@ function doLogin() {
   }, 80);
 }
 
-function logout() {
-  if (!confirm("¿Desea cerrar la sesión?")) return;
+async function logout() {
+  if (!await uiConfirm("¿Desea cerrar la sesión?")) return;
   document.body.classList.remove("logged-in");
   document.body.classList.remove("role-admin", "role-cajero");
   if (typeof closeWindow === "function") closeWindow("dashboard-window");

@@ -64,13 +64,13 @@ function abrirCajaModal() {
   openModuleWindow("apertura");
 }
 
-function confirmarApertura() {
+async function confirmarApertura() {
   const fondoBs = num(_el("ap-fondo-bs").value);
   const fondoUsd = num(_el("ap-fondo-usd").value);
   const tasa = num(_el("ap-tasa").value);
   if (tasa <= 0) { alert("Ingrese una tasa BCV válida."); return; }
   const cajero = _el("ap-cajero").value.trim() || DB.parametros.cajero;
-  if (!confirm(`¿Abrir caja con Fondo Inicial de Bs. ${fmt(fondoBs)} y $ ${fmt(fondoUsd)} físicos?`)) return;
+  if (!await uiConfirm(`¿Abrir caja con Fondo Inicial de Bs. ${fmt(fondoBs)} y $ ${fmt(fondoUsd)} físicos?`)) return;
   if (Math.abs(tasa - getTasa()) > 0.0001) {
     DB.parametros.tasaBCV = tasa;
     if (typeof recalcularPreciosPorTasa === "function") recalcularPreciosPorTasa(tasa);
@@ -249,7 +249,7 @@ function calcularArqueo() {
   }
 }
 
-function confirmarCierre() {
+async function confirmarCierre() {
   const caja = cajaActual();
   if (!caja || caja.estado !== "abierta") { alert("La caja no está abierta."); return; }
   for (let i = 0; i < arqueoFilas.length; i++) {
@@ -271,7 +271,7 @@ function confirmarCierre() {
   });
   const diffBs = r2(conteoBs - esperadoBs);
   const diffUsd = r2(conteoUsd - esperadoUsd);
-  if (!confirm(`Confirmar cierre de caja ${caja.nombre}.\nConteo Bs.: ${fmt(conteoBs)}  ·  Conteo USD: $ ${fmt(conteoUsd)}\nDiferencia Bs.: ${fmt(diffBs)}  ·  Diferencia USD: $ ${fmt(diffUsd)}\n¿Continuar?`)) return;
+  if (!await uiConfirm(`Confirmar cierre de caja ${caja.nombre}.\nConteo Bs.: ${fmt(conteoBs)}  ·  Conteo USD: $ ${fmt(conteoUsd)}\nDiferencia Bs.: ${fmt(diffBs)}  ·  Diferencia USD: $ ${fmt(diffUsd)}\n¿Continuar?`)) return;
 
   const nombre = caja.nombre;
   const movs = DB.movimientosCaja.filter(m => m.fecha === hoy() && m.tipo !== "Apertura de Caja" && (!nombre || (m.caja || "") === nombre));

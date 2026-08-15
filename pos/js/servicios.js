@@ -114,10 +114,10 @@ function guardarServicio() {
   alert(idx >= 0 ? "Cambios guardados con éxito." : "Servicio guardado con éxito.");
 }
 
-function eliminarServicio() {
+async function eliminarServicio() {
   const cod = _sv("sv-cod").value.trim();
   if (!cod) return;
-  if (!confirm(`¿Eliminar el servicio ${cod}?`)) return;
+  if (!await uiConfirm(`¿Eliminar el servicio ${cod}?`)) return;
   DB.productos = DB.productos.filter(x => x.codigo !== cod);
   renderServicios();
   renderInventario();

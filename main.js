@@ -89,6 +89,18 @@ async function sqliteBackup(label) {
   }
 }
 
+// Reinicio total: elimina el archivo .db principal.
+// No toca la carpeta "backups" (los respaldos se borran uno a uno desde la UI).
+async function sqliteClear() {
+  try {
+    const p = getDbPath();
+    if (await dbExists()) await fs.unlink(p);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, msg: String(e && e.message || e) };
+  }
+}
+
 function sqliteStatus() {
   let size = 0;
   const p = getDbPath();
@@ -228,6 +240,7 @@ ipcMain.handle("pdf-export", async (event, payload) => {
 ipcMain.handle("sqlite-load", () => sqliteLoad());
 ipcMain.handle("sqlite-save", (_e, data) => sqliteSave(data));
 ipcMain.handle("sqlite-backup", (_e, label) => sqliteBackup(label || "manual"));
+ipcMain.handle("sqlite-clear", () => sqliteClear());
 ipcMain.handle("sqlite-status", () => sqliteStatus());
 ipcMain.handle("net-start", (_e, port) => {
   // Agarra el puerto libre si uno está en uso.
