@@ -1339,8 +1339,8 @@ async function registrarDevolucion() {
       const cli = DB.clientes.find(c => c.nombre === dev.cliente);
       if (cli && montoUsd > 0) {
         if (typeof aplicarPagoCuentasCobrar === "function") aplicarPagoCuentasCobrar(cli.nombre, r2(montoUsd));
-        const pend = DB.cuentasCobrar.filter(c => c.nombre === cli.nombre).reduce((s, c) => s + (c.saldo || 0), 0);
-        cli.saldo = r2(pend);
+        const pend = typeof reconciliarSaldoCliente === "function" ? reconciliarSaldoCliente(cli.nombre)
+          : DB.cuentasCobrar.filter(c => c.nombre === cli.nombre).reduce((s, c) => s + (c.saldo || 0), 0);
         auditar("Devolución a crédito", `${dev.nro} — ajustado saldo de ${dev.cliente} en ${fmtUS(montoUsd)}`);
       }
     } else if (p.metodo === "Efectivo Bs.") movimientoCaja("Devolución (Efectivo Bs.)", dev.nro, p.monto, 0, false);

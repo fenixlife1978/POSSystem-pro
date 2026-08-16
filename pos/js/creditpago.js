@@ -27,6 +27,17 @@ function fechaKey(f) {
   return p.length === 3 ? `${p[2] || ""}${p[1] || ""}${p[0] || ""}` : "";
 }
 
+// Recalcula el saldo de un cliente como la suma de sus cuentas por cobrar
+// vigentes (en USD). Fuente única de verdad para cli.saldo y para el Dashboard.
+function reconciliarSaldoCliente(nombre) {
+  const pend = (DB.cuentasCobrar || [])
+    .filter(c => c.nombre === nombre)
+    .reduce((s, c) => s + (c.saldo || 0), 0);
+  const cli = DB.clientes.find(x => x.nombre === nombre);
+  if (cli) cli.saldo = r2(pend);
+  return r2(pend);
+}
+
 // Fecha de vencimiento: marca como "Vencida" si la deuda no está pagada
 function estadoCuentaCXC(c) {
   if (c.saldo > 0 && c.vencimiento && fechaKey(c.vencimiento) < fechaKey(hoy())) return "Vencida";
@@ -70,6 +81,7 @@ function crearCuentaCxC(cliente, nroFactura, montoBs, lineas, diasOverride) {
     }))
   };
   DB.cuentasCobrar.unshift(cuenta);
+  reconciliarSaldoCliente(cliente);
   return cuenta;
 }
 
@@ -87,6 +99,7 @@ function aplicarPagoCuentasCobrar(nombre, monto) {
     c.estado = c.saldo <= 0 ? "Pagada" : "Parcial";
     rest = r2(rest - aplicar);
   });
+  reconciliarSaldoCliente(nombre);
   return r2(monto - rest);
 }
 
@@ -129,8 +142,7 @@ function registrarAbonoCliente(cli, pagos, origen) {
 
   aplicarPagoCuentasCobrar(cli.nombre, montoCobrado);
 
-  const pendientes = DB.cuentasCobrar.filter(c => c.nombre === cli.nombre).reduce((s, c) => s + (c.saldo || 0), 0);
-  cli.saldo = r2(pendientes);
+  const pendientes = reconciliarSaldoCliente(cli.nombre);
 
   pagosAplicados.forEach(p => {
     if (p.metodo === "Efectivo Bs.") movimientoCaja(origen + " (Efectivo Bs.)", ref, p.monto, 0, true);
@@ -256,7 +268,9 @@ function filtrarCxC() { renderCxC(); }
 function abonarCxC() {
   if (!cxcSel) { alert("Seleccione primero una cuenta por cobrar."); return; }
   const cli = DB.clientes.find(x => x.nombre === cxcSel.nombre);
-  if (!cli || (num(cli.saldo) || 0) <= 0) { alert("El cliente ya no tiene deuda pendiente."); return; }
+  if (!cli) { alert("Cliente no encontrado."); return; }
+  const deuda = reconciliarSaldoCliente(cli.nombre);
+  if (deuda <= 0) { alert("El cliente ya no tiene deuda pendiente."); return; }
   _cp("cxc-ab-cliente").value = cli.nombre;
   _cp("cxc-ab-rif").value = cli.rif || "";
   _cp("cxc-ab-deuda").textContent = saldoDual(cli.saldo || 0);
@@ -683,7 +697,7 @@ function guardarDeudaInicialCliente() {
     tasa: r2(getTasa()), total: r2(monto), totalBs: r2(bsDeUsd(monto)),
     pagado: 0, saldo: r2(monto), estado: "Pendiente", lineas: []
   });
-  cli.saldo = r2((cli.saldo || 0) + monto);
+  reconciliarSaldoCliente(nombre);
   auditar("Deuda inicial por cobrar", `${nombre} — ${fmtUS(monto)} (${motivo})`);
   saveDB();
   if (typeof renderClientes === "function") renderClientes();
