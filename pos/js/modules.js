@@ -2,6 +2,7 @@
 const $ = id => document.getElementById(id);
 const setVal = (id, v) => { const el = $(id); if (el) el.value = (Math.round(num(v) * 100) / 100).toFixed(2).replace(".", ","); };
 const fmtV = v => fmt(v);
+const clampPct = p => Math.max(0, Math.min(100, num(p)));
 
 // ===== Pestañas =====
 function setTab(btn) {
@@ -739,10 +740,11 @@ function selectCotizacion(nro, row) {
   ).join("");
 const sub = (c.lineas || []).reduce((s, d) => s + d.total, 0);
   const iva = sub * (getIva() / 100);
-  const desc = r2(c.desc || 0);
+  const descPct = c.descPct != null ? clampPct(c.descPct) : (sub > 0 ? clampPct((num(c.desc) || 0) / sub * 100) : 0);
+  const desc = r2(descPct / 100 * sub);
   $("cot-sub").textContent = fmt(sub);
   $("cot-iva").textContent = fmt(iva);
-  $("cot-desc").textContent = fmt(desc);
+  $("cot-desc").textContent = desc > 0 ? `${descPct}% (- ${fmt(desc)})` : "0%";
   $("cot-total").textContent = fmt(sub + iva - desc);
 }
 
@@ -770,7 +772,14 @@ function editarCotizacion() {
   fillClienteSelect("coti-n-cliente", c.cliente);
   $("coti-n-obs").value = c.observaciones || "";
 cotiTemp = (c.lineas || []).map(l => ({ ...l }));
-  const descIn = document.getElementById("coti-n-desc-input"); if (descIn) descIn.value = String(c.desc || 0).replace(".", ",");
+  const descIn = document.getElementById("coti-n-desc-input");
+  if (descIn) {
+    if (c.descPct != null) descIn.value = String(c.descPct).replace(".", ",");
+    else {
+      const sub = cotiTemp.reduce((s, d) => s + d.total, 0);
+      descIn.value = sub > 0 ? String(clampPct((num(c.desc) || 0) / sub * 100)).replace(".", ",") : "0";
+    }
+  }
   renderCotizacionNueva();
   openModuleWindow("cotizacion-nueva");
   const fp = document.getElementById("coti-n-prod"); if (fp) fp.focus();
@@ -863,14 +872,15 @@ function renderCotizacionNueva() {
     `<td style="text-align:right">${fmt(d.total)}</td><td style="text-align:right">${fmt(d.totalUSD || d.total / t)}</td>` +
     `<td><button class="btn-mini" onclick="quitarLineaCotizacion(${i})">✕</button></td></tr>`
   ).join("");
-  const sub = cotiTemp.reduce((s, d) => s + d.total, 0);
+const sub = cotiTemp.reduce((s, d) => s + d.total, 0);
   const iva = sub * (getIva() / 100);
   const descEl = document.getElementById("coti-n-desc-input");
-  const desc = descEl ? (num(descEl.value) || 0) : 0;
-  const total = sub + iva - desc;
+  const descPct = descEl ? (num(descEl.value) || 0) : 0;
+  const montoDesc = clampPct(descPct) / 100 * sub;
+  const total = sub + iva - montoDesc;
 $("coti-n-sub").textContent = fmt(sub);
   $("coti-n-sub-usd").textContent = fmt(sub / t);
-  $("coti-n-desc-usd").textContent = fmt(desc / t);
+  $("coti-n-desc-usd").textContent = fmt(montoDesc / t);
   $("coti-n-iva").textContent = fmt(iva);
   $("coti-n-iva-usd").textContent = fmt(iva / t);
   $("coti-n-total").textContent = fmt(total);
@@ -882,14 +892,15 @@ function quitarLineaCotizacion(i) { cotiTemp.splice(i, 1); renderCotizacionNueva
 function guardarCotizacion() {
   if (!cotiTemp.length) { alert("Agregue al menos un producto"); return; }
   const sub = cotiTemp.reduce((s, d) => s + d.total, 0);
-  const desc = num(document.getElementById("coti-n-desc-input")?.value) || 0;
+  const descPct = num(document.getElementById("coti-n-desc-input")?.value) || 0;
+  const desc = clampPct(descPct) / 100 * sub;
   const total = sub + sub * (getIva() / 100) - desc;
   const cot = {
     nro: $("coti-n-nro").value,
     fecha: $("coti-n-fecha").value,
     cliente: $("coti-n-cliente").value,
     observaciones: $("coti-n-obs").value,
-    desc, total, estado: "Pendiente",
+    descPct: clampPct(descPct), desc, total, estado: "Pendiente",
     lineas: cotiTemp.map(l => ({ ...l }))
   };
   if (cotiEditNro) {
@@ -952,7 +963,9 @@ function _cuerpoCotizacionHtml(c) {
   const tasa = getTasa() || 1;
   const sub = (c.lineas || []).reduce((s, l) => s + num(l.total), 0);
   const iva = r2(sub * getIva() / 100);
-  const total = r2(sub + iva);
+  const descPct = c.descPct != null ? clampPct(c.descPct) : (sub > 0 ? clampPct((num(c.desc) || 0) / sub * 100) : 0);
+  const desc = r2(descPct / 100 * sub);
+  const total = r2(sub + iva - desc);
   const cli = DB.clientes.find(x => x.nombre === c.cliente);
   const validez = num(DB.parametros.validezCotizacion) || 15;
   const venc = sumarDias(c.fecha, validez);
@@ -975,6 +988,7 @@ function _cuerpoCotizacionHtml(c) {
     `<table class="totales">` +
       `<tr><td class="lbl">Sub-Total</td><td class="num">${fmt(sub)}</td></tr>` +
       `<tr><td class="lbl">I.V.A. (${getIva()}%)</td><td class="num">${fmt(iva)}</td></tr>` +
+      (desc > 0 ? `<tr><td class="lbl">Descuento (${descPct}%)</td><td class="num">- ${fmt(desc)}</td></tr>` : "") +
       `<tr><td class="gr">TOTAL</td><td class="num">${fmt(total)} Bs.</td></tr>` +
       `<tr><td class="lbl">Total (USD)</td><td class="num">$ ${fmt(total / tasa)}</td></tr>` +
     `</table>` +
