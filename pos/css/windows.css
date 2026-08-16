@@ -48,3 +48,6 @@ body { position: relative; }
 #buscar-window.floating     { width: 720px; max-height: 70vh; }
 #ultima-factura-window.floating { width: 980px; }
 #cierre-resumen-window.floating { width: 540px; }
+#contabilidad-window.floating { width: 1080px; }
+#cont-gasto-window.floating { width: 620px; }
+#cont-detalle-window.floating { width: 720px; }

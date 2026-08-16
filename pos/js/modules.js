@@ -1256,9 +1256,10 @@ function updateDevPagoHint() {
   hint.textContent = total > 0 ? `Total a devolver: ${fmt(total)} Bs.` : "";
 }
 
-function registrarDevolucion() {
+async function registrarDevolucion() {
   if (!devVenta) { alert("Seleccione la factura a devolver."); return; }
   if (!devTemp.length) { alert("Agregue al menos un producto a devolver."); return; }
+  if (!await solicitarPinSupervisor(`Registrar devolución sobre la factura ${devVenta.nro}`)) return;
   const sub = devTemp.reduce((s, d) => s + d.total, 0);
   const total = r2(sub + sub * (getIva() / 100));
   const metodo = $("dev-pago-metodo").value;
@@ -1361,6 +1362,7 @@ renderDevHistorial();
 async function anularDevolucion() {
   if (!devTemp.length) { alert("No hay devolución en proceso para anular."); return; }
   if (!await uiConfirm("¿Anular la devolución en proceso?")) return;
+  if (!await solicitarPinSupervisor("Anular devolución en proceso")) return;
   devTemp = [];
   renderDevNueva();
   auditar("Devolución anulada", "(en proceso)");

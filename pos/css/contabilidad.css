@@ -1,92 +1,99 @@
-/* ===== Módulo Contabilidad: Libro Diario (Ingresos y Egresos) ===== */
+/* ===== Módulo Contabilidad: Libro Diario (Ingresos y Egresos) =====
+   Identidad del sistema: estilo Windows clásico / claro (beige + blanco + azul).
+   Comparte estética con main.css (.window, .grid, .panel) y app.css (KPIs). */
+
+/* ===== Tarjetas KPI (ingresos / egresos / balance) ===== */
 .cont-kpis {
   display: flex;
   gap: 12px;
-  margin: 10px 0;
+  margin: 10px 4px;
   flex-wrap: wrap;
 }
 .cont-kpi-card {
   flex: 1;
   min-width: 180px;
-  background: linear-gradient(135deg, #16233d, #0f172a);
-  border: 1px solid #2b3a55;
-  border-radius: 12px;
-  padding: 12px 16px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  background: #ffffff;
+  border: 1px solid #b8b4a8;
+  border-left: 4px solid #999;
+  border-radius: 8px;
+  padding: 10px 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
-.cont-kpi-card.ingreso { border-left: 4px solid #22c55e; }
-.cont-kpi-card.egreso { border-left: 4px solid #ef4444; }
-.cont-kpi-card.balance { border-left: 4px solid #eab308; }
+.cont-kpi-card.ingreso { border-left-color: #008000; }
+.cont-kpi-card.egreso { border-left-color: #cc0000; }
+.cont-kpi-card.balance { border-left-color: #b45309; }
 .cont-kpi-label {
-  font-size: 10px;
-  font-weight: 800;
+  font-size: 11px;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 1px;
-  color: #7d8aa5;
+  letter-spacing: 0.03em;
+  color: #666;
   display: flex;
   justify-content: space-between;
 }
 .cont-kpi-val {
   font-size: 20px;
-  font-weight: 800;
-  color: #e2e8f0;
-  margin-top: 4px;
+  font-weight: bold;
+  color: #003399;
+  margin-top: 2px;
 }
-.cont-kpi-card.ingreso .cont-kpi-val { color: #4ade80; }
-.cont-kpi-card.egreso .cont-kpi-val { color: #f87171; }
-.cont-kpi-card.balance .cont-kpi-val { color: #facc15; }
+.cont-kpi-card.ingreso .cont-kpi-val { color: #0a7a0a; }
+.cont-kpi-card.egreso .cont-kpi-val { color: #b00000; }
+.cont-kpi-card.balance .cont-kpi-val { color: #92400e; }
 
+/* ===== Filtros (periodo, rango, búsqueda) ===== */
 .cont-filters {
   display: flex;
   gap: 10px;
   align-items: flex-end;
   flex-wrap: wrap;
   padding: 8px 10px;
-  background: rgba(15, 23, 42, 0.5);
-  border: 1px solid #2b3a55;
-  border-radius: 10px;
-  margin-bottom: 8px;
+  background: #ECE9D8;
+  border: 1px solid #b8b4a8;
+  border-radius: 4px;
+  margin: 0 4px 8px;
 }
 .cont-filters label {
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: #7d8aa5;
+  font-size: 11px;
+  font-weight: bold;
+  color: #003399;
   display: block;
   margin-bottom: 3px;
 }
 .cont-filters select,
 .cont-filters input {
-  background: #0f172a;
-  color: #e2e8f0;
-  border: 1px solid #334155;
-  border-radius: 6px;
-  padding: 6px 8px;
+  background: #ffffff;
+  color: #222;
+  border: 1px solid #7F9DB9;
+  border-radius: 2px;
+  padding: 3px 4px;
   font-size: 12px;
 }
 
+/* ===== Paginación del libro ===== */
 .cont-pag {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 8px;
-  color: #7d8aa5;
+  margin: 8px 4px;
+  color: #003399;
   font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  font-weight: bold;
 }
 .cont-pag button {
-  background: #0f172a;
-  color: #e2e8f0;
-  border: 1px solid #334155;
-  border-radius: 8px;
-  padding: 6px 14px;
-  font-weight: 800;
+  background: linear-gradient(to bottom, #f8f6ed 0%, #d6d3c3 100%);
+  color: #222;
+  border: 1px solid #7F9DB9;
+  border-radius: 2px;
+  padding: 3px 12px;
+  font-weight: bold;
+  font-family: inherit;
   cursor: pointer;
 }
-.cont-pag button:disabled { opacity: 0.35; cursor: default; }
+.cont-pag button:hover { background: linear-gradient(to bottom, #fff 0%, #ece9d8 100%); }
+.cont-pag button:disabled { opacity: 0.4; cursor: default; }
 
+/* ===== Detalle / Auditoría de movimiento ===== */
 .cont-det-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -94,35 +101,36 @@
   margin: 8px 0;
 }
 .cont-det-box {
-  background: rgba(15, 23, 42, 0.6);
-  border: 1px solid #2b3a55;
-  border-radius: 10px;
-  padding: 10px 12px;
+  background: #ffffff;
+  border: 1px solid #b8b4a8;
+  border-radius: 4px;
+  padding: 8px 12px;
 }
 .cont-det-box label {
-  font-size: 9px;
-  font-weight: 800;
+  font-size: 10px;
+  font-weight: bold;
   text-transform: uppercase;
-  letter-spacing: 1px;
-  color: #7d8aa5;
+  letter-spacing: 0.04em;
+  color: #666;
   display: block;
-  margin-bottom: 4px;
+  margin-bottom: 3px;
 }
 .cont-det-box .valor {
-  font-size: 16px;
-  font-weight: 800;
-  color: #e2e8f0;
+  font-size: 15px;
+  font-weight: bold;
+  color: #003399;
 }
 .cont-det-box .concepto {
-  font-size: 13px;
-  font-weight: 700;
-  color: #f1c40f;
+  font-size: 12px;
+  font-weight: bold;
+  color: #b45309;
   text-transform: uppercase;
   line-height: 1.3;
 }
 
+/* ===== Etiqueta de método de pago ===== */
 .cont-metodo {
-  background: #0f172a;
-  color: #e2e8f0;
-  border-color: #334155;
+  background: #ECE9D8;
+  color: #222;
+  border-color: #b8b4a8;
 }

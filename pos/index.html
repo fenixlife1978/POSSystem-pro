@@ -1711,6 +1711,33 @@
   </div>
 </div>
 
+<!-- ============== RECORDATORIO DE SERVICIOS PROGRAMADOS (Cambio de Aceite) ============== -->
+<div class="window hidden" id="taller-rec-window">
+  <div class="title-bar">
+    <div class="title-left"><span class="app-icon">🛢️</span><span class="title-text">Servicios Programados — Cambio de Aceite</span></div>
+    <div class="title-right">
+      <button class="win-btn">─</button><button class="win-btn">▢</button>
+      <button class="win-btn" onclick="cerrarRecordatorioServicios()">✕</button>
+    </div>
+  </div>
+  <div class="module-content">
+    <div class="rec-aviso">
+      Tienes Vehículos de Clientes que ya Requieren Servicios Programados, Por Favor revise.
+      Los servicios de cambio de aceite cuyo período haya vencido o esté por vencer (dentro de 2 días)
+      aparecen a continuación.
+    </div>
+    <table class="grid full-grid">
+      <thead>
+        <tr><th>Cliente</th><th>Vehículo</th><th>Último Cambio</th><th>Próximo Servicio</th><th>Resta</th></tr>
+      </thead>
+      <tbody id="taller-rec-body"></tbody>
+    </table>
+    <div class="pago-actions">
+      <button class="mod-btn" onclick="cerrarRecordatorioServicios()">✅ Entendido</button>
+    </div>
+  </div>
+</div>
+
 <!-- ============== COMPARTIR (PDF / REPORTE) ============== -->
 <div class="window hidden" id="compartir-window">
   <div class="title-bar">
@@ -1953,6 +1980,8 @@
         <tr><td><label>Tasa BCV (Bs/USD):</label></td><td><input type="text" inputmode="decimal" id="par-tasa" class="input-medium"></td>
             <td><label>I.V.A. (%):</label></td><td><input type="text" inputmode="decimal" id="par-iva" class="input-small"></td></tr>
         <tr><td><label>Serie de Factura:</label></td><td><input type="text" id="par-serie" class="input-small"></td></tr>
+        <tr><td><label>PIN Supervisor:</label></td><td><input type="password" id="par-pin" class="input-small" title="PIN requerido para devoluciones y anulación de ventas" autocomplete="new-password"></td>
+            <td><label>Días Cambio de Aceite:</label></td><td><input type="text" inputmode="numeric" id="par-dias-aceite" class="input-small" title="Días para el próximo servicio de cambio de aceite"></td></tr>
       </table>
     </fieldset>
     <div class="pago-actions">

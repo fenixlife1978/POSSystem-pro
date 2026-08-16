@@ -5,6 +5,100 @@ let ordenTemp = [];
 let ordenEditNro = null;
 let ordenSelNro = null;
 
+// ===== SEGUIMIENTO DE CAMBIO DE ACEITE (servicio programado) =====
+// Cada cambio de aceite registrado por cliente y vehículo tiene un contador
+// regresivo (DB.parametros.diasCambioAceite, por defecto 90 días). Al vencer
+// corresponde un nuevo servicio; el sistema recuerda 2 días antes de la fecha
+// límite.
+
+function esCambioAceite(o) {
+  const texto = ((o.trabajo || "") + " " + (o.notas || "") + " " + (o.lineas || []).map(l => (l.descripcion || "") + " " + (l.codigo || "")).join(" ")).toUpperCase();
+  return /CAMBIO\s+DE\s+ACEITE|CAMBIO\s+ACEITE/.test(texto);
+}
+
+function fechaFechaKey(f) {
+  const p = String(f || "").split("/");
+  return p.length === 3 ? (p[2] + p[1] + p[0]) : "";
+}
+
+function diasEntre(f1, f2) {
+  const p1 = String(f1 || "").split("/");
+  const p2 = String(f2 || "").split("/");
+  if (p1.length !== 3 || p2.length !== 3) return 0;
+  const d1 = new Date(Number(p1[2]), Number(p1[1]) - 1, Number(p1[0]));
+  const d2 = new Date(Number(p2[2]), Number(p2[1]) - 1, Number(p2[0]));
+  return Math.round((d2 - d1) / 86400000);
+}
+
+function claveCambioAceite(cliente, placa) {
+  return String(cliente || "").trim().toUpperCase() + "||" + String(placa || "").trim().toUpperCase().replace(/\s+/g, "");
+}
+
+function registrarCambioAceite(o) {
+  if (!esCambioAceite(o)) return;
+  DB.cambioAceite = DB.cambioAceite || [];
+  const dias = Math.max(1, num(DB.parametros.diasCambioAceite) || 90);
+  const clave = claveCambioAceite(o.cliente, o.placa);
+  const fec = o.fecha || hoy();
+  const rec = DB.cambioAceite.find(r => r.clave === clave);
+  if (rec) {
+    // Conservar la fecha del último cambio (el más reciente) para el contador.
+    if (fechaFechaKey(fec) > fechaFechaKey(rec.fecha)) {
+      rec.fecha = fec; rec.nro = o.nro; rec.placa = o.placa || rec.placa;
+      rec.marca = o.marca || rec.marca; rec.modelo = o.modelo || rec.modelo;
+      rec.proxima = sumarDias(fec, dias);
+    }
+  } else {
+    DB.cambioAceite.push({
+      clave, cliente: o.cliente || "", placa: o.placa || "",
+      marca: o.marca || "", modelo: o.modelo || "", nro: o.nro, fecha: fec,
+      proxima: sumarDias(fec, dias)
+    });
+  }
+}
+
+function contadorCambioAceite(cliente, placa) {
+  const rec = (DB.cambioAceite || []).find(r => r.clave === claveCambioAceite(cliente, placa));
+  if (!rec) return null;
+  const dias = Math.max(1, num(DB.parametros.diasCambioAceite) || 90);
+  const restantes = dias - diasEntre(rec.fecha, hoy());
+  return { fecha: rec.fecha, proxima: rec.proxima || sumarDias(rec.fecha, dias), restantes };
+}
+
+// Vehículos de clientes cuyo cambio de aceite ya venció o vence en los próximos
+// 2 días (aviso anticipado). Devuelve la lista de registros pendientes.
+function vehiculosCambioAceitePendientes() {
+  const regs = (DB.cambioAceite || []).slice();
+  const pend = [];
+  regs.forEach(r => {
+    const dias = Math.max(1, num(DB.parametros.diasCambioAceite) || 90);
+    const proxima = r.proxima || sumarDias(r.fecha, dias);
+    const restantes = diasEntre(hoy(), proxima);
+    if (restantes <= 2) pend.push({ ...r, proxima, restantes });
+  });
+  return pend;
+}
+
+// ----- Recordatorio en pantalla -----
+function mostrarRecordatorioServicios() {
+  const pend = vehiculosCambioAceitePendientes();
+  if (!pend.length) return;
+  const cia = _t$("taller-rec-body");
+  if (cia) {
+    cia.innerHTML = pend.map(p =>
+      `<tr>
+        <td>${_escHtml(p.cliente)}</td>
+        <td>${_escHtml([p.placa, p.marca, p.modelo].filter(Boolean).join(" ")) || "—"}</td>
+        <td>${_escHtml(p.fecha)}</td>
+        <td style="text-align:right">${_escHtml(p.proxima)}</td>
+        <td style="text-align:right">${p.restantes <= 0 ? `<b style="color:#b00000">VENCIDO</b>` : `<b style="color:#92400e">${p.restantes} día${p.restantes === 1 ? "" : "s"}</b>`}</td>
+      </tr>`).join("");
+  }
+  abrirModalVentana("taller-rec-window");
+}
+
+function cerrarRecordatorioServicios() { closeWindow("taller-rec-window"); }
+
 function tallerEstadoBadge(estado) {
   const map = { "Recibido": "tal-rec", "En Proceso": "tal-proc", "Listo": "tal-list", "Entregado": "tal-entre", "Anulada": "tal-anu" };
   return `<span class="tal-badge ${map[estado] || "tal-rec"}">${_escHtml(estado)}</span>`;
@@ -90,6 +184,14 @@ function renderOrdenTallerDetalle(o) {
   if (_t$("taller-totales")) _t$("taller-totales").innerHTML =
     `Sub-Total: <b>${fmt(sub)}</b> · I.V.A. (${getIva()}%): <b>${fmt(iva)}</b> · <span class="taller-total">TOTAL: <b>${fmt(sub + iva)} Bs.</b></span>`;
   const vehiculo = [o.placa, o.marca, o.modelo, o.anio, o.color].filter(Boolean).join(" ");
+  const cAceite = contadorCambioAceite(o.cliente, o.placa);
+  let aceiteHtml = "";
+  if (cAceite) {
+    const texto = cAceite.restantes > 0
+      ? `Próximo servicio en <b>${cAceite.restantes}</b> días (${cAceite.proxima})`
+      : `⚠ VENCE EL SERVICIO — corresponde un nuevo cambio de aceite`;
+    aceiteHtml = `<div class="taller-aceite ${cAceite.restantes > 0 ? "" : "vencido"}">🛢️ Cambio de Aceite (${cAceite.fecha}) → <span>${texto}</span></div>`;
+  }
   if (fichaEl) fichaEl.innerHTML =
     `<div class="taller-veh-box">
        <div><b>Cliente:</b> ${_escHtml(o.cliente)} ${o.clienteCodigo ? `(${_escHtml(o.clienteCodigo)})` : ""}</div>
@@ -97,6 +199,7 @@ function renderOrdenTallerDetalle(o) {
        <div><b>Trabajo / Diagnóstico:</b> ${_escHtml(o.trabajo || "—")}</div>
        ${o.notas ? `<div><b>Notas:</b> ${_escHtml(o.notas)}</div>` : ""}
        ${o.ventaRef ? `<div><b>Factura:</b> ${_escHtml(o.ventaRef)}</div>` : ""}
+       ${aceiteHtml}
      </div>`;
   if (timeEl) {
     const fila = (n, v) => v ? `<div><b>${n}:</b> ${v}</div>` : "";
@@ -399,6 +502,7 @@ function guardarOrdenTaller() {
   if (idx >= 0) DB.ordenesTaller[idx] = orden;
   else DB.ordenesTaller.push(orden);
   const total = ordenTotalBs(orden);
+  registrarCambioAceite(orden);
   auditar("Taller", `${ordenEditNro ? "Editada" : "Creada"} orden ${nro} — ${cliente}${vh.placa ? " · " + vh.placa : ""} — ${fmt(total)} Bs.`);
   saveDB();
   ordenSelNro = nro;

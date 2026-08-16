@@ -265,4 +265,88 @@ body.role-admin.admin-pos-view .toolbar { display: grid; }
 .opc-ok:hover { background: #195fcc; }
 .opc-cancel { background: #fff; color: #222; border: 1px solid #c7ced9; }
 .opc-cancel:hover { background: #eef2f5; }
+
+/* ===== Diálogos base (uiAlert / uiConfirm / uiPrompt) — identidad del sistema ===== */
+.ui-dialog-overlay {
+  position: fixed; inset: 0; display: none;
+  align-items: center; justify-content: center;
+  background: rgba(10, 15, 40, .45);
+  z-index: 2147483000;
+  font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+}
+.ui-dialog-box {
+  width: min(470px, 92vw);
+  background: #ECE9D8;
+  border: 2px solid #0055EA;
+  border-radius: 8px;
+  box-shadow: 4px 4px 16px rgba(0,0,0,.5);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.ui-dialog-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(to bottom, #1F61D6 0%, #0B3D91 50%, #082F73 100%);
+  color: #fff;
+  font-weight: bold;
+  padding: 4px 8px;
+  height: 26px;
+  border-bottom: 1px solid #001a4d;
+}
+.ui-dialog-head .app-icon { font-size: 14px; }
+.ui-dialog-title { font-size: 12px; }
+.ui-dialog-body { padding: 18px 20px 10px; background: #ECE9D8; }
+.ui-dialog-msg {
+  font-size: 14px;
+  line-height: 1.5;
+  color: #222;
+  white-space: pre-wrap;
+  min-height: 24px;
+}
+.ui-dialog-inputwrap {
+  padding: 14px 0 6px;
+  display: flex;
+  justify-content: center;
+}
+.ui-dialog-input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #aab7c2;
+  border-radius: 6px;
+  font-size: 14px;
+}
+.ui-dialog-input:focus {
+  border-color: #1976d2;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(25,118,210,.15);
+}
+.ui-dialog-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 12px 20px 16px;
+  background: #ECE9D8;
+}
+.ui-dialog-foot .mod-btn {
+  padding: 8px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+}
+.ui-dialog-ok {
+  background: #2f6bff !important;
+  color: #fff;
+  border-color: #1f4fb8 !important;
+}
+.ui-dialog-ok:hover { background: #195fcc !important; color: #fff !important; }
+.ui-dialog-cancel {
+  background: #fff;
+  color: #222;
+  border-color: #c7ced9;
+}
+.ui-dialog-cancel:hover { background: #eef2f5; }
 body.role-admin.admin-pos-view #pos-window { height: calc(100vh - 24px); }

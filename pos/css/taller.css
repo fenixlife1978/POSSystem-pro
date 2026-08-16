@@ -2,6 +2,7 @@
 #taller-window.floating { width: 1100px; }
 #taller-nueva-window.floating { width: 1080px; }
 #taller-credito-window.floating { width: 480px; }
+#taller-rec-window.floating { width: 760px; }
 #compartir-window.floating { width: 560px; }
 #compartir-window #compartir-area { width: 100%; }
 
@@ -103,3 +104,25 @@
 }
 #taller-nueva-window .prov-result:hover { background: #dfe8ff; }
 #taller-nueva-window .prov-results { display: none; border: 1px solid #888; max-height: 180px; overflow-y: auto; }
+
+/* Contador regresivo de cambio de aceite en la ficha */
+.taller-aceite {
+  margin-top: 6px;
+  padding: 5px 8px;
+  border: 1px solid #b8b4a8;
+  background: #fffbe6;
+  color: #6b5b00;
+  font-size: 12px;
+}
+.taller-aceite.vencido { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
+
+/* Recordatorio de servicios programados */
+.rec-aviso {
+  margin: 4px;
+  padding: 10px 12px;
+  background: #fffbe6;
+  border: 1px solid #e8d88a;
+  color: #6b5b00;
+  font-size: 13px;
+  font-weight: bold;
+}

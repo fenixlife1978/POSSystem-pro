@@ -12,6 +12,8 @@ const DB = {
     cajero: "ADMIN",
     turno: 1,
     monedaCxC: "USD",
+    pinSupervisor: "1234",
+    diasCambioAceite: 90,
     categorias: ["REPUESTOS", "LUBRICANTES", "BATERIAS", "FRENOS", "LLANTAS", "SERVICIOS", "GENERAL"],
     subcategorias: ["FILTROS", "ACEITES", "BATERIAS", "FRENOS", "LLANTAS", "BUJIAS", "CORREAS", "SENSORES", "GENERAL"],
     marcas: ["GENERICO", "FRAM", "WEGA", "MOBIL", "SHELL", "MAC", "NGK", "BREMBO", "FIRESTONE", "MICHELIN", "ACDELCO", "BOSCH", "NAKATA", "FERODO"],
@@ -56,7 +58,8 @@ const DB = {
   abonos: [],
   cuentasCobrar: [],
   cuentasPagar: [],
-  pagosPagar: []
+  pagosPagar: [],
+  cambioAceite: []
 };
 
 // ============== HELPERS ==============

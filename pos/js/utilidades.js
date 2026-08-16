@@ -6,6 +6,8 @@ function cargarParametros() {
   _g("par-tasa").value = fmt(getTasa());
   _g("par-iva").value = (getIva() || 0).toFixed(0);
   _g("par-serie").value = DB.parametros.serie || "FACT";
+  _g("par-pin").value = DB.parametros.pinSupervisor || "";
+  _g("par-dias-aceite").value = DB.parametros.diasCambioAceite || 90;
 }
 
 function guardarParametros() {
@@ -13,6 +15,8 @@ function guardarParametros() {
   DB.parametros.tasaBCV = nuevaTasa;
   DB.parametros.iva = num(_g("par-iva").value);
   DB.parametros.serie = _g("par-serie").value.trim() || "FACT";
+  DB.parametros.pinSupervisor = String(_g("par-pin").value || "").trim() || "1234";
+  DB.parametros.diasCambioAceite = Math.max(1, num(_g("par-dias-aceite").value) || 90);
   auditar("Parámetros actualizados", `Tasa BCV ${fmt(getTasa())} — IVA ${getIva()}%`);
   if (typeof recalcularPreciosPorTasa === "function") recalcularPreciosPorTasa(nuevaTasa);
   saveDB();

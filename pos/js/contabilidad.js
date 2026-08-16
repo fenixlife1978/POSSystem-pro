@@ -196,7 +196,7 @@ function renderContabilidad() {
   if (_ct("cont-kpi-ing")) _ct("cont-kpi-ing").innerHTML = fmtUS(totalIng) + `<br><span class="usd-sub">${fmtBsEq(totalIng)}</span>`;
   if (_ct("cont-kpi-egr")) _ct("cont-kpi-egr").innerHTML = fmtUS(totalEgr) + `<br><span class="usd-sub">${fmtBsEq(totalEgr)}</span>`;
   if (_ct("cont-kpi-bal")) _ct("cont-kpi-bal").innerHTML = fmtUS(balance) + `<br><span class="usd-sub">${fmtBsEq(balance)}</span>`;
-  if (_ct("cont-kpi-bal")) _ct("cont-kpi-bal").style.color = balance >= 0 ? "" : "#f87171";
+  if (_ct("cont-kpi-bal")) _ct("cont-kpi-bal").style.color = balance >= 0 ? "" : "#b00000";
 
   const pag = Math.ceil(datos.length / CONT_PAGE_SIZE) || 1;
   if (contPage > pag) contPage = pag;
@@ -206,8 +206,8 @@ function renderContabilidad() {
   const fila = e => {
     const dir = e.tipo === "ingreso" ? "ingreso" : "egreso";
     const monedaCelda = e.tipo === "ingreso"
-      ? `<td class="num" style="color:#16a34a;font-weight:bold">${fmtUS(e.montoUSD)}</td><td class="num">—</td>`
-      : `<td class="num">—</td><td class="num" style="color:#dc2626;font-weight:bold">-${fmtUS(e.montoUSD)}</td>`;
+      ? `<td class="num" style="color:#0a7a0a;font-weight:bold">${fmtUS(e.montoUSD)}</td><td class="num">—</td>`
+      : `<td class="num">—</td><td class="num" style="color:#b00000;font-weight:bold">-${fmtUS(e.montoUSD)}</td>`;
     return `<tr>
         <td>${e.fecha}<br><span class="usd-sub">${e.hora}</span></td>
         <td><b>${e.concepto}</b><br><span class="usd-sub">${e.categoria.replace(/_/g, " ")}${e.referencia !== "MANUAL" ? " · " + e.referencia : ""}</span></td>

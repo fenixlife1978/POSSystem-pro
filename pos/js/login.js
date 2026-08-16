@@ -46,9 +46,11 @@ function doLogin() {
     if (u.rol === "Administrador" && typeof abrirDashboard === "function") {
       abrirDashboard();
       setTimeout(() => { if (typeof toggleMaximize === "function") toggleMaximize("dashboard"); }, 80);
+      setTimeout(() => { if (typeof mostrarRecordatorioServicios === "function") mostrarRecordatorioServicios(); }, 600);
       return;
     }
     const c = _lg("prod-codigo"); if (c) c.focus();
+    setTimeout(() => { if (typeof mostrarRecordatorioServicios === "function") mostrarRecordatorioServicios(); }, 600);
   }, 80);
 }
 

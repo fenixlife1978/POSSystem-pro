@@ -303,10 +303,12 @@ async function newSale() {
 async function cancelSale() {
   if (!DB.carrito.length) { alert("No hay venta activa para anular"); return; }
   if (await uiConfirm("¿Está seguro de anular la venta actual?")) {
-    DB.carrito = [];
-    window._tallerPendiente = null;
-    carritoSel = -1;
-    renderCarrito();
+    if (await solicitarPinSupervisor("Anulación total de la venta activa")) {
+      DB.carrito = [];
+      window._tallerPendiente = null;
+      carritoSel = -1;
+      renderCarrito();
+    }
   }
 }
 
