@@ -30,6 +30,7 @@ function doLogin() {
   if (typeof refrescarBotonesCaja === "function") refrescarBotonesCaja();
   document.body.classList.add("logged-in");
   if (typeof aplicarPermisosRol === "function") aplicarPermisosRol();
+  if (typeof iniciarRefrescoDashboard === "function") iniciarRefrescoDashboard();
   const su = _lg("status-usuario");
   if (su) su.textContent = u.nombre || u.usuario;
   const st = _lg("status-turno");
@@ -56,6 +57,7 @@ function doLogin() {
 
 async function logout() {
   if (!await uiConfirm("¿Desea cerrar la sesión?")) return;
+  if (typeof detenerRefrescoDashboard === "function") detenerRefrescoDashboard();
   document.body.classList.remove("logged-in");
   document.body.classList.remove("role-admin", "role-cajero");
   if (typeof closeWindow === "function") closeWindow("dashboard-window");

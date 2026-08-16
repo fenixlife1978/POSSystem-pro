@@ -149,6 +149,7 @@ function registrarAbonoCliente(cli, pagos, origen) {
     else if (p.metodo === "Efectivo USD (físico)") movimientoCaja(origen + " (Efectivo USD)", ref, 0, p.monto, true);
     else if (p.metodo !== "Crédito (CxC)") movimientoCaja(origen + " (" + p.metodo + ")", ref, p.moneda === "USD" ? 0 : p.monto, p.moneda === "USD" ? p.monto : 0, true);
   });
+  if (typeof refreshDashboard === "function") refreshDashboard();
 
   auditar(origen, `Abono ${nro} — ${fmtUS(montoCobrado)} (${fmtBsEq(montoCobrado)}) — ${cli.nombre}`);
   return { ok: true, nro, ref, totalDeuda, montoCobrado, saldoRestante, vuelto, forma: pagos.map(p => p.metodo).join(" + ") };

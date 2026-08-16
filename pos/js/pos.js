@@ -705,6 +705,7 @@ function confirmPago() {
   renderInventario();
   renderMovimientosCaja();
   if (typeof renderCxC === "function") renderCxC();
+  if (typeof refreshDashboard === "function") refreshDashboard();
 
   const resumen = pagos.map(p => `• ${p.metodo}: ${p.moneda === "USD" ? "$ " : ""}${fmt(p.monto)} ${p.moneda}`).join("\n");
   const vuelto = num(document.getElementById("pago-vuelto").textContent);
@@ -833,6 +834,7 @@ function confirmarCobroDeuda() {
   renderMovimientosCaja();
   mostrarSaldoCliente(cli);
   if (typeof renderCxC === "function") renderCxC();
+  if (typeof refreshDashboard === "function") refreshDashboard();
 
   const resumen = pagos.map(p => `• ${p.metodo}: ${p.moneda === "USD" ? "$ " : ""}${fmt(p.monto)} ${p.moneda}`).join("\n");
   alert(`COBRO DE DEUDA REGISTRADO\nCliente: ${cli.nombre}\nDeuda: ${saldoDual(r.totalDeuda)}\nAbonado: ${saldoDual(r.montoCobrado)}\nSaldo restante: ${saldoDual(r.saldoRestante)}\n\n${resumen}${r.vuelto > 0 ? `\n\nVuelto: ${fmtUS(r.vuelto)}` : ""}`);

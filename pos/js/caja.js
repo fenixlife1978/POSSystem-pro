@@ -90,6 +90,7 @@ async function confirmarApertura() {
   auditar("Apertura de caja", `Caja ${caja.nombre} — Fondo Bs. ${fmt(fondoBs)} / USD $ ${fmt(fondoUsd)} — Tasa ${fmt(tasa)}`);
   saveDB();
   renderMovimientosCaja();
+  refreshDashboard();
   refrescarBotonesCaja();
   closeWindow("apertura-window");
   alert("Caja abierta correctamente.");
@@ -309,6 +310,7 @@ async function confirmarCierre() {
   auditar("Cierre de caja", `Caja ${nombre} — Conteo Bs. ${fmt(conteoBs)} / USD $ ${fmt(conteoUsd)} — ${conciliado}`);
   saveDB();
   renderMovimientosCaja();
+  refreshDashboard();
   refrescarBotonesCaja();
   closeWindow("arqueo-window");
   abrirResumenCierre(cierre);

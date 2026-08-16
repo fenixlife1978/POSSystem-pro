@@ -226,3 +226,25 @@ document.addEventListener("DOMContentLoaded", () => {
     return orig(name);
   };
 });
+
+// ===== Refresco del dashboard en tiempo real (solo cuando es visible) =====
+function dashboardVisible() {
+  if (document.body.classList.contains("role-admin") && !document.body.classList.contains("admin-pos-view")) return true;
+  const w = document.getElementById("dashboard-window");
+  return w && !w.classList.contains("hidden");
+}
+
+function refreshDashboard() {
+  if (dashboardVisible()) renderDashboard();
+}
+
+let _dashTimer = null;
+function iniciarRefrescoDashboard() {
+  if (_dashTimer) return;
+  _dashTimer = setInterval(() => {
+    if (dashboardVisible()) renderDashboard();
+  }, 5000);
+}
+function detenerRefrescoDashboard() {
+  if (_dashTimer) { clearInterval(_dashTimer); _dashTimer = null; }
+}

@@ -1368,6 +1368,7 @@ renderDevHistorial();
   renderDevVentaLines();
   renderDevProd();
   setDevFormLocked(false);
+  if (typeof refreshDashboard === "function") refreshDashboard();
   alert(`Devolución ${dev.nro} registrada sobre la factura ${dev.factura}.\nTotal devuelto: ${fmt(total)} Bs.`);
   $("dev-nro").value = genNro(DB.devoluciones, "nro", "DEV-", 6);
   const sf = $("dev-fact-search"); if (sf) sf.focus();
