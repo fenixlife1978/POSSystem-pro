@@ -56,6 +56,7 @@
     return new Promise(resolve => {
       current = { resolve, withInput: opts.withInput };
       const b = box();
+      overlay().style.display = "flex";
       b.style.display = "flex";
       const title = b.children[0];
       const msg = b.children[1];

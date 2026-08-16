@@ -755,7 +755,7 @@ function buildEmptyDB() {
   };
 }
 
-async function resetDemoData() {
+async function resetBaseDeDatos() {
   // Fallback robusto: si el diálogo propio no está disponible, usar confirm nativo.
   let ok = false;
   try { ok = !!(await uiConfirm("¿Borrar TODOS los datos del sistema y comenzar de nuevo?\n\nSe eliminará toda la información (base local, caché, respaldos y auditoría), excepto el usuario y el cliente por defecto.")); }

@@ -1286,9 +1286,52 @@ function actualizarBadgeTasaBCV() {
 async function modificarTasaBCVRapida() {
   const tasaActual = getTasa();
   const usuario = (DB.parametros && DB.parametros.cajero) || "Usuario";
-  const resp = await uiPrompt(`MODIFICAR TASA BCV DEL SISTEMA\n\nUsuario actual: ${usuario}\nTasa actual: ${fmt(tasaActual)} Bs/$\n\nIngrese la nueva Tasa BCV (Bs/$):`, fmt(tasaActual));
-  if (resp === null) return;
-  const nuevaTasa = num(resp);
+
+  const nuevaTasa = await new Promise(resolve => {
+    const ov = document.createElement("div");
+    ov.className = "tasa-overlay";
+    ov.innerHTML = `
+      <div class="window" id="tasa-modal-window" style="position:relative;width:min(460px,92vw);margin:auto;border-radius:8px;overflow:hidden;">
+        <div class="title-bar">
+          <div class="title-left"><span class="app-icon">💱</span><span class="title-text">Modificar Tasa BCV del Sistema</span></div>
+          <div class="title-right"><button class="win-btn" title="Cerrar" id="tasa-close">✕</button></div>
+        </div>
+        <div class="module-content" style="padding:10px;">
+          <fieldset class="panel">
+            <legend>Datos de la Tasa</legend>
+            <table class="form-table">
+              <tr><td><label>Tasa actual (Bs/$):</label></td><td><input type="text" class="input-medium" value="${fmt(tasaActual)}" readonly></td></tr>
+              <tr><td><label>Usuario actual:</label></td><td><input type="text" class="input-medium" value="${_escHtml(usuario)}" readonly></td></tr>
+              <tr><td><label>Nueva Tasa BCV (Bs/$):</label></td><td><input type="text" id="tasa-nueva" class="input-medium" inputmode="decimal" value="${fmt(tasaActual)}"></td></tr>
+            </table>
+          </fieldset>
+          <div class="pago-actions" style="text-align:right;margin-top:10px;padding-top:10px;border-top:1px solid #aaa;">
+            <button class="mod-btn" id="tasa-cancel">✖ Cancelar</button>
+            <button class="mod-btn" id="tasa-ok">💾 Guardar</button>
+          </div>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    const input = ov.querySelector("#tasa-nueva");
+    const okBtn = ov.querySelector("#tasa-ok");
+    const cclBtn = ov.querySelector("#tasa-cancel");
+    const closeBtn = ov.querySelector("#tasa-close");
+    const close = val => { ov.remove(); resolve(val); };
+    okBtn.onclick = () => close(num(input.value));
+    cclBtn.onclick = () => close(null);
+    closeBtn.onclick = () => close(null);
+    ov.addEventListener("mousedown", e => { if (e.target === ov) close(null); });
+    const onKey = e => {
+      if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); close(num(input.value)); }
+      else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(null); }
+    };
+    document.addEventListener("keydown", onKey);
+    input.addEventListener("keydown", e => e.stopPropagation());
+    input.focus();
+    input.select();
+  });
+
+  if (nuevaTasa === null) return;
   if (nuevaTasa <= 0) {
     alert("Error: Debe ingresar una tasa válida mayor a cero (0).");
     return;

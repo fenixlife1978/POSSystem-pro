@@ -192,4 +192,77 @@ body.role-admin .toolbar { display: none; }
 body.role-admin.admin-pos-view #admin-main { display: none; }
 body.role-admin.admin-pos-view .pos-content { display: grid; }
 body.role-admin.admin-pos-view .toolbar { display: grid; }
+
+/* ===== Modal de cambio de Tasa BCV (desde encabezado) ===== */
+.tasa-overlay {
+  position: fixed; inset: 0; display: flex;
+  align-items: center; justify-content: center;
+  background: rgba(10, 15, 40, .55);
+  z-index: 2147483000;
+  font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+}
+
+/* ===== Modales de catalogos (agregar/eliminar opciones) — consistente con Parámetros ===== */
+.opc-overlay {
+  position: fixed; inset: 0; display: flex;
+  align-items: center; justify-content: center;
+  background: rgba(10, 15, 40, .55);
+  z-index: 2147483000;
+  font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+}
+.opc-modal {
+  background: #ECE9D8;
+  border: 2px solid #0055EA;
+  border-radius: 8px;
+  box-shadow: 4px 4px 16px rgba(0,0,0,.5);
+  width: min(440px, 92vw);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.opc-modal .title-bar {
+  height: 26px;
+  padding: 3px 8px;
+}
+.opc-body { padding: 18px 20px; background: #ECE9D8; }
+.opc-msg {
+  font-size: 14px;
+  color: #222;
+  margin-bottom: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+.opc-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid #aab7c2;
+  border-radius: 6px;
+  font-size: 14px;
+}
+.opc-input:focus {
+  border-color: #1976d2;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(25,118,210,.15);
+}
+.opc-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 12px 20px;
+  background: #ECE9D8;
+}
+.opc-btn {
+  padding: 8px 20px;
+  border: 0;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .2s;
+}
+.opc-ok { background: #2f6bff; color: #fff; }
+.opc-ok:hover { background: #195fcc; }
+.opc-cancel { background: #fff; color: #222; border: 1px solid #c7ced9; }
+.opc-cancel:hover { background: #eef2f5; }
 body.role-admin.admin-pos-view #pos-window { height: calc(100vh - 24px); }

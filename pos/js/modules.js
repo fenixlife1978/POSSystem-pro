@@ -69,7 +69,10 @@ function leerClienteForm() {
   const tipoPersona = $("cli-tipo-persona").value;
   const tipoDoc = $("cli-doc-tipo").value || "V-";
   const numDoc = $("cli-doc-num").value.trim();
-  const rif = ($("cli-rif").value.trim() || (numDoc ? tipoDoc + numDoc : "")).replace(/\./g, "");
+  // Persona Natural: el documento se toma de los campos de cédula (V-/E-).
+  // Persona Jurídica: el R.I.F. completo se toma del campo cli-rif.
+  const esJ = tipoPersona === "juridica";
+  const rif = (esJ ? $("cli-rif").value.trim() : (numDoc ? tipoDoc + numDoc : "")).replace(/\./g, "");
   return {
     codigo: $("cli-cod").value.trim(),
     rif,
@@ -196,7 +199,7 @@ function seleccionarClienteEnPOS() {
   set("cliente-nombre", c.nombre);
   set("cliente-direccion", c.direccion || "");
   const rif = c.rif || "";
-  const m = /^([VEJ])\s*-/.exec(rif);
+  const m = /^([VEJG])\s*-/.exec(rif);
   if (m) {
     const tipo = document.getElementById("cliente-doc-tipo");
     if (tipo) tipo.value = m[1].toUpperCase() + "-";
@@ -420,14 +423,82 @@ function rellenarCampoSelect(selId, listaKey, valorActual) {
   const val = valorActual || "";
   if (val && lista.indexOf(val) === -1) lista.unshift(val);
   sel.innerHTML = lista.map(v => `<option>${v}</option>`).join("");
-  sel.value = val;
+sel.value = val;
   sel.dataset.lista = listaKey;
+}
+
+// Modal profesional para agregar opciones a catálogos (consistente con Parámetros).
+function uiPromptCampo(title, message, initial) {
+  return new Promise(resolve => {
+    const ov = document.createElement("div");
+    ov.className = "opc-overlay";
+    ov.innerHTML = `
+      <div class="opc-modal">
+        <div class="title-bar"><span class="app-icon">➕</span><span class="title-text">${_escHtml(title)}</span></div>
+        <div class="opc-body">
+          <div class="opc-msg">${_escHtml(message)}</div>
+          <input type="text" id="opc-input" class="opc-input" value="${_escHtml(initial || "")}">
+        </div>
+        <div class="opc-foot">
+          <button class="opc-btn opc-cancel">Cancelar</button>
+          <button class="opc-btn opc-ok">Aceptar</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    const input = ov.querySelector("#opc-input");
+    const ok = ov.querySelector(".opc-ok");
+    const cancel = ov.querySelector(".opc-cancel");
+    const close = v => { ov.remove(); resolve(v); };
+    ok.onclick = () => close(input.value);
+    cancel.onclick = () => close(null);
+    ov.addEventListener("mousedown", e => { if (e.target === ov) close(null); });
+    const onKey = e => {
+      if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); close(input.value); }
+      else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(null); }
+    };
+    document.addEventListener("keydown", onKey);
+    input.addEventListener("keydown", e => e.stopPropagation());
+    input.focus();
+    input.select();
+  });
+}
+
+// Modal profesional de confirmación (consistente con Parámetros).
+function uiConfirmCampo(message) {
+  return new Promise(resolve => {
+    const ov = document.createElement("div");
+    ov.className = "opc-overlay";
+    ov.innerHTML = `
+      <div class="opc-modal">
+        <div class="title-bar"><span class="app-icon">❓</span><span class="title-text">Confirmar</span></div>
+        <div class="opc-body">
+          <div class="opc-msg">${_escHtml(message)}</div>
+        </div>
+        <div class="opc-foot">
+          <button class="opc-btn opc-cancel">No</button>
+          <button class="opc-btn opc-ok">Sí</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    const ok = ov.querySelector(".opc-ok");
+    const cancel = ov.querySelector(".opc-cancel");
+    const close = v => { ov.remove(); resolve(v); };
+    ok.onclick = () => close(true);
+    cancel.onclick = () => close(false);
+    ov.addEventListener("mousedown", e => { if (e.target === ov) close(false); });
+    const onKey = e => {
+      if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); close(true); }
+      else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(false); }
+    };
+    document.addEventListener("keydown", onKey);
+    ok.focus();
+  });
 }
 
 async function agregarOpcionCampo(selId, listaKey) {
   const sel = $(selId);
   if (!sel) return;
-  const nuevo = (await uiPrompt("Ingrese la nueva opción:", "") || "").trim();
+  const nuevo = (await uiPromptCampo("Nueva Opción", `Ingrese la nueva opción para el catálogo "${sel.dataset.lista || listaKey}":`, "") || "").trim();
   if (!nuevo) return;
   if (!DB.parametros[listaKey]) DB.parametros[listaKey] = [];
   if (DB.parametros[listaKey].indexOf(nuevo) === -1) DB.parametros[listaKey].push(nuevo);
@@ -438,7 +509,7 @@ async function agregarOpcionCampo(selId, listaKey) {
 async function eliminarOpcionCampo(selId, listaKey) {
   const sel = $(selId);
   if (!sel || !sel.value) return;
-  if (!await uiConfirm(`¿Eliminar "${sel.value}" del catálogo de ${sel.dataset.lista || listaKey}?`)) return;
+  if (!await uiConfirmCampo(`¿Eliminar "${sel.value}" del catálogo de ${sel.dataset.lista || listaKey}?`)) return;
   DB.parametros[listaKey] = (DB.parametros[listaKey] || []).filter(v => v !== sel.value);
   rellenarCampoSelect(selId, listaKey, sel.value);
   saveDB();

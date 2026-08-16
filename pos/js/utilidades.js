@@ -55,11 +55,6 @@ function cargarPanelDatos() {
     _g("cfg-red-hibrido").checked = h;
   }
   actualizarEstadoRed();
-  if (typeof _g === "function" && _g("cfg-red-ip") && window.desktop && window.desktop.net) {
-    window.desktop.net.status().then(st => {
-      if (st && st.running) _g("cfg-red-ip").value = `${window.location.hostname}`;
-    }).catch(() => {});
-  }
 }
 
 function guardarPoda() {
@@ -77,18 +72,6 @@ function guardarPoda() {
   alert(resumen);
 }
 
-function crearRespaldo() {
-  Storage.backup("manual").then(r => {
-    if (r && r.ok) {
-      auditar("Respaldo manual creado", r.path || "");
-      alert("Respaldo creado en:\n" + (r.path || ""));
-    } else {
-      auditar("Intento de respaldo fallido", "");
-      alert("No se pudo crear el respaldo. " + (r && r.msg || ""));
-    }
-  });
-}
-
 function actualizarEstadoRed() {
   // Si esta caja apunta a un servidor remoto, es una terminal cliente.
   const ip = _g("cfg-red-servidor") ? _g("cfg-red-servidor").value.trim() : DB.parametros.servidorRed || "";
@@ -96,6 +79,7 @@ function actualizarEstadoRed() {
   if (ip && _g("cfg-red-st")) {
     _g("cfg-red-st").textContent = hib ? "Cliente híbrido → " + ip : "Cliente → " + ip;
     _g("cfg-red-status").textContent = "Verifique con 'Probar Conexión'";
+    _g("cfg-red-ip").value = "";
     return;
   }
   if (!_g("cfg-red-st")) return;
@@ -103,9 +87,15 @@ function actualizarEstadoRed() {
     window.desktop.net.status().then(st => {
       const stText = st.running ? "ACTIVO en :" + st.port : "APAGADO";
       _g("cfg-red-st").textContent = "Servidor " + stText + (st.ip ? " · " + st.ip.join(", ") : "");
-    }).catch(() => { _g("cfg-red-st").textContent = "—"; });
+      // Mostrar las IPs reales de la LAN cuando el servidor está activo.
+      _g("cfg-red-ip").value = st.running && st.ip && st.ip.length ? st.ip.join(", ") : "";
+    }).catch(() => {
+      _g("cfg-red-st").textContent = "—";
+      _g("cfg-red-ip").value = "";
+    });
   } else {
     _g("cfg-red-st").textContent = "Servidor solo disponible en escritorio (Electron)";
+    _g("cfg-red-ip").value = "";
   }
 }
 
@@ -430,12 +420,14 @@ async function eliminarRespaldo(id) {
   try { ok = !!(await uiConfirm(`¿Eliminar el respaldo ${id}?`)); }
   catch (e) { ok = confirm(`¿Eliminar el respaldo ${id}?`); }
   if (!ok) return;
-  Storage.removeBackup(id).then(() => {
-    DB.respaldos = DB.respaldos.filter(x => x.id !== id);
-    auditar("Respaldo eliminado", id);
-    saveDB();
-    renderRespaldos();
-  });
+  try {
+    await Storage.removeBackup(id);
+  } catch (e) { console.error("Error borrando respaldo del storage:", e); }
+  DB.respaldos = (DB.respaldos || []).filter(x => x.id !== id);
+  try { if (typeof auditar === "function") auditar("Respaldo eliminado", id); } catch (e) {}
+  saveDB();
+  renderRespaldos();
+  alert("Respaldo eliminado correctamente.");
 }
 
 // Carga un archivo JSON de respaldo exportado (botón "Cargar Archivo").
