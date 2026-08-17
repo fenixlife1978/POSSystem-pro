@@ -1588,6 +1588,7 @@
     <button class="mod-btn" onclick="imprimirOrdenTaller()"><span class="mod-icon">🖨️</span> Imprimir</button>
     <button class="mod-btn" onclick="abrirHistorialTaller()"><span class="mod-icon">🗂️</span> Historial</button>
     <button class="mod-btn" onclick="abrirProximosAceite()"><span class="mod-icon">🛢️</span> Próx. Cambio Aceite</button>
+    <button class="mod-btn" onclick="abrirConsultaOrdenes()"><span class="mod-icon">📋</span> Consulta Órdenes</button>
     <button class="mod-btn" onclick="closeWindow('taller-window')"><span class="mod-icon">🚪</span> Salir</button>
   </div>
   <div class="taller-filters">
@@ -1786,6 +1787,32 @@
       </thead>
       <tbody id="tal-aceite-body"></tbody>
     </table>
+  </div>
+</div>
+
+<!-- ============== CONSULTA DE ÓRDENES DE SERVICIO (búsqueda personalizada) ============== -->
+<div class="window hidden" id="taller-consulta-window">
+  <div class="title-bar">
+    <div class="title-left"><span class="app-icon">📋</span><span class="title-text">Consulta de Órdenes de Servicio</span></div>
+    <div class="title-right">
+      <button class="win-btn">─</button><button class="win-btn">▢</button>
+      <button class="win-btn" onclick="closeWindow('taller-consulta-window')">✕</button>
+    </div>
+  </div>
+  <div class="module-content">
+    <div class="taller-filters">
+      <span>Buscar:</span><input type="text" id="tal-csl-search" class="input-medium" oninput="filtrarConsultaOrdenes()" placeholder="Cliente, placa, marca, modelo o trabajo...">
+      <span>Estado:</span><select id="tal-csl-estado" onchange="filtrarConsultaOrdenes()"><option>Todos</option><option>Recibido</option><option>En Proceso</option><option>Listo</option><option>Entregado</option><option>Anulada</option></select>
+      <span>Desde:</span><input type="text" id="tal-csl-desde" class="input-small" oninput="filtrarConsultaOrdenes()" placeholder="dd/mm/aaaa">
+      <span>Hasta:</span><input type="text" id="tal-csl-hasta" class="input-small" oninput="filtrarConsultaOrdenes()" placeholder="dd/mm/aaaa">
+    </div>
+    <table class="grid full-grid">
+      <thead>
+        <tr><th>N° Orden</th><th>Cliente</th><th>Vehículo</th><th>Trabajo</th><th>Recepción</th><th>Hora Ingreso</th><th>Entrega</th><th>Hora Entrega</th><th>Total Bs.</th><th>Estado</th></tr>
+      </thead>
+      <tbody id="tal-csl-body"></tbody>
+    </table>
+    <div id="tal-csl-detalle"></div>
   </div>
 </div>
 

@@ -809,6 +809,99 @@ function renderProximosAceite() {
     : '<tr><td colspan="5" style="text-align:center;color:#888">Sin vehículos en este rango.</td></tr>';
 }
 
+// ===== CONSULTA DE ÓRDENES DE SERVICIO (búsqueda personalizada) =====
+let consultaOrdenNro = null;
+
+function abrirConsultaOrdenes() {
+  consultaOrdenNro = null;
+  openModuleWindow("taller-consulta");
+  renderConsultaOrdenes();
+}
+
+function filtrarConsultaOrdenes() {
+  renderConsultaOrdenes();
+}
+
+function consultaOrdenesData() {
+  const q = (_t$("tal-csl-search").value || "").trim().toLowerCase();
+  const est = (_t$("tal-csl-estado") || {}).value || "Todos";
+  const desde = (_t$("tal-csl-desde").value || "").trim();
+  const hasta = (_t$("tal-csl-hasta").value || "").trim();
+  const qPlaca = q.replace(/[^a-zA-Z0-9]/g, "");
+  return DB.ordenesTaller.slice().reverse().filter(o => {
+    if (est !== "Todos" && o.estado !== est) return false;
+    if (q) {
+      const texto = [
+        o.nro, o.cliente, o.placa, o.marca, o.modelo, o.trabajo, o.anio, o.color, o.notas
+      ].filter(Boolean).join(" ").toLowerCase();
+      const placaNorm = (o.placa || "").toLowerCase().replace(/[^a-zA-Z0-9]/g, "");
+      if (!(texto.includes(q) || (qPlaca && placaNorm.includes(qPlaca)))) return false;
+    }
+    const fec = o.fechaIngreso || o.fecha || "";
+    if (desde && fechaFechaKey(fec) < fechaFechaKey(desde)) return false;
+    if (hasta && fechaFechaKey(fec) > fechaFechaKey(hasta)) return false;
+    return true;
+  });
+}
+
+function renderConsultaOrdenes() {
+  const body = _t$("tal-csl-body");
+  const det = _t$("tal-csl-detalle");
+  if (!body) return;
+  const rows = consultaOrdenesData();
+  body.innerHTML = rows.map(o =>
+    `<tr data-nro="${o.nro}" class="${(o.nro === consultaOrdenNro ? "selected " : "") + "cursor"}" onclick="selectConsultaOrden('${o.nro}', this)">
+      <td>${o.nro}</td>
+      <td>${_escHtml(o.cliente)}</td>
+      <td>${o.placa ? `<b class="taller-placa">${_escHtml(o.placa)}</b> ${_escHtml([o.marca, o.modelo].filter(Boolean).join(" "))}` : "—"}</td>
+      <td>${_escHtml(o.trabajo || "")}</td>
+      <td>${_escHtml(o.fechaIngreso || o.fecha || "")}</td>
+      <td>${_escHtml(o.horaIngreso || o.hora || "")}</td>
+      <td>${_escHtml(o.fechaEntrega || "—")}</td>
+      <td>${_escHtml(o.horaEntrega || "—")}</td>
+      <td style="text-align:right">${fmt(ordenTotalBs(o))}</td>
+      <td>${tallerEstadoBadge(o.estado)}</td>
+    </tr>`
+  ).join("") || '<tr><td colspan="10" style="text-align:center;color:#888">Sin órdenes que coincidan con la búsqueda.</td></tr>';
+  const detEl = _t$("tal-csl-detalle");
+  if (detEl) detEl.innerHTML = "";
+  if (rows.length && !rows.find(r => r.nro === consultaOrdenNro)) {
+    selectConsultaOrden(rows[0].nro, body.querySelector("tr"));
+  }
+}
+
+function selectConsultaOrden(nro, row) {
+  consultaOrdenNro = nro;
+  document.querySelectorAll("#tal-csl-body tr").forEach(tr => tr.classList.remove("selected"));
+  if (row) row.classList.add("selected");
+  const o = DB.ordenesTaller.find(x => x.nro === nro);
+  if (!o) return;
+  const t = getTasa() || 1;
+  const veh = [o.placa, o.marca, o.modelo, o.anio, o.color].filter(Boolean).join(" ");
+  const recepcion = (o.fechaIngreso || o.fecha || "") + (o.horaIngreso || o.hora ? " " + (o.horaIngreso || o.hora) : "");
+  const entrega = o.fechaEntrega ? (o.fechaEntrega + (o.horaEntrega ? " " + o.horaEntrega : "")) : "—";
+  const lineas = (o.lineas || []).length && (o.lineas || []).map(l =>
+    `<tr><td>${_escHtml(l.codigo)}</td><td>${_escHtml(l.descripcion)}</td>` +
+    `<td style="text-align:right">${fmt(l.cantidad)}</td><td style="text-align:right">${fmt(l.precio)}</td>` +
+    `<td style="text-align:right">${fmt(num(l.totalUSD || (l.precioUSD || l.precio / t) * l.cantidad))}</td>` +
+    `<td style="text-align:right">${fmt(l.total)}</td></tr>`).join("");
+  const sub = ordenTotalBs(o);
+  const iva = sub * (getIva() / 100);
+  _t$("tal-csl-detalle").innerHTML =
+    `<div class="taller-veh-box" style="background:#eef3fb;margin-top:10px">
+       <div><b>Orden:</b> ${o.nro} · <b>Cliente:</b> ${_escHtml(o.cliente)} · <b>Vehículo:</b> <span class="taller-placa">${_escHtml(veh || "—")}</span></div>
+       <div><b>Trabajo / Diagnóstico:</b> ${_escHtml(o.trabajo || "—")}</div>
+       <div><b>Recepción:</b> ${_escHtml(recepcion)} · <b>Entrega:</b> ${_escHtml(entrega)}</div>
+       ${o.ventaRef ? `<div><b>Factura:</b> ${_escHtml(o.ventaRef)}</div>` : ""}
+       ${o.notas ? `<div><b>Notas:</b> ${_escHtml(o.notas)}</div>` : ""}
+     </div>
+     <fieldset class="panel"><legend>Servicios / Repuestos de la Orden ${o.nro}</legend>
+       <table class="grid"><thead><tr><th>Código</th><th>Descripción</th><th>Cant.</th><th>Precio Bs.</th><th>USD</th><th>Total Bs.</th></tr></thead>
+       <tbody>${lineas || '<tr><td colspan="6" style="text-align:center;color:#888">Sin líneas</td></tr>'}</tbody></table>
+       <div class="cotiz-totals">Sub-Total: <b>${fmt(sub)}</b> · I.V.A. (${getIva()}%): <b>${fmt(iva)}</b> · TOTAL: <b>${fmt(sub + iva)} Bs.</b></div>
+     </fieldset>`;
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   renderOrdenesTaller();
   const prod = _t$("tal-n-prod");

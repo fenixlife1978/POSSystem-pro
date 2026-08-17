@@ -15,7 +15,7 @@ const PERMISOS = {
       "cli-deuda",
       "proveedores",
       "prov-deuda",
-      "taller", "taller-nueva", "taller-hist", "taller-aceite",
+      "taller", "taller-nueva", "taller-hist", "taller-aceite", "taller-consulta",
       "devoluciones",
       "ultima-factura",
       "caja", "apertura", "cierre", "arqueo", "movcaja", "cierre-resumen"
@@ -28,7 +28,7 @@ const PERMISOS = {
   "Consulta": {
     modulos: new Set([
       "pos", "buscar", "ultima-factura",
-      "clientes", "productos", "servicios", "taller", "taller-hist", "taller-aceite", "cotizaciones",
+      "clientes", "productos", "servicios", "taller", "taller-hist", "taller-aceite", "taller-consulta", "cotizaciones",
       "devoluciones", "inventario", "reportes", "proveedores",
       "caja", "arqueo", "contabilidad"
     ]),
