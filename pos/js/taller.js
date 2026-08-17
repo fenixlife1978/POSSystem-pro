@@ -672,6 +672,143 @@ function imprimirOrdenTaller() {
   imprimirDocumentoHTML("Orden de Servicio " + o.nro, body);
 }
 
+// ===== HISTORIAL DE SERVICIOS POR CLIENTE (búsqueda inteligente) =====
+function abrirHistorialTaller() {
+  const s = _t$("tal-his-search");
+  if (s) s.value = "";
+  const res = _t$("tal-his-results");
+  if (res) res.innerHTML = "";
+  const det = _t$("tal-his-detalle");
+  if (det) det.innerHTML = "";
+  if (s) setTimeout(() => s.focus(), 40);
+  openModuleWindow("taller-hist");
+}
+
+function buscarClienteTallerHistorial() {
+  const q = (_t$("tal-his-search").value || "").trim();
+  const res = _t$("tal-his-results");
+  if (!res) return;
+  if (!q) { res.innerHTML = ""; res.style.display = "none"; return; }
+  const ql = q.toLowerCase();
+  const qPlaca = ql.replace(/[^a-z0-9]/g, "");
+  const matches = DB.clientes.filter(c => {
+    const nombre = (c.nombre || "").toLowerCase();
+    const rif = (c.rif || "").toLowerCase();
+    const codigo = (c.codigo || "").toLowerCase();
+    if (nombre.includes(ql) || rif.includes(ql) || codigo.includes(ql)) return true;
+    return (c.vehiculos || []).some(v => (v.placa || "").toLowerCase().replace(/[^a-z0-9]/g, "") === qPlaca);
+  }).slice(0, 8);
+  if (!matches.length) {
+    res.innerHTML = '<div class="prov-result" style="color:#888">Sin clientes encontrados.</div>';
+    res.style.display = "block";
+    return;
+  }
+  res.innerHTML = matches.map(c => {
+    const vehs = (c.vehiculos || []).length
+      ? `<span style="color:#666"> · ${c.vehiculos.length} vehículo(s): ${c.vehiculos.map(v => v.placa).filter(Boolean).join(", ")}</span>` : "";
+    return `<div class="prov-result" onclick="selectorClienteTaller('${_escHtml(c.codigo)}')">${_escHtml(c.nombre)} (${_escHtml(c.rif || "")})${vehs}</div>`;
+  }).join("");
+  res.style.display = "block";
+}
+
+function onClienteHistorialKey(e) {
+  if (e.key === "Enter") {
+    const first = _t$("tal-his-results").querySelector(".prov-result");
+    if (first) { e.preventDefault(); first.click(); }
+  }
+  if (e.key === "Escape") { _t$("tal-his-results").style.display = "none"; }
+}
+
+function selectorClienteTaller(codigo) {
+  const c = DB.clientes.find(x => x.codigo === codigo);
+  if (!c) return;
+  _t$("tal-his-results").style.display = "none";
+  _t$("tal-his-search").value = c.nombre;
+  renderHistorialClienteTaller(c);
+}
+
+function renderHistorialClienteTaller(c) {
+  const det = _t$("tal-his-detalle");
+  if (!det) return;
+  const vehs = (c.vehiculos || []).slice();
+  const vehList = vehs.length
+    ? vehs.map(v => {
+        const ordenes = DB.ordenesTaller.filter(o => o.cliente === c.nombre &&
+          (v.placa && o.placa && o.placa.toUpperCase().replace(/\s+/g, "") === v.placa.toUpperCase().replace(/\s+/g, "") ||
+           (!v.placa && !o.placa)));
+        const ext = contadorCambioAceite(c.nombre, v.placa);
+        const aceite = ext
+          ? (ext.restantes > 0
+              ? `<span style="color:#0a7a0a">Próx. ${ext.proxima} (${ext.restantes} días)</span>`
+              : `<b style="color:#b00000">REQUIERE SERVICIO (${ext.fecha})</b>`)
+          : null;
+        return `<div class="taller-veh-box">
+          <div><b>Vehículo:</b> <span class="taller-placa">${_escHtml(v.placa || "—")}</span> ${_escHtml([v.marca, v.modelo, v.anio, v.color].filter(Boolean).join(" "))} ${aceite ? ` · ${aceite}` : ""}</div>
+          ${renderServiciosVehiculo(c, v.placa, ordenes)}
+        </div>`;
+      }).join("")
+    : '<div style="color:#888;padding:8px">Este cliente no tiene vehículos registrados.</div>';
+
+  det.innerHTML =
+    `<div class="taller-veh-box" style="background:#eef3fb">
+       <div><b>Cliente:</b> ${_escHtml(c.nombre)} (${_escHtml(c.rif || "")})</div>
+       <div><b>Órdenes de servicio totales:</b> ${DB.ordenesTaller.filter(o => o.cliente === c.nombre).length}</div>
+     </div>` + vehList;
+}
+
+function renderServiciosVehiculo(c, placa, ordenes) {
+  const norm = p => String(p || "").toUpperCase().replace(/\s+/g, "");
+  const rows = ordenes.slice().sort((a, b) => (b.fecha || "").localeCompare(a.fecha || ""));
+  if (!rows.length) return '<div style="color:#888;padding:4px">Sin servicios registrados para este vehículo.</div>';
+  return `<table class="grid"><thead><tr><th>N° Orden</th><th>Fecha</th><th>Trabajo / Diagnóstico</th><th>Total Bs.</th><th>Estado</th></tr></thead><tbody>
+    ${rows.map(o => `<tr><td>${o.nro}</td><td>${o.fecha}</td><td>${_escHtml(o.trabajo || "")}</td><td style="text-align:right">${fmt(ordenTotalBs(o))}</td><td>${tallerEstadoBadge(o.estado)}</td></tr>`).join("")}
+  </tbody></table>`;
+}
+
+// ===== PRÓXIMOS CAMBIOS DE ACEITE (consulta por rangos) =====
+function abrirProximosAceite() {
+  openModuleWindow("taller-aceite");
+  renderProximosAceite();
+}
+
+function renderProximosAceite() {
+  const rango = _t$("tal-aceite-rango").value;
+  const body = _t$("tal-aceite-body");
+  const info = _t$("tal-aceite-info");
+  if (!body) return;
+  const diasTot = Math.max(1, num(DB.parametros.diasCambioAceite) || 90);
+  const hoyD = hoy();
+  const list = (DB.cambioAceite || []).slice().map(r => {
+    const proxima = r.proxima || sumarDias(r.fecha, diasTot);
+    const restantes = diasEntre(hoyD, proxima);
+    const diasDesde = diasTot - restantes;
+    return { ...r, proxima, restantes, diasDesde };
+  });
+
+  const filas = list.filter(r => {
+    if (rango === "15") return r.restantes >= 1 && r.restantes <= 15;
+    if (rango === "30") return r.restantes >= 1 && r.restantes <= 30;
+    return diasDesde >= diasTot; // vencido
+  }).sort((a, b) => a.restantes - b.restantes);
+
+  const txt = {
+    "15": `Vehículos cuyo cambio de aceite vence en los próximos <b>1 a 15 días</b> (período total de ${diasTot} días).`,
+    "30": `Vehículos cuyo cambio de aceite vence en los próximos <b>1 a 30 días</b> (período total de ${diasTot} días).`,
+    "venc": `Vehículos con <b>cambio de aceite VENCIDO</b> (superado el plazo de ${diasTot} días).`
+  }[rango] || "";
+  if (info) { info.innerHTML = txt + (filas.length ? ` Encontrados: <b>${filas.length}</b>.` : " Sin resultados."); }
+
+  body.innerHTML = filas.length ? filas.map(r =>
+    `<tr>
+      <td>${_escHtml(r.cliente) || "—"}</td>
+      <td>${_escHtml([r.placa, r.marca, r.modelo].filter(Boolean).join(" ")) || "—"}</td>
+      <td>${_escHtml(r.fecha)}</td>
+      <td>${_escHtml(r.proxima)}</td>
+      <td style="text-align:right">${r.restantes <= 0 ? `<b style="color:#b00000">VENCIDO</b>` : `<b style="color:#92400e">${r.restantes} día${r.restantes === 1 ? "" : "s"}</b>`}</td>
+    </tr>`).join("")
+    : '<tr><td colspan="5" style="text-align:center;color:#888">Sin vehículos en este rango.</td></tr>';
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   renderOrdenesTaller();
   const prod = _t$("tal-n-prod");

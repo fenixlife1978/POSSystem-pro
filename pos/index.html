@@ -1586,6 +1586,8 @@
     <button class="mod-btn" onclick="editarOrdenTaller()"><span class="mod-icon">✏️</span> Editar</button>
     <button class="mod-btn" onclick="document.getElementById('tal-search').focus()"><span class="mod-icon">🔍</span> Buscar</button>
     <button class="mod-btn" onclick="imprimirOrdenTaller()"><span class="mod-icon">🖨️</span> Imprimir</button>
+    <button class="mod-btn" onclick="abrirHistorialTaller()"><span class="mod-icon">🗂️</span> Historial</button>
+    <button class="mod-btn" onclick="abrirProximosAceite()"><span class="mod-icon">🛢️</span> Próx. Cambio Aceite</button>
     <button class="mod-btn" onclick="closeWindow('taller-window')"><span class="mod-icon">🚪</span> Salir</button>
   </div>
   <div class="taller-filters">
@@ -1735,6 +1737,55 @@
     <div class="pago-actions">
       <button class="mod-btn" onclick="cerrarRecordatorioServicios()">✅ Entendido</button>
     </div>
+  </div>
+</div>
+
+<!-- ============== HISTORIAL DEL CLIENTE (búsqueda inteligente por cliente / vehículo) ============== -->
+<div class="window hidden" id="taller-hist-window">
+  <div class="title-bar">
+    <div class="title-left"><span class="app-icon">🗂️</span><span class="title-text">Historial de Servicios por Cliente</span></div>
+    <div class="title-right">
+      <button class="win-btn">─</button><button class="win-btn">▢</button>
+      <button class="win-btn" onclick="closeWindow('taller-hist-window')">✕</button>
+    </div>
+  </div>
+  <div class="module-content">
+    <fieldset class="panel">
+      <legend>Buscar Cliente</legend>
+      <div class="prov-search">
+        <input type="text" id="tal-his-search" class="input-wide" autocomplete="off" placeholder="Nombre, cédula/RIF, código o placa de un vehículo..." oninput="buscarClienteTallerHistorial()" onkeydown="onClienteHistorialKey(event)">
+        <div class="prov-results" id="tal-his-results"></div>
+      </div>
+    </fieldset>
+    <div id="tal-his-detalle"></div>
+  </div>
+</div>
+
+<!-- ============== PRÓXIMOS CAMBIOS DE ACEITE (consulta por rangos) ============== -->
+<div class="window hidden" id="taller-aceite-window">
+  <div class="title-bar">
+    <div class="title-left"><span class="app-icon">🛢️</span><span class="title-text">Vehículos — Próximos Cambios de Aceite</span></div>
+    <div class="title-right">
+      <button class="win-btn">─</button><button class="win-btn">▢</button>
+      <button class="win-btn" onclick="closeWindow('taller-aceite-window')">✕</button>
+    </div>
+  </div>
+  <div class="module-content">
+    <div class="taller-filters">
+      <span>Rango de búsqueda:</span>
+      <select id="tal-aceite-rango" onchange="renderProximosAceite()">
+        <option value="15">De 1 a 15 días</option>
+        <option value="30">De 1 a 30 días</option>
+        <option value="venc">Plazo de 90 días vencidos</option>
+      </select>
+    </div>
+    <div class="rec-aviso" id="tal-aceite-info"></div>
+    <table class="grid full-grid">
+      <thead>
+        <tr><th>Cliente (Dueño)</th><th>Vehículo</th><th>Último Cambio</th><th>Próximo Servicio</th><th>Resta</th></tr>
+      </thead>
+      <tbody id="tal-aceite-body"></tbody>
+    </table>
   </div>
 </div>
 

@@ -3,6 +3,8 @@
 #taller-nueva-window.floating { width: 1080px; }
 #taller-credito-window.floating { width: 480px; }
 #taller-rec-window.floating { width: 760px; }
+#taller-hist-window.floating { width: 860px; }
+#taller-aceite-window.floating { width: 760px; }
 #compartir-window.floating { width: 560px; }
 #compartir-window #compartir-area { width: 100%; }
 
@@ -104,6 +106,27 @@
 }
 #taller-nueva-window .prov-result:hover { background: #dfe8ff; }
 #taller-nueva-window .prov-results { display: none; border: 1px solid #888; max-height: 180px; overflow-y: auto; }
+
+#taller-hist-window .prov-results,
+#taller-hist-window .prov-result,
+#taller-aceite-window .prov-results,
+#taller-aceite-window .prov-result {
+  position: static;
+  display: block;
+  width: 100%;
+  padding: 4px 6px;
+  margin: 0;
+  cursor: pointer;
+  font-size: 12px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-top: none;
+  text-align: left;
+}
+#taller-hist-window .prov-result:hover,
+#taller-aceite-window .prov-result:hover { background: #dfe8ff; }
+#taller-hist-window .prov-results,
+#taller-aceite-window .prov-results { display: none; border: 1px solid #888; max-height: 180px; overflow-y: auto; }
 
 /* Contador regresivo de cambio de aceite en la ficha */
 .taller-aceite {
