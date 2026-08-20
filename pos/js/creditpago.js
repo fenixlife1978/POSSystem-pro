@@ -355,7 +355,7 @@ function _datosCxC() {
       : datos.map(c => [c.nro, c.fecha, c.vencimiento || (c.tipo === "abierta" ? "Abierta" : ""), c.nombre, etiquetaDebida(c), fmtUS(c.total), fmtUS(c.pagado || 0), fmtUS(c.saldo), estadoCuentaCXC(c)])
   };
 }
-function exportarPDFCxC() { const d = _datosCxC(); exportarPDF("Cuentas por Cobrar", d.headers, d.rows); }
+function exportarExcelCxC() { const d = _datosCxC(); exportarExcel("Cuentas por Cobrar", d.headers, d.rows); }
 function compartirCxC() { const d = _datosCxC(); compartirPDF("Cuentas por Cobrar", d.headers, d.rows); }
 
 // Re-render disparado desde el POS tras un cobro de deuda
@@ -586,7 +586,7 @@ function _datosCxP() {
     rows: datos.map(c => [c.nro, c.fecha, c.proveedor, etiquetaDebida(c), fmtUS(c.total), fmtUS(c.pagado || 0), fmtUS(c.saldo), estadoCuentaCXP(c)])
   };
 }
-function exportarPDFCxP() { const d = _datosCxP(); exportarPDF("Cuentas por Pagar", d.headers, d.rows); }
+function exportarExcelCxP() { const d = _datosCxP(); exportarExcel("Cuentas por Pagar", d.headers, d.rows); }
 function compartirCxP() { const d = _datosCxP(); compartirPDF("Cuentas por Pagar", d.headers, d.rows); }
 
 // ---------------------------------------------------------------------------

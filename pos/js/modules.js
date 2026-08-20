@@ -690,7 +690,7 @@ function exportarProductos() { exportarCSV("productos", ["Codigo", "Descripcion"
 function _datosProductos() {
   return { headers: ["Código", "Descripción", "Categoría", "Costo $", "PVP $", "PVP Bs.", "Existencia"], rows: DB.productos.map(p => [p.codigo, p.descripcion, p.categoria, fmt(p.costoUSD || 0), fmt(p.precioUSD || 0), fmt(p.precio || 0), fmt(p.existencia || 0)]) };
 }
-function exportarPDFProductos() { const d = _datosProductos(); exportarPDF("Listado de Productos", d.headers, d.rows); }
+function exportarExcelProductos() { const d = _datosProductos(); exportarExcel("Listado de Productos", d.headers, d.rows); }
 function compartirProductos() { const d = _datosProductos(); compartirPDF("Listado de Productos", d.headers, d.rows); }
 
 // ===== COTIZACIONES =====
@@ -1880,11 +1880,11 @@ function _compraSeleccionada() {
 function _datosCompra(c) {
   return { headers: ["Código", "Descripción", "Cantidad", "Costo", "Total"], rows: (c.lineas || []).map(l => [l.codigo, l.descripcion, fmt(l.cantidad), fmt(l.costo), fmt(l.total)]) };
 }
-function exportarPDFCompra() {
+function exportarExcelCompra() {
   const c = _compraSeleccionada();
   if (!c) return alert("Seleccione una compra");
   const d = _datosCompra(c);
-  exportarPDF(`Compra ${c.nro} — ${c.proveedor}`, d.headers, d.rows);
+  exportarExcel(`Compra ${c.nro} — ${c.proveedor}`, d.headers, d.rows);
 }
 function compartirCompra() {
   const c = _compraSeleccionada();
@@ -2043,7 +2043,7 @@ function _datosInventario() {
     rows: DB.productos.map(p => [p.codigo, p.descripcion, fmt(p.existencia), fmt(p.reservado), fmt(p.existencia - p.reservado), fmt(p.minimo), fmt(p.costoUSD || 0), fmt(p.precioUSD || 0), fmt(p.precio)])
   };
 }
-function exportarPDFInventario() { const d = _datosInventario(); exportarPDF("Existencias Actuales", d.headers, d.rows); }
+function exportarExcelInventario() { const d = _datosInventario(); exportarExcel("Existencias Actuales", d.headers, d.rows); }
 function compartirInventario() { const d = _datosInventario(); compartirPDF("Existencias Actuales", d.headers, d.rows); }
 
 // ===== REPORTES =====

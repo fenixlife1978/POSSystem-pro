@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("desktop", {
   version: process.versions.electron,
   exportarPDF: (titulo, html) => ipcRenderer.invoke("pdf-export", { titulo, html }),
+  exportarExcel: (titulo, xml) => ipcRenderer.invoke("excel-export", { titulo, xml }),
   // Almacenamiento SQLite local (principal en Electron)
   sqlite: {
     load: () => ipcRenderer.invoke("sqlite-load"),

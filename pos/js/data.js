@@ -329,6 +329,141 @@ function exportarPDF(titulo, headers, rows, total, opts) {
   exportarDocumentoPDF(titulo, body);
 }
 
+// ===== EXPORTAR A EXCEL (XML Spreadsheet 2003) =====
+// Genera un libro Excel real (.xls) con hoja tipo carta (Letter), orientación
+// vertical y fuente tamaño normal (11). Sin dependencias externas.
+function _excelEscape(v) {
+  return String(v == null ? "" : v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function _excelNum(v) {
+  return /([0-9])/.test(String(v == null ? "" : v)) ? String(v).replace(/[^0-9.\-]/g, "") : "";
+}
+
+// Devuelve el XML Spreadsheet 2003 completo.
+function _excelXml(titulo, headers, rows, total, opts) {
+  const p = DB.parametros || {};
+  const nombre = _excelEscape((p.nombreEmpresa || "MI EMPRESA, C.A.").toUpperCase());
+  const rif = p.rif ? "RIF: " + _excelEscape(p.rif) : "";
+  const f = `${hoy()} ${hora12()}`;
+  const subtitulo = opts && opts.subtitulo ? _excelEscape(opts.subtitulo) : "";
+
+  const numClass = headers.map(h => _colNumero(h));
+
+  const headerCells = headers.map(h => `<Cell ss:StyleID="Header"><Data ss:Type="String">${_excelEscape(h)}</Data></Cell>`).join("");
+  const bodyRows = rows.map(r =>
+    "<Row>" + r.map((c, i) =>
+      numClass[i]
+        ? `<Cell ss:StyleID="Num"><Data ss:Type="Number">${_excelNum(c)}</Data></Cell>`
+        : `<Cell ss:StyleID="Default"><Data ss:Type="String">${_excelEscape(c)}</Data></Cell>`
+    ).join("") + "</Row>"
+  ).join("");
+
+  const totalRow = (total !== null && total !== undefined)
+    ? `<Row><Cell ss:StyleID="Total" ss:MergeAcross="${headers.length - 1}"><Data ss:Type="String">TOTAL: ${_excelEscape(fmt(total))}</Data></Cell></Row>`
+    : "";
+
+  const stamp = p.sello || "*** ORIGINAL ***";
+
+  return `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+<Styles>
+  <Style ss:ID="Default" ss:Name="Normal">
+    <Alignment ss:Vertical="Center"/>
+    <Font ss:FontName="Calibri" ss:Size="11"/>
+  </Style>
+  <Style ss:ID="Header">
+    <Alignment ss:Vertical="Center"/>
+    <Font ss:FontName="Calibri" ss:Size="11" ss:Bold="1" ss:Color="#FFFFFF"/>
+    <Interior ss:Color="#0B3D91" ss:Pattern="Solid"/>
+    <Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/></Borders>
+  </Style>
+  <Style ss:ID="Num">
+    <Alignment ss:Horizontal="Right" ss:Vertical="Center"/>
+    <Font ss:FontName="Calibri" ss:Size="11" ss:Format="0.00"/>
+  </Style>
+  <Style ss:ID="Total">
+    <Alignment ss:Vertical="Center"/>
+    <Font ss:FontName="Calibri" ss:Size="11" ss:Bold="1"/>
+    <Interior ss:Color="#E9EEF9" ss:Pattern="Solid"/>
+    <Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="2"/></Borders>
+  </Style>
+  <Style ss:ID="Titulo">
+    <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+    <Font ss:FontName="Calibri" ss:Size="14" ss:Bold="1" ss:Color="#0B3D91"/>
+  </Style>
+</Styles>
+<Worksheet ss:Name="${_excelEscape((titulo || "Reporte").slice(0, 31))}">
+  <Table>
+    <Column ss:AutoFitWidth="1" ss:Width="120"/>
+    <Row ss:Height="22">
+      <Cell ss:StyleID="Header" ss:MergeAcross="${headers.length - 1}"><Data ss:Type="String">${nombre}${rif ? "  —  " + rif : ""}</Data></Cell>
+    </Row>
+    <Row ss:Height="18">
+      <Cell ss:StyleID="Titulo" ss:MergeAcross="${headers.length - 1}"><Data ss:Type="String">${_excelEscape(titulo)}</Data></Cell>
+    </Row>
+    ${subtitulo ? `<Row ss:Height="16"><Cell ss:MergeAcross="${headers.length - 1}"><Data ss:Type="String">${subtitulo}</Data></Cell></Row>` : ""}
+    <Row ss:Height="16">
+      <Cell ss:MergeAcross="${headers.length - 1}"><Data ss:Type="String">Emitido: ${f}  |  Usuario: ${_excelEscape(p.cajero || "ADMIN")}</Data></Cell>
+    </Row>
+    <Row ss:Height="10"/>
+    <Row>${headerCells}</Row>
+    ${bodyRows}
+    ${totalRow}
+    <Row ss:Height="10"/>
+    <Row>
+      <Cell ss:MergeAcross="${headers.length - 1}"><Data ss:Type="String">Documento generado electrónicamente por el Sistema POS de ${_excelEscape(p.nombreEmpresa || "MI EMPRESA")}</Data></Cell>
+    </Row>
+  </Table>
+  <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">
+    <PageSetup>
+      <Layout x:Orientation="Portrait" x:CenterHorizontal="1"/>
+      <Header x:Margin="0.5"/>
+      <Footer x:Margin="0.5" x:Data="&amp;C${_excelEscape(stamp)}"/>
+      <PageMargins x:Bottom="0.7" x:Left="0.7" x:Right="0.7" x:Top="0.7"/>
+    </PageSetup>
+    <Print>
+      <ValidPrinterInfo/>
+      <PaperSizeIndex>1</PaperSizeIndex>
+      <HorizontalResolution>600</HorizontalResolution>
+      <VerticalResolution>600</VerticalResolution>
+    </Print>
+    <Selected/>
+    <FreezePanes/>
+    <FrozenNoSplit/>
+    <SplitHorizontal>1</SplitHorizontal>
+    <TopRowBottomPane>1</TopRowBottomPane>
+    <ActivePane>0</ActivePane>
+    <Panes><Pane><Number>3</Number></Pane></Panes>
+  </WorksheetOptions>
+</Worksheet>
+</Workbook>`;
+}
+
+// Exporta a Excel (.xls) usando el bridge Electron (diálogo para guardar) o descarga directa en navegador.
+function exportarExcel(titulo, headers, rows, total, opts) {
+  const xml = _excelXml(titulo, headers, rows, total, opts);
+  if (window.desktop && typeof window.desktop.exportarExcel === "function") {
+    window.desktop.exportarExcel(titulo, xml).then(r => {
+      if (r && r.ok) alert("Excel exportado: " + r.filePath);
+      else if (r && r.msg) alert(r.msg);
+    }).catch(() => alert("No se pudo exportar el Excel."));
+  } else {
+    const blob = new Blob(["\ufeff" + xml], { type: "application/vnd.ms-excel" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = (titulo || "reporte").replace(/[\\/:*?"<>|]+/g, "_") + ".xls";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 200);
+  }
+}
+
 // Exporta un documento con cuerpo HTML propio (cotizaciones, facturas, órdenes de servicio, etc.)
 function exportarDocumentoPDF(titulo, bodyHtml) {
   if (window.desktop && typeof window.desktop.exportarPDF === "function") {

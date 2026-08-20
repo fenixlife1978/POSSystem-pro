@@ -239,6 +239,27 @@ ipcMain.handle("pdf-export", async (event, payload) => {
   }
 });
 
+ipcMain.handle("excel-export", async (event, payload) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  const titulo = (payload && payload.titulo) || "Documento";
+  const xml = payload && payload.xml;
+  if (typeof xml !== "string" || !xml.trim()) {
+    return { ok: false, msg: "Sin contenido para exportar." };
+  }
+  const safe = (String(titulo).replace(/[\\/:*?"<>|]+/g, "_").replace(/\s+/g, " ").trim().slice(0, 80)) || "documento";
+  const { canceled, filePath } = await dialog.showSaveDialog(win, {
+    defaultPath: safe + ".xls",
+    filters: [{ name: "Libro de Excel", extensions: ["xls"] }]
+  });
+  if (canceled || !filePath) return { ok: false, msg: "Operación cancelada." };
+  try {
+    await fs.writeFile(filePath, "\uFEFF" + xml, "utf8");
+    return { ok: true, filePath };
+  } catch (e) {
+    return { ok: false, msg: "Error al generar el Excel: " + String(e && e.message || e) };
+  }
+});
+
 ipcMain.handle("sqlite-load", () => sqliteLoad());
 ipcMain.handle("sqlite-save", (_e, data) => sqliteSave(data));
 ipcMain.handle("sqlite-backup", (_e, label) => sqliteBackup(label || "manual"));
